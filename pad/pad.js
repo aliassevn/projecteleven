@@ -276,6 +276,9 @@
     stopPhotoTimers();
     if (!L) { return; }
 
+    // Opgeslagen paginanummer kan buiten een oudere of kortere layout vallen.
+    if (!L.pages || !L.pages.length) { return; }
+    if (!(app.page >= 0 && app.page < L.pages.length)) { app.page = 0; }
     renderTabs();
     var page = L.pages[app.page];
     var cols = L.columns || 5, rows = L.rows || 3;
@@ -346,6 +349,36 @@
     }
   }
 
+  // Statussleutel: ingebouwd ("muted"), Home Assistant ("ha:light.x") of MQTT ("mqtt:huis/state").
+  var TRUTHY = { on: 1, 'true': 1, '1': 1, yes: 1, aan: 1, open: 1, online: 1 };
+  function stateEntity(key) {
+    if (key.indexOf('ha:') === 0) { return (app.values.ha || {})[key.slice(3)] || { status: 'waiting' }; }
+    return null;
+  }
+  function stateOn(key) {
+    var e = stateEntity(key);
+    if (e) { return e.on === true; }
+    if (key.indexOf('mqtt:') === 0) {
+      var v = (app.values.mqtt || {})[key.slice(5)];
+      return typeof v === 'string' && TRUTHY[v.replace(/^\s+|\s+$/g, '').toLowerCase()] === 1;
+    }
+    return app.values[key] === true;
+  }
+  /// Niet bereikbaar: koppeling weg, apparaat onbekend of offline.
+  function stateStale(key) {
+    var e = stateEntity(key);
+    if (e) { return e.status !== 'ok'; }
+    if (key.indexOf('mqtt:') === 0) {
+      return (app.values.integrations || {}).mqtt !== 'connected' || (app.values.mqtt || {})[key.slice(5)] === undefined;
+    }
+    return false;
+  }
+  function stateLevel(key) {
+    var e = stateEntity(key);
+    if (e) { return e.status === 'ok' ? e.level : undefined; }
+    return app.values[key];
+  }
+
   function updateValues() {
     var nodes = $('pad').childNodes;
     var toggles = app.values.toggles || {};
@@ -353,9 +386,11 @@
       var key = nodes[i].getAttribute('data-state');
       var tog = nodes[i].getAttribute('data-toggle');
       if (!key && !tog) { continue; }
-      var on = key ? app.values[key] === true : toggles[tog] === true;
-      var cls = nodes[i].className.replace(/\s*\bactive\b/g, '');
-      nodes[i].className = on ? cls + ' active' : cls;
+      var on = key ? stateOn(key) : toggles[tog] === true;
+      var cls = nodes[i].className.replace(/\s*\b(active|stale)\b/g, '');
+      if (on) { cls += ' active'; }
+      if (key && stateStale(key)) { cls += ' stale'; }
+      nodes[i].className = cls;
     }
     for (var id in app.sliders) {
       if (app.sliders.hasOwnProperty(id)) { app.sliders[id].update(); }
@@ -656,9 +691,10 @@
     app.sliders[t.id] = {
       update: function () {
         if (dragging) { return; }
-        var v = app.values[key];
-        if (typeof v === 'number') { show(v); } else { value.textContent = '--'; }
-        var muted = key === 'volume' ? app.values.muted === true : app.values.micMuted === true;
+        var v = stateLevel(key);
+        if (typeof v === 'number') { show(v); } else { value.textContent = '--'; fill.style.width = '0%'; }
+        var muted = key === 'volume' ? app.values.muted === true : key === 'micVolume' ? app.values.micMuted === true : false;
+        setCls(node, 'stale', stateStale(key));
         node.className = node.className.replace(/\s*\bmuted\b/g, '') + (muted ? ' muted' : '');
       }
     };
@@ -981,8 +1017,105 @@
         setCls(node, 'running', d.status === 'running');
         setCls(node, 'failed', d.status === 'failed' || d.status === 'timeout');
       }
+    },
+
+    // Home Assistant: sensor, lamp, schakelaar of thermostaat. Tik = aan/uit (niet bij sensoren en thermostaten).
+    ha: {
+      build: function (node, t) {
+        node.appendChild(el('div', 'ha-name', t.label));
+        var main = el('div', 'ha-main');
+        main.appendChild(el('span', 'ha-value', '…'));
+        main.appendChild(el('span', 'ha-unit', ''));
+        node.appendChild(main);
+        node.appendChild(el('div', 'ha-sub', ''));
+        var btns = el('div', 'ha-btns');
+        var down = el('div', 'ha-btn', '−'), up = el('div', 'ha-btn', '+');
+        btns.appendChild(down); btns.appendChild(up);
+        node.appendChild(btns);
+        function step(dir) {
+          return function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } flash(node); sendWidget(t.id, dir); };
+        }
+        bindTap(down, step('down'));
+        bindTap(up, step('up'));
+        bindPress(node, t, function () {
+          var d = (app.values.widgets || {})[t.id] || {};
+          if (d.status !== 'ok' || !HA_TOGGLE[d.domain]) { return; }
+          flash(node);
+          sendWidget(t.id, 'toggle');
+        });
+      },
+      update: function (node, t, d) {
+        var climate = d.domain === 'climate';
+        setCls(node, 'climate', climate);
+        setCls(node, 'active', d.status === 'ok' && d.on === true && !climate);
+        setCls(node, 'stale', d.status !== 'ok');
+        setCls(node, 'tappable', d.status === 'ok' && HA_TOGGLE[d.domain] === 1);
+        if (d.status !== 'ok') {
+          setText(node, 'ha-value', d.status === 'connecting' ? '…' : '—');
+          setText(node, 'ha-unit', '');
+          setText(node, 'ha-sub', d.error || (d.status === 'unavailable' ? 'NIET BEREIKBAAR' : ''));
+          return;
+        }
+        setText(node, 'ha-name', (t.label || d.name).toUpperCase());
+        if (climate) {
+          setText(node, 'ha-value', d.current !== undefined ? fmtNum(d.current) : '—');
+          setText(node, 'ha-unit', '°');
+          var sub = d.target !== undefined ? 'DOEL ' + fmtNum(d.target) + '°' : '';
+          if (d.action) { sub += (sub ? '  ·  ' : '') + (HA_ACTION[d.action] || d.action.toUpperCase()); }
+          setText(node, 'ha-sub', sub);
+        } else if (HA_TOGGLE[d.domain] && !d.unit) {
+          setText(node, 'ha-value', d.on ? 'AAN' : (HA_STATE[d.state] || 'UIT'));
+          setText(node, 'ha-unit', '');
+          setText(node, 'ha-sub', d.level !== undefined && d.on ? Math.round(d.level * 100) + '%' : d.name.toUpperCase());
+        } else {
+          var n = parseFloat(d.state);
+          setText(node, 'ha-value', isNaN(n) ? (HA_STATE[d.state] || d.state.toUpperCase()) : fmtNum(n));
+          setText(node, 'ha-unit', d.unit || '');
+          // Naam alleen tonen als die iets toevoegt aan het label van de tegel.
+          setText(node, 'ha-sub', d.name.toUpperCase() === (t.label || '').toUpperCase() ? '' : d.name.toUpperCase());
+        }
+      }
+    },
+
+    // MQTT: laatste waarde van een topic.
+    mqtt: {
+      build: function (node, t) {
+        node.appendChild(el('div', 'ha-name', t.label));
+        var main = el('div', 'ha-main');
+        main.appendChild(el('span', 'ha-value', '…'));
+        main.appendChild(el('span', 'ha-unit', ''));
+        node.appendChild(main);
+        node.appendChild(el('div', 'ha-sub', ''));
+      },
+      update: function (node, t, d) {
+        setCls(node, 'stale', d.status !== 'ok');
+        if (d.value === undefined) {
+          setText(node, 'ha-value', d.status === 'waiting' || d.status === 'connecting' ? '…' : '—');
+          setText(node, 'ha-unit', '');
+          setText(node, 'ha-sub', d.error || (d.status === 'waiting' ? 'WACHT OP BERICHT' : ''));
+          return;
+        }
+        var n = parseFloat(d.value);
+        var isNum = !isNaN(n) && /^\s*-?[\d.]+\s*$/.test(d.value);
+        setText(node, 'ha-value', isNum ? fmtNum(n) : d.value);
+        setText(node, 'ha-unit', d.unit || '');
+        setText(node, 'ha-sub', d.status === 'stale' ? 'LAATST BEKEND' : (d.topic || '').toUpperCase());
+        setCls(node, 'long', !isNum && d.value.length > 8);
+      }
     }
   };
+
+  var HA_TOGGLE = { light: 1, 'switch': 1, fan: 1, input_boolean: 1, cover: 1, media_player: 1, scene: 1, script: 1,
+                    button: 1, input_button: 1, lock: 1, automation: 1, humidifier: 1, siren: 1 };
+  var HA_STATE = { off: 'UIT', on: 'AAN', open: 'OPEN', closed: 'DICHT', opening: 'GAAT OPEN', closing: 'GAAT DICHT',
+                   locked: 'OP SLOT', unlocked: 'OPEN', playing: 'SPEELT', paused: 'PAUZE', idle: 'RUST',
+                   home: 'THUIS', not_home: 'WEG', unavailable: 'OFFLINE', unknown: '?' };
+  var HA_ACTION = { heating: 'VERWARMT', cooling: 'KOELT', idle: 'RUST', off: 'UIT', drying: 'DROOGT', fan: 'VENTILEERT' };
+
+  function fmtNum(n) {
+    var r = Math.round(n * 10) / 10;
+    return String(r).replace('.', ',');
+  }
   WIDGETS.pomodoro = WIDGETS.timer;
 
   // Foto's worden met het token opgehaald (een <img src> kan geen header meesturen).

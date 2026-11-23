@@ -27,6 +27,7 @@ final class Server {
     var meeting: MeetingMonitor?
     var agenda: AgendaProvider?
     var widgets: WidgetHub?
+    var integrations: Integrations?
     /// Laatste keer dat een tablet iets vroeg (ook via XHR), om te weten of widgets bijgewerkt moeten worden.
     private(set) var lastActivity = Date.distantPast
     func touch() { lastActivity = Date() }
@@ -124,12 +125,22 @@ final class Server {
         if t.kind == "terminal", t.config?.dangerous == true { d["dangerous"] = true }
         if t.longPress != nil { d["hasLong"] = true }
         if t.doubleTap != nil { d["hasDouble"] = true }
-        if t.toggle == true {
+        if let key = integrationStateKey(t) {
+            // De echte stand van het apparaat (Home Assistant of een MQTT-statustopic).
+            d["stateKey"] = key
+        } else if t.toggle == true {
             d["toggle"] = true
         } else if let key = ActionRunner.stateKey(for: t.action?.type) {
             d["stateKey"] = key
         }
         return d
+    }
+
+    private static func integrationStateKey(_ t: Tile) -> String? {
+        guard t.isButton || t.kind == "slider" else { return nil }
+        if let topic = t.config?.topic { return "mqtt:" + topic }
+        if let a = t.action, ["ha.toggle", "ha.level"].contains(a.type), let e = a.entity { return "ha:" + e }
+        return nil
     }
 
     /// Alles wat de tablet aan status nodig heeft: knoppen, volume, vergadering en agenda.
@@ -138,6 +149,7 @@ final class Server {
         s["meeting"] = meeting?.current?.json() ?? NSNull()
         s["agenda"] = agenda?.json() ?? NSNull()
         s["widgets"] = widgets?.state() ?? [:]
+        if let i = integrations?.state() { s.merge(i) { $1 } }
         return s
     }
 

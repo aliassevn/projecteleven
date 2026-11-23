@@ -9,6 +9,7 @@ final class WidgetHub {
     let photos = PhotoService()
     let terminal = TerminalService()
 
+    weak var integrations: Integrations?
     private var tiles: [Tile] = []
     private var tickCount = 0
     /// Wordt aangeroepen als er iets nieuws is (weer binnen, terminaluitvoer…), zodat de server de status uitstuurt.
@@ -57,6 +58,8 @@ final class WidgetHub {
             case "photos": out[t.id] = photos.json(for: t.config)
             case "terminal": out[t.id] = terminal.json(t.id, cfg: t.config)
             case "worldclock": out[t.id] = ["zones": Self.zones(t.config)]
+            case "ha": out[t.id] = integrations?.ha.entityJSON(t.config?.entity) ?? [:]
+            case "mqtt": out[t.id] = integrations?.mqttJSON(t.config) ?? [:]
             default: break
             }
         }
@@ -72,6 +75,14 @@ final class WidgetHub {
             try nowPlaying.control(action, value: value)
         case "terminal":
             try terminal.handle(tile, action: action, confirmed: value == 1)
+        case "ha":
+            guard let i = integrations, let e = tile.config?.entity else { throw ActionRunner.ActionError.missing("config.entity") }
+            switch action {
+            case "toggle": try i.ha.perform(ActionSpec(type: "ha.toggle", entity: e), onFail: nil)
+            case "up": try i.ha.stepClimate(e, by: 1)
+            case "down": try i.ha.stepClimate(e, by: -1)
+            default: throw ActionRunner.ActionError.failed("Onbekende actie")
+            }
         case "weather":
             guard action == "refresh" else { throw ActionRunner.ActionError.failed("Onbekende actie") }
             weather.refresh(tile.config)

@@ -6,6 +6,8 @@ import IOKit.pwr_mgt
 final class ActionRunner {
     let audio = AudioController()
     var catalog = ShortcutCatalog.empty
+    /// Home Assistant, MQTT en webhooks (fase 7).
+    weak var integrations: Integrations?
     /// Fouten die pas later optreden (macro-stappen, Opdrachten) — Core stuurt ze als melding naar de tablets.
     var onAsyncError: ((String) -> Void)?
     /// Stand van aan/uit-knoppen per tegel-id.
@@ -68,7 +70,14 @@ final class ActionRunner {
         case "double": action = tile.doubleTap
         default:
             if tile.toggle == true {
-                let on = !(toggles[tile.id] ?? false)
+                // Met een status-topic geldt de echte stand van het apparaat, niet wat Cyberpad onthield.
+                let current: Bool
+                if let topic = tile.config?.topic, let v = integrations?.mqtt.values[topic] {
+                    current = Integrations.truthy(v)
+                } else {
+                    current = toggles[tile.id] ?? false
+                }
+                let on = !current
                 action = on ? tile.action : (tile.offAction ?? tile.action)
                 guard let action else { throw ActionError.missing("action") }
                 toggles[tile.id] = on
@@ -143,6 +152,18 @@ final class ActionRunner {
         case "system.keepAwake": toggleKeepAwake()
         case "system.displayOff": launch("/usr/bin/pmset", ["displaysleepnow"])
 
+        // Smart home en koppelingen
+        case "ha.toggle", "ha.service":
+            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            try i.ha.perform(a, onFail: onLateFailure)
+        case "webhook.call":
+            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            try i.webhooks.call(a, onFail: onLateFailure)
+        case "mqtt.publish":
+            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            guard let topic = a.topic else { throw ActionError.missing("topic") }
+            try i.mqtt.publish(topic: topic, payload: a.payload ?? "", retain: a.retain ?? false)
+
         default: throw ActionError.unknown(a.type)
         }
     }
@@ -151,6 +172,10 @@ final class ActionRunner {
         switch a.type {
         case "audio.volume": audio.setVolume(Float32(value))
         case "audio.micVolume": audio.setMicVolume(Float32(value))
+        case "ha.level":
+            guard let e = a.entity else { throw ActionError.missing("entity") }
+            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            try i.ha.setLevel(e, value)
         default: throw ActionError.unknown(a.type)
         }
     }

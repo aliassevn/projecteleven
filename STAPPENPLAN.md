@@ -130,6 +130,8 @@ Network.framework (server, Bonjour), Security (Keychain).
 33. **Home Assistant**: URL + long-lived token in de Keychain; lampen, scènes, schakelaars, temperatuur;
     live status via de HA-WebSocket-API.
 34. **HomeKit** (optioneel; vereist entitlement en is beperkter op macOS) — anders via Home Assistant.
+    *Besloten:* via de HomeKit-integratie van Home Assistant; een eigen HomeKit-koppeling vraagt een betaald
+    ontwikkelaarsaccount en een Catalyst-app.
 35. **Webhook-knop** (GET/POST met eigen body) voor IFTTT, Zapier, n8n of eigen scripts.
 36. **MQTT-knop** en MQTT-widget (waarde van een topic tonen).
 

@@ -1,5 +1,44 @@
 import Foundation
 
+/// Vrije JSON-waarde, voor `data` van een Home Assistant-dienst.
+enum JSONValue: Codable, Equatable {
+    case string(String), number(Double), bool(Bool), object([String: JSONValue]), array([JSONValue]), null
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let b = try? c.decode(Bool.self) { self = .bool(b) }
+        else if let n = try? c.decode(Double.self) { self = .number(n) }
+        else if let s = try? c.decode(String.self) { self = .string(s) }
+        else if let a = try? c.decode([JSONValue].self) { self = .array(a) }
+        else { self = .object(try c.decode([String: JSONValue].self)) }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let v): try c.encode(v)
+        case .number(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        case .array(let v): try c.encode(v)
+        case .null: try c.encodeNil()
+        }
+    }
+
+    /// Als gewone Foundation-waarde, voor JSONSerialization.
+    var any: Any {
+        switch self {
+        case .string(let v): return v
+        case .number(let v): return v.rounded() == v && abs(v) < 1e15 ? Int(v) as Any : v
+        case .bool(let v): return v
+        case .object(let v): return v.mapValues(\.any)
+        case .array(let v): return v.map(\.any)
+        case .null: return NSNull()
+        }
+    }
+}
+
 /// Wat een knop doet. De tablet stuurt alleen het id van een tegel; de actie zelf staat hier, op de Mac.
 struct ActionSpec: Codable, Equatable {
     var type: String
@@ -11,11 +50,30 @@ struct ActionSpec: Codable, Equatable {
     var preset: String?     // preset: id uit de shortcut-bibliotheek, bijv. "zoom.mute"
     var steps: [ActionSpec]? // macro
     var ms: Int?            // delay (alleen binnen een macro)
+    // Home Assistant: ha.toggle, ha.service, ha.level (schuif)
+    var entity: String?     // bijv. "light.woonkamer"
+    var service: String?    // ha.service, bijv. "light.turn_on"
+    var data: [String: JSONValue]? // extra gegevens voor de dienst
+    // Webhook: webhook.call (`url` of de naam van een webhook uit integrations.json)
+    var webhook: String?
+    var method: String?
+    var headers: [String: String]?
+    var body: String?
+    // MQTT: mqtt.publish
+    var topic: String?
+    var payload: String?
+    var retain: Bool?
 
     init(type: String, app: String? = nil, url: String? = nil, keys: String? = nil, text: String? = nil,
-         shortcut: String? = nil, preset: String? = nil, steps: [ActionSpec]? = nil, ms: Int? = nil) {
+         shortcut: String? = nil, preset: String? = nil, steps: [ActionSpec]? = nil, ms: Int? = nil,
+         entity: String? = nil, service: String? = nil, data: [String: JSONValue]? = nil,
+         webhook: String? = nil, method: String? = nil, headers: [String: String]? = nil, body: String? = nil,
+         topic: String? = nil, payload: String? = nil, retain: Bool? = nil) {
         self.type = type; self.app = app; self.url = url; self.keys = keys; self.text = text
         self.shortcut = shortcut; self.preset = preset; self.steps = steps; self.ms = ms
+        self.entity = entity; self.service = service; self.data = data
+        self.webhook = webhook; self.method = method; self.headers = headers; self.body = body
+        self.topic = topic; self.payload = payload; self.retain = retain
     }
 }
 
@@ -43,13 +101,22 @@ struct WidgetConfig: Codable, Equatable {
     var show: [String]?
     // nowplaying: "music" of "spotify" (standaard: wat er speelt)
     var player: String?
+    // ha: entiteit om te tonen (sensor, lamp, thermostaat…)
+    var entity: String?
+    // mqtt-widget: topic om te tonen · knop: topic met de actuele stand (aan/uit)
+    var topic: String?
+    var unit: String?
+    /// mqtt: veld uit een JSON-bericht, bijv. "temperature" of "sensor.temp"
+    var field: String?
 
     init(city: String? = nil, lat: Double? = nil, lon: Double? = nil, seconds: Int? = nil, work: Int? = nil,
          rest: Int? = nil, zones: [String]? = nil, folder: String? = nil, command: String? = nil, cwd: String? = nil,
-         dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil) {
+         dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil,
+         entity: String? = nil, topic: String? = nil, unit: String? = nil, field: String? = nil) {
         self.city = city; self.lat = lat; self.lon = lon; self.seconds = seconds; self.work = work; self.rest = rest
         self.zones = zones; self.folder = folder; self.command = command; self.cwd = cwd; self.dangerous = dangerous
         self.timeout = timeout; self.show = show; self.player = player
+        self.entity = entity; self.topic = topic; self.unit = unit; self.field = field
     }
 }
 
@@ -86,7 +153,7 @@ struct Tile: Codable, Equatable {
 
     var isButton: Bool { kind == nil || kind == "button" }
 
-    static let widgetKinds: Set<String> = ["weather", "nowplaying", "timer", "pomodoro", "worldclock", "photos", "stats", "terminal"]
+    static let widgetKinds: Set<String> = ["weather", "nowplaying", "timer", "pomodoro", "worldclock", "photos", "stats", "terminal", "ha", "mqtt"]
     var isWidget: Bool { Self.widgetKinds.contains(kind ?? "") }
 }
 
@@ -167,6 +234,32 @@ struct Layout: Codable, Equatable {
                 Tile(id: "ping", label: "Ping", kind: "terminal",
                      config: .init(command: "ping -c 5 1.1.1.1", timeout: 30), x: 0, y: 2, w: 3),
                 Tile(id: "photos", label: "Foto's", kind: "photos", config: .init(seconds: 10), x: 3, y: 2, w: 2),
+            ]),
+            // Voorbeelden; pas de entiteiten en topics aan je eigen huis aan (zie README).
+            Page(id: "home", name: "Huis", tiles: [
+                Tile(id: "ha-lamp", label: "Woonkamer", icon: "💡",
+                     action: .init(type: "ha.toggle", entity: "light.woonkamer"), x: 0, y: 0),
+                Tile(id: "ha-dim", label: "Helderheid", kind: "slider",
+                     action: .init(type: "ha.level", entity: "light.woonkamer"), x: 1, y: 0, w: 2),
+                Tile(id: "ha-film", label: "Scène film", icon: "🎬",
+                     action: .init(type: "ha.toggle", entity: "scene.film"), x: 3, y: 0),
+                Tile(id: "ha-alloff", label: "Alle lampen uit", icon: "🌚",
+                     action: .init(type: "ha.service", entity: "all", service: "light.turn_off"), x: 4, y: 0),
+                Tile(id: "ha-thermo", label: "Thermostaat", kind: "ha",
+                     config: .init(entity: "climate.woonkamer"), x: 0, y: 1, w: 2),
+                Tile(id: "ha-outside", label: "Buiten", kind: "ha",
+                     config: .init(entity: "sensor.buiten_temperatuur"), x: 2, y: 1),
+                Tile(id: "mqtt-attic", label: "Zolder", kind: "mqtt",
+                     config: .init(topic: "huis/zolder/temperatuur", unit: "°C"), x: 3, y: 1),
+                Tile(id: "mqtt-fan", label: "Ventilator", icon: "🌀",
+                     action: .init(type: "mqtt.publish", topic: "huis/ventilator/set", payload: "ON"),
+                     toggle: true,
+                     offAction: .init(type: "mqtt.publish", topic: "huis/ventilator/set", payload: "OFF"),
+                     config: .init(topic: "huis/ventilator/state"), x: 4, y: 1),
+                Tile(id: "ha-coffee", label: "Koffie", icon: "☕️",
+                     action: .init(type: "ha.toggle", entity: "switch.koffiezetapparaat"), x: 0, y: 2),
+                Tile(id: "hook-n8n", label: "n8n-flow", icon: "🪝",
+                     action: .init(type: "webhook.call", webhook: "n8n"), x: 1, y: 2),
             ]),
             Page(id: "system", name: "Systeem", tiles: [
                 Tile(id: "lock", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 0),

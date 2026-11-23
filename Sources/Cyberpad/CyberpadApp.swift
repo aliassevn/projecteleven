@@ -136,6 +136,22 @@ struct MenuView: View {
                 }
             }
             .font(.callout)
+            integrationRow("house", "Home Assistant", core.integrations.ha.status)
+            integrationRow("antenna.radiowaves.left.and.right", "MQTT", core.integrations.mqtt.status)
+            if let e = core.integrations.configError { Text(e).font(.caption).foregroundStyle(.orange) }
+        }
+    }
+
+    @ViewBuilder
+    private func integrationRow(_ icon: String, _ name: String, _ st: LinkStatus) -> some View {
+        if st != .off {
+            HStack(spacing: 6) {
+                Image(systemName: icon).foregroundStyle(st == .connected ? Color.green : Color.secondary)
+                Text("\(name): \(st == .connected ? "verbonden" : st.text)")
+                    .foregroundStyle(st.code == "error" ? Color.orange : Color.secondary)
+                    .lineLimit(2)
+            }
+            .font(.callout)
         }
     }
 
@@ -153,6 +169,7 @@ struct MenuView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Button("Layout bewerken") { core.openLayoutFile() }
+                Button("Koppelingen…") { core.openIntegrations() }
                 Button("Map") { core.openSupportFolder() }
                 Spacer()
                 Button("Stop") { NSApp.terminate(nil) }

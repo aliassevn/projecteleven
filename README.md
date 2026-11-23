@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–6 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–7 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 ## Bouwen en starten
 
@@ -26,6 +26,7 @@ en voer de 6-cijferige code in. Daarna onthoudt de tablet de koppeling.
 | Toegankelijkheid | media-toetsen, vergrendelen, screenshots | Privacy en beveiliging › Toegankelijkheid (knop in het menu) |
 | Automatisering › System Events | dark mode wisselen | wordt gevraagd bij eerste gebruik |
 | Agenda | volgende afspraak tonen | wordt gevraagd als er een agendategel is, of via het menu |
+| Sleutelhanger | Home Assistant-token, MQTT-wachtwoord, webhook-geheimen | na elke nieuwe build vraagt macOS één keer om toegang; kies *Altijd toestaan* |
 
 Let op: de app is ad-hoc ondertekend. Na elke nieuwe build kan macOS de Toegankelijkheid-toestemming
 vergeten; zet hem dan uit en weer aan.
@@ -51,6 +52,11 @@ Beschikbare acties (`action.type`):
 | `preset` + `"preset"` | sneltoets uit de bibliotheek, bijv. `"zoom.mute"` (zie hieronder) |
 | `shortcut.run` + `"shortcut"` | opdracht uit de Opdrachten-app uitvoeren (op naam) |
 | `macro` + `"steps"` | meerdere acties na elkaar; `{"type": "delay", "ms": 500}` voor een pauze |
+| `ha.toggle` + `"entity"` | Home Assistant-apparaat aan/uit, scène of script starten (zie *Smart home*) |
+| `ha.service` + `"service"` (+ `"entity"`, `"data"`) | willekeurige Home Assistant-dienst, bijv. `"light.turn_on"` |
+| `ha.level` + `"entity"` | voor een `slider`: helderheid, rolluik, volume, ventilator of getal |
+| `webhook.call` + `"webhook"` of `"url"` | HTTP-verzoek (`method`, `headers`, `body`) |
+| `mqtt.publish` + `"topic"` (+ `"payload"`, `"retain"`) | MQTT-bericht versturen |
 
 Toetsnamen: `cmd`, `shift`, `alt`/`option`, `ctrl`, `fn` + een letter, cijfer, leesteken of
 `return`, `tab`, `space`, `delete`, `esc`, `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f20`.
@@ -111,6 +117,57 @@ Widgets krijgen hun instellingen in `"config"`. Voorbeelden staan op de pagina *
 - **Niveaumeter** zit er bewust niet in: daarvoor moet Cyberpad continu de microfoon openen (oranje stip in de
   menubalk) en dan zou de vergaderherkenning Cyberpad zelf als vergadering zien.
 
+### Smart home en koppelingen
+
+Menu › **Koppelingen…** opent een venster voor Home Assistant en MQTT. Adressen komen in
+`integrations.json` in de Cyberpad-map. Tokens en wachtwoorden komen alleen in de **sleutelhanger** van macOS.
+
+**Home Assistant.** Je vult het adres in (bijv. `http://homeassistant.local:8123`) en een *long-lived access token*.
+Dat token maak je in Home Assistant via Profiel › Beveiliging. Cyberpad houdt een WebSocket-verbinding open, zodat
+de knoppen op de tablet direct de echte stand tonen. Ook als je met de afstandsbediening of een andere app iets
+omzet, ziet de tablet het meteen.
+Er gaan alleen entiteiten die in je layout staan naar de tablet, en daarvan alleen naam, stand en een paar waarden.
+
+| Tegel | Voorbeeld |
+|---|---|
+| knop aan/uit | `{"type": "ha.toggle", "entity": "light.woonkamer"}`: licht op als het apparaat aan staat |
+| scène / script | `{"type": "ha.toggle", "entity": "scene.film"}` |
+| dienst | `{"type": "ha.service", "service": "light.turn_on", "entity": "light.bureau", "data": {"brightness_pct": 30, "color_name": "red"}}` |
+| schuif | `"kind": "slider"` met `{"type": "ha.level", "entity": "light.woonkamer"}` (ook `cover.*`, `media_player.*`, `fan.*`, `input_number.*`) |
+| widget | `"kind": "ha"` met `"config": {"entity": "sensor.buiten_temperatuur"}`; thermostaten (`climate.*`) krijgen − en + |
+
+Een slot (`lock.*`) gaat met `ha.toggle` alleen **op** slot. Ontgrendelen kan alleen met een aparte knop
+`ha.service` `lock.unlock`. Een alarm bedien je ook alleen met `ha.service`.
+
+**HomeKit** heeft geen eigen koppeling. Op de Mac vereist HomeKit een betaald ontwikkelaarsaccount en een
+Catalyst-app. Gebruik daarom de HomeKit-integratie van Home Assistant; alles wat daar staat, kan Cyberpad bedienen.
+
+**MQTT.** Je vult de server, poort (standaard 1883, of 8883 met TLS), gebruiker en wachtwoord in.
+
+- `"kind": "mqtt"` met `"config": {"topic": "huis/zolder/temperatuur", "unit": "°C"}` toont de laatste waarde.
+  Bij JSON-berichten pak je één veld met `"field": "temperature"` (of `"sensor.temp"`).
+- Een aan/uit-knop met `mqtt.publish` en `"config": {"topic": "…/state"}` volgt de echte stand van dat topic.
+  Waarden als `ON`, `true`, `1` en `open` gelden als *aan*.
+- Wildcards (`+`, `#`) worden niet gebruikt; Cyberpad abonneert zich alleen op de topics uit je layout.
+
+**Webhooks.** Een losse knop kan een `url` hebben. Webhooks met een naam staan in `integrations.json`:
+
+```json
+{
+  "webhooks": {
+    "n8n": { "url": "https://n8n.example.com/webhook/abc", "method": "POST",
+             "body": "{\"bron\": \"cyberpad\"}", "secretHeader": "Authorization" }
+  }
+}
+```
+
+Met `secretHeader` komt de waarde van die header uit de sleutelhanger. Die vul je in via **Koppelingen…**.
+Een body in JSON krijgt vanzelf `Content-Type: application/json`. Geeft de webhook een fout (status 400 of hoger,
+of time-out na 10 s), dan verschijnt er een melding op de tablet en springt een aan/uit-knop terug.
+
+Bij wegvallen van Home Assistant of de broker probeert Cyberpad steeds opnieuw (2 s tot 1 min). De tegels worden
+grijs met de reden erbij. Een geweigerd token of wachtwoord wordt niet opnieuw geprobeerd tot je het aanpast.
+
 ### Vergaderingen
 
 Zodra je in een vergadering zit, verschijnt op de tablet vanzelf een **vergaderpaneel** met microfoon, camera,
@@ -158,6 +215,7 @@ Sources/Cyberpad/
   MeetingMonitor.swift vergaderingen herkennen en bedienen
   Agenda.swift        volgende afspraak en vergaderlink
   Widgets/            weer, nu speelt, timers, systeemstats, foto's, terminal
+  Integrations/       Home Assistant (WebSocket), MQTT 3.1.1, webhooks, sleutelhanger, venster Koppelingen
   Catalog.swift       shortcut-bibliotheek
   Audio.swift         CoreAudio
   HostAlias.swift     cyberpad.local via mDNS
@@ -168,3 +226,8 @@ catalog/              shortcuts.json (sneltoetsen per app)
 
 Ontwikkelen zonder opnieuw te bouwen: `CYBERPAD_PAD_DIR=$PWD/pad build/Cyberpad.app/Contents/MacOS/Cyberpad`
 laadt de tablet-pagina direct uit `pad/`. `CYBERPAD_DEBUG=1` schrijft de koppelcode naar de console.
+
+Koppelingen testen zonder sleutelhanger (alleen samen met `CYBERPAD_DEBUG=1`):
+`CYBERPAD_INTEGRATIONS=/pad/naar/test.json` gebruikt een ander instellingenbestand, en
+`CYBERPAD_SECRET_HOMEASSISTANT_TOKEN`, `CYBERPAD_SECRET_MQTT_PASSWORD` en `CYBERPAD_SECRET_WEBHOOK_<NAAM>`
+geven de geheimen mee.

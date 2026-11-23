@@ -425,3 +425,24 @@ body {
 .kind-terminal.running .term-status { color: #00ffe0; }
 .kind-terminal.failed .term-status { color: #ff8199; }
 .kind-terminal.armed .term-btn { background: #ff3b5c; border-color: #ff3b5c; color: #05060a; }
+
+/* ---------- smart home (Home Assistant / MQTT) ---------- */
+.tile.stale { opacity: 0.55; }
+.tile.stale .label:after { content: ' · offline'; color: rgba(255,59,92,0.8); }
+.kind-ha, .kind-mqtt { padding: 12px 14px; -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start; -webkit-box-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; }
+.kind-ha .ha-name, .kind-mqtt .ha-name { font-size: 10px; letter-spacing: 3px; color: rgba(200,255,246,0.55); text-transform: uppercase; }
+.ha-main { margin-top: 6px; white-space: nowrap; overflow: hidden; }
+.ha-value { font-size: 40px; color: #00ffe0; text-shadow: 0 0 12px rgba(0,255,224,0.45); }
+.ha-unit { font-size: 18px; margin-left: 4px; color: rgba(0,255,224,0.7); }
+.kind-mqtt.long .ha-value { font-size: 20px; white-space: normal; }
+.ha-sub { font-size: 10px; letter-spacing: 2px; color: rgba(200,255,246,0.5); margin-top: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.kind-ha.active .ha-value { color: #ff2bd6; text-shadow: 0 0 12px rgba(255,43,214,0.5); }
+.kind-ha .ha-btns { display: none; position: absolute; right: 12px; bottom: 12px; }
+.kind-ha.climate .ha-btns { display: block; }
+.ha-btn {
+  display: inline-block; width: 44px; height: 44px; line-height: 42px; margin-left: 8px; text-align: center;
+  font-size: 24px; color: #00ffe0; border: 1px solid rgba(0,255,224,0.5); background: rgba(0,255,224,0.06);
+}
+.ha-btn:active { background: rgba(0,255,224,0.25); }
+.kind-ha.stale .ha-value, .kind-mqtt.stale .ha-value { color: rgba(200,255,246,0.5); text-shadow: none; }
+.kind-ha.stale .ha-sub, .kind-mqtt.stale .ha-sub { color: #ff8199; white-space: normal; }

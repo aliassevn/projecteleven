@@ -13,6 +13,7 @@ final class Core: ObservableObject {
     let meeting: MeetingMonitor
     let agenda = AgendaProvider()
     let widgets = WidgetHub()
+    let integrations: Integrations
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -36,6 +37,7 @@ final class Core: ObservableObject {
         try? FileManager.default.createDirectory(at: supportDir, withIntermediateDirectories: true)
 
         pairing = PairingManager(dir: supportDir)
+        integrations = Integrations(dir: supportDir)
         layouts = LayoutStore(dir: supportDir)
         server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findResource("pad", env: "CYBERPAD_PAD_DIR"))
         meeting = MeetingMonitor(actions: actions)
@@ -45,6 +47,13 @@ final class Core: ObservableObject {
         server.meeting = meeting
         server.agenda = agenda
         server.widgets = widgets
+        server.integrations = integrations
+        actions.integrations = integrations
+        widgets.integrations = integrations
+        integrations.update(layouts.layout)
+        integrations.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
+        integrations.onError = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
+        integrations.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         widgets.update(layouts.layout)
         widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
@@ -59,6 +68,7 @@ final class Core: ObservableObject {
         pairing.onRevoke = { [weak self] id in self?.server.disconnect(deviceID: id) }
         layouts.onChange = { [weak self] l in
             self?.widgets.update(l)
+            self?.integrations.update(l)
             self?.server.broadcastLayout()
             self?.layoutError = self?.layouts.lastError
         }
@@ -76,6 +86,7 @@ final class Core: ObservableObject {
             serverError = "Server kon niet starten: \(error.localizedDescription)"
         }
         refreshNetwork()
+        integrations.start()
         hasAccessibility = actions.hasAccessibility
         agendaAccess = agenda.access
         // Alleen om Agenda-toegang vragen als er een agendategel in de layout staat.
@@ -100,6 +111,7 @@ final class Core: ObservableObject {
             if meetingInfo != meeting.current { meetingInfo = meeting.current }
         }
         agenda.refresh()
+        if tickCount % 3 == 0 { integrations.reloadIfChanged() }
         widgets.tick(active: server.hasActiveClients)
         let s = server.fullState() as NSDictionary
         if s != lastState {
@@ -128,6 +140,7 @@ final class Core: ObservableObject {
 
     func openLayoutFile() { NSWorkspace.shared.open(layouts.url) }
     func openSupportFolder() { NSWorkspace.shared.open(supportDir) }
+    func openIntegrations() { IntegrationsWindow.shared.show() }
 
     /// Standaard-layout terugzetten; de oude wordt eerst als back-up bewaard.
     func resetLayout() {
