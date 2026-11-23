@@ -7,12 +7,21 @@ struct ShortcutCatalog: Codable {
         var label: String
         var keys: String
     }
+    /// Menu-titels waaraan de mute-/camerastatus te herkennen is (via Toegankelijkheid).
+    struct StatusPatterns: Codable {
+        var mutedWhen: [String]?
+        var unmutedWhen: [String]?
+        var videoOnWhen: [String]?
+        var videoOffWhen: [String]?
+    }
     struct App: Codable {
         var id: String
         var name: String
         var bundleIds: [String]
         var activate: Bool
         var shortcuts: [Shortcut]
+        var meeting: Bool?
+        var status: StatusPatterns?
     }
     var version: Int
     var apps: [App]
@@ -26,6 +35,8 @@ struct ShortcutCatalog: Codable {
               let sc = app.shortcuts.first(where: { $0.id == parts[1] }) else { return nil }
         return (app, sc)
     }
+
+    func app(_ id: String) -> App? { apps.first { $0.id == id } }
 
     static func load(from url: URL) -> ShortcutCatalog {
         guard let data = try? Data(contentsOf: url) else {

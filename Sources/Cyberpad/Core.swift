@@ -10,6 +10,8 @@ final class Core: ObservableObject {
     let layouts: LayoutStore
     let actions = ActionRunner()
     let server: Server
+    let meeting: MeetingMonitor
+    let agenda = AgendaProvider()
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -17,9 +19,12 @@ final class Core: ObservableObject {
     @Published private(set) var serverError: String?
     @Published private(set) var hasAccessibility = false
     @Published private(set) var layoutError: String?
+    @Published private(set) var meetingInfo: MeetingInfo?
+    @Published private(set) var agendaAccess: AgendaProvider.Access = .notDetermined
 
     private var timers: [Timer] = []
     private var lastState: NSDictionary = [:]
+    private var tickCount = 0
     private var bag: Set<AnyCancellable> = []
 
     static let hostURL = "http://cyberpad.local:\(Server.port)"
@@ -32,9 +37,17 @@ final class Core: ObservableObject {
         pairing = PairingManager(dir: supportDir)
         layouts = LayoutStore(dir: supportDir)
         server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findResource("pad", env: "CYBERPAD_PAD_DIR"))
+        meeting = MeetingMonitor(actions: actions)
         actions.catalog = ShortcutCatalog.load(from: Self.findResource("catalog", env: "CYBERPAD_CATALOG_DIR")
             .appendingPathComponent("shortcuts.json"))
         actions.onAsyncError = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
+        server.meeting = meeting
+        server.agenda = agenda
+        agenda.onChange = { [weak self] in
+            guard let self else { return }
+            self.agendaAccess = self.agenda.access
+            self.server.scheduleStateBroadcast()
+        }
 
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
@@ -58,6 +71,10 @@ final class Core: ObservableObject {
         }
         refreshNetwork()
         hasAccessibility = actions.hasAccessibility
+        agendaAccess = agenda.access
+        // Alleen om Agenda-toegang vragen als er een agendategel in de layout staat.
+        if agenda.access == .notDetermined, layoutHasAgenda { agenda.requestAccess() }
+        agenda.refresh(force: true)
 
         timers = [
             // Status (volume, mute…) doorsturen als die op de Mac zelf verandert.
@@ -71,7 +88,13 @@ final class Core: ObservableObject {
 
     private func tick() {
         pairing.rotateIfExpired()
-        let s = actions.state() as NSDictionary
+        tickCount += 1
+        if tickCount % 2 == 0 {
+            meeting.refresh()
+            if meetingInfo != meeting.current { meetingInfo = meeting.current }
+        }
+        agenda.refresh()
+        let s = server.fullState() as NSDictionary
         if s != lastState {
             lastState = s
             server.broadcast(["type": "state", "state": s])
@@ -85,6 +108,12 @@ final class Core: ObservableObject {
         if now != ips { ips = now }
         alias.update(ipv4s: now)
     }
+
+    var layoutHasAgenda: Bool {
+        layouts.layout.pages.contains { $0.tiles.contains { $0.kind == "agenda" } }
+    }
+
+    func requestAgendaAccess() { agenda.requestAccess() }
 
     var directURL: String? { ips.first.map { "http://\($0):\(Server.port)" } }
 

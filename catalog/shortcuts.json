@@ -1,73 +1,257 @@
 {
   "version": 1,
-  "note": "Standaard-sneltoetsen per app. Heb je ze in een app aangepast, pas ze dan hier aan of gebruik keys.press.",
+  "note": "Standaard-sneltoetsen per app. Heb je ze in een app aangepast, pas ze dan hier aan of gebruik keys.press. 'status' bevat menu-titels waaraan Cyberpad de mute-/camerastatus herkent (vereist Toegankelijkheid).",
   "apps": [
     {
-      "id": "zoom", "name": "Zoom", "bundleIds": ["us.zoom.xos"], "activate": true,
+      "id": "zoom",
+      "name": "Zoom",
+      "bundleIds": [
+        "us.zoom.xos"
+      ],
+      "activate": true,
       "shortcuts": [
-        { "id": "mute",  "label": "Microfoon aan/uit", "keys": "cmd+shift+a" },
-        { "id": "video", "label": "Camera aan/uit",    "keys": "cmd+shift+v" },
-        { "id": "share", "label": "Scherm delen",      "keys": "cmd+shift+s" },
-        { "id": "hand",  "label": "Hand opsteken",     "keys": "alt+y" },
-        { "id": "chat",  "label": "Chat tonen",        "keys": "cmd+shift+h" },
-        { "id": "leave", "label": "Vergadering verlaten", "keys": "cmd+w" }
+        {
+          "id": "mute",
+          "label": "Microfoon aan/uit",
+          "keys": "cmd+shift+a"
+        },
+        {
+          "id": "video",
+          "label": "Camera aan/uit",
+          "keys": "cmd+shift+v"
+        },
+        {
+          "id": "share",
+          "label": "Scherm delen",
+          "keys": "cmd+shift+s"
+        },
+        {
+          "id": "hand",
+          "label": "Hand opsteken",
+          "keys": "alt+y"
+        },
+        {
+          "id": "chat",
+          "label": "Chat tonen",
+          "keys": "cmd+shift+h"
+        },
+        {
+          "id": "leave",
+          "label": "Vergadering verlaten",
+          "keys": "cmd+w"
+        }
+      ],
+      "meeting": true,
+      "status": {
+        "mutedWhen": [
+          "Unmute audio",
+          "Unmute Audio",
+          "Dempen opheffen",
+          "Audio inschakelen"
+        ],
+        "unmutedWhen": [
+          "Mute audio",
+          "Mute Audio",
+          "Dempen",
+          "Audio dempen"
+        ],
+        "videoOnWhen": [
+          "Stop video",
+          "Stop Video",
+          "Video stoppen"
+        ],
+        "videoOffWhen": [
+          "Start video",
+          "Start Video",
+          "Video starten"
+        ]
+      }
+    },
+    {
+      "id": "teams",
+      "name": "Microsoft Teams",
+      "bundleIds": [
+        "com.microsoft.teams2",
+        "com.microsoft.teams"
+      ],
+      "activate": true,
+      "shortcuts": [
+        {
+          "id": "mute",
+          "label": "Microfoon aan/uit",
+          "keys": "cmd+shift+m"
+        },
+        {
+          "id": "video",
+          "label": "Camera aan/uit",
+          "keys": "cmd+shift+o"
+        },
+        {
+          "id": "hand",
+          "label": "Hand opsteken",
+          "keys": "cmd+shift+k"
+        },
+        {
+          "id": "share",
+          "label": "Scherm delen",
+          "keys": "cmd+shift+e"
+        },
+        {
+          "id": "leave",
+          "label": "Gesprek beëindigen",
+          "keys": "cmd+shift+h"
+        }
+      ],
+      "meeting": true
+    },
+    {
+      "id": "meet",
+      "name": "Google Meet (browser)",
+      "bundleIds": [],
+      "activate": false,
+      "shortcuts": [
+        {
+          "id": "mute",
+          "label": "Microfoon aan/uit",
+          "keys": "cmd+d"
+        },
+        {
+          "id": "video",
+          "label": "Camera aan/uit",
+          "keys": "cmd+e"
+        },
+        {
+          "id": "hand",
+          "label": "Hand opsteken",
+          "keys": "ctrl+cmd+h"
+        },
+        {
+          "id": "chat",
+          "label": "Chat tonen",
+          "keys": "ctrl+cmd+c"
+        }
+      ],
+      "meeting": true
+    },
+    {
+      "id": "webex",
+      "name": "Webex",
+      "bundleIds": [
+        "Cisco-Systems.Spark"
+      ],
+      "activate": true,
+      "shortcuts": [
+        {
+          "id": "mute",
+          "label": "Microfoon aan/uit",
+          "keys": "cmd+shift+m"
+        },
+        {
+          "id": "video",
+          "label": "Camera aan/uit",
+          "keys": "cmd+shift+v"
+        }
+      ],
+      "meeting": true
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "bundleIds": [
+        "com.tinyspeck.slackmacgap"
+      ],
+      "activate": true,
+      "shortcuts": [
+        {
+          "id": "huddleMute",
+          "label": "Huddle: microfoon aan/uit",
+          "keys": "cmd+shift+space"
+        },
+        {
+          "id": "huddle",
+          "label": "Huddle starten/stoppen",
+          "keys": "cmd+shift+h"
+        },
+        {
+          "id": "jump",
+          "label": "Ga naar…",
+          "keys": "cmd+k"
+        },
+        {
+          "id": "unreads",
+          "label": "Alle ongelezen",
+          "keys": "cmd+shift+a"
+        }
       ]
     },
     {
-      "id": "teams", "name": "Microsoft Teams", "bundleIds": ["com.microsoft.teams2", "com.microsoft.teams"], "activate": true,
+      "id": "discord",
+      "name": "Discord",
+      "bundleIds": [
+        "com.hnc.Discord"
+      ],
+      "activate": true,
       "shortcuts": [
-        { "id": "mute",  "label": "Microfoon aan/uit", "keys": "cmd+shift+m" },
-        { "id": "video", "label": "Camera aan/uit",    "keys": "cmd+shift+o" },
-        { "id": "hand",  "label": "Hand opsteken",     "keys": "cmd+shift+k" },
-        { "id": "leave", "label": "Gesprek beëindigen", "keys": "cmd+shift+h" }
+        {
+          "id": "mute",
+          "label": "Microfoon aan/uit",
+          "keys": "cmd+shift+m"
+        },
+        {
+          "id": "deafen",
+          "label": "Geluid aan/uit",
+          "keys": "cmd+shift+d"
+        }
       ]
     },
     {
-      "id": "meet", "name": "Google Meet (browser)", "bundleIds": [], "activate": false,
+      "id": "loom",
+      "name": "Loom",
+      "bundleIds": [
+        "com.loom.desktop"
+      ],
+      "activate": false,
       "shortcuts": [
-        { "id": "mute",  "label": "Microfoon aan/uit", "keys": "cmd+d" },
-        { "id": "video", "label": "Camera aan/uit",    "keys": "cmd+e" },
-        { "id": "hand",  "label": "Hand opsteken",     "keys": "ctrl+cmd+h" },
-        { "id": "chat",  "label": "Chat tonen",        "keys": "ctrl+cmd+c" }
+        {
+          "id": "record",
+          "label": "Opname starten/stoppen",
+          "keys": "alt+shift+l"
+        },
+        {
+          "id": "pause",
+          "label": "Opname pauzeren",
+          "keys": "alt+shift+p"
+        }
       ]
     },
     {
-      "id": "webex", "name": "Webex", "bundleIds": ["Cisco-Systems.Spark"], "activate": true,
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "bundleIds": [
+        "com.microsoft.VSCode"
+      ],
+      "activate": true,
       "shortcuts": [
-        { "id": "mute",  "label": "Microfoon aan/uit", "keys": "cmd+shift+m" },
-        { "id": "video", "label": "Camera aan/uit",    "keys": "cmd+shift+v" }
-      ]
-    },
-    {
-      "id": "slack", "name": "Slack", "bundleIds": ["com.tinyspeck.slackmacgap"], "activate": true,
-      "shortcuts": [
-        { "id": "huddleMute", "label": "Huddle: microfoon aan/uit", "keys": "cmd+shift+space" },
-        { "id": "huddle",     "label": "Huddle starten/stoppen",    "keys": "cmd+shift+h" },
-        { "id": "jump",       "label": "Ga naar…",                  "keys": "cmd+k" },
-        { "id": "unreads",    "label": "Alle ongelezen",            "keys": "cmd+shift+a" }
-      ]
-    },
-    {
-      "id": "discord", "name": "Discord", "bundleIds": ["com.hnc.Discord"], "activate": true,
-      "shortcuts": [
-        { "id": "mute",   "label": "Microfoon aan/uit", "keys": "cmd+shift+m" },
-        { "id": "deafen", "label": "Geluid aan/uit",    "keys": "cmd+shift+d" }
-      ]
-    },
-    {
-      "id": "loom", "name": "Loom", "bundleIds": ["com.loom.desktop"], "activate": false,
-      "shortcuts": [
-        { "id": "record", "label": "Opname starten/stoppen", "keys": "alt+shift+l" },
-        { "id": "pause",  "label": "Opname pauzeren",        "keys": "alt+shift+p" }
-      ]
-    },
-    {
-      "id": "vscode", "name": "Visual Studio Code", "bundleIds": ["com.microsoft.VSCode"], "activate": true,
-      "shortcuts": [
-        { "id": "palette",  "label": "Opdrachtenpalet", "keys": "cmd+shift+p" },
-        { "id": "open",     "label": "Snel openen",     "keys": "cmd+p" },
-        { "id": "terminal", "label": "Terminal",        "keys": "ctrl+`" },
-        { "id": "sidebar",  "label": "Zijbalk",         "keys": "cmd+b" }
+        {
+          "id": "palette",
+          "label": "Opdrachtenpalet",
+          "keys": "cmd+shift+p"
+        },
+        {
+          "id": "open",
+          "label": "Snel openen",
+          "keys": "cmd+p"
+        },
+        {
+          "id": "terminal",
+          "label": "Terminal",
+          "keys": "ctrl+`"
+        },
+        {
+          "id": "sidebar",
+          "label": "Zijbalk",
+          "keys": "cmd+b"
+        }
       ]
     }
   ]

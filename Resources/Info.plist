@@ -16,5 +16,7 @@
 	<key>NSLocalNetworkUsageDescription</key><string>Cyberpad stuurt de bedieningspagina via je wifi naar je tablet.</string>
 	<key>NSBonjourServices</key><array><string>_http._tcp</string></array>
 	<key>NSAppleEventsUsageDescription</key><string>Cyberpad bedient onder andere dark mode op je Mac als je op je tablet een knop indrukt.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>Cyberpad toont je volgende afspraak op je tablet en opent de vergaderlink als je op Deelnemen tikt.</string>
+	<key>NSCalendarsUsageDescription</key><string>Cyberpad toont je volgende afspraak op je tablet en opent de vergaderlink als je op Deelnemen tikt.</string>
 </dict>
 </plist>

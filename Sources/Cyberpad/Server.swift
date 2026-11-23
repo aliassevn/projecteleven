@@ -23,6 +23,9 @@ final class Server {
     let actions: ActionRunner
     let padDir: URL
 
+    var meeting: MeetingMonitor?
+    var agenda: AgendaProvider?
+
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: Connection] = [:]
     private(set) var lastError: String?
@@ -122,6 +125,20 @@ final class Server {
         return d
     }
 
+    /// Alles wat de tablet aan status nodig heeft: knoppen, volume, vergadering en agenda.
+    func fullState() -> [String: Any] {
+        var s = actions.state()
+        s["meeting"] = meeting?.current?.json() ?? NSNull()
+        s["agenda"] = agenda?.json() ?? NSNull()
+        return s
+    }
+
+    /// Knop in het vergaderpaneel. Alleen vaste acties; welke toetsen dat zijn bepaalt de catalogus op de Mac.
+    func handleMeeting(action: String) -> (ok: Bool, error: String?) {
+        guard MeetingMonitor.actionOrder.contains(action), let meeting else { return (false, "Onbekende vergaderactie") }
+        do { try meeting.perform(action); return (true, nil) } catch { return (false, error.localizedDescription) }
+    }
+
     // MARK: Berichten van de tablet (WebSocket én XHR gebruiken dezelfde route)
 
     /// Voert een druk of schuifbeweging uit. De tablet geeft alleen een tegel-id (en gebaar); de actie komt uit de layout.
@@ -132,6 +149,7 @@ final class Server {
         do {
             switch type {
             case "press":
+                if tile.kind == "agenda" { try agenda?.joinNext(); return (true, nil) }
                 guard tile.isButton else { return (false, "Dit is geen knop") }
                 let g = ["long", "double"].contains(gesture ?? "") ? gesture! : "tap"
                 try actions.press(tile, gesture: g)
@@ -176,7 +194,8 @@ final class Server {
                 c.respond(429, json: ["error": "blocked", "seconds": s])
             }
 
-        case ("GET", "/api/layout"), ("GET", "/api/state"), ("POST", "/api/press"), ("POST", "/api/slider"):
+        case ("GET", "/api/layout"), ("GET", "/api/state"), ("POST", "/api/press"), ("POST", "/api/slider"),
+             ("POST", "/api/meeting"):
             guard let device = pairing.authenticate(token: req.headers["x-cyberpad-token"]) else {
                 c.respond(401, json: ["error": "unauthorized"])
                 return
@@ -184,9 +203,15 @@ final class Server {
             c.deviceID = device.id
             switch req.path {
             case "/api/layout":
-                c.respond(200, json: ["layout": layoutJSON(), "state": actions.state()])
+                c.respond(200, json: ["layout": layoutJSON(), "state": fullState()])
             case "/api/state":
-                c.respond(200, json: ["state": actions.state()])
+                c.respond(200, json: ["state": fullState()])
+            case "/api/meeting":
+                let r = handleMeeting(action: (req.json() ?? [:])["action"] as? String ?? "")
+                var out: [String: Any] = ["ok": r.ok]
+                if let e = r.error { out["error"] = e }
+                c.respond(200, json: out)
+                scheduleStateBroadcast()
             default:
                 let body = req.json() ?? [:]
                 let r = handleInput(type: req.path == "/api/press" ? "press" : "slider",
@@ -214,7 +239,7 @@ final class Server {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self else { return }
             self.stateBroadcastPending = false
-            self.broadcast(["type": "state", "state": self.actions.state()])
+            self.broadcast(["type": "state", "state": self.fullState()])
         }
     }
 
@@ -397,7 +422,7 @@ private final class Connection {
             deviceID = device.id
             sendJSON(["type": "welcome", "device": device.name])
             sendJSON(["type": "layout", "layout": server.layoutJSON()])
-            sendJSON(["type": "state", "state": server.actions.state()])
+            sendJSON(["type": "state", "state": server.fullState()])
             server.onClientsChanged?()
             return
         }
@@ -406,6 +431,12 @@ private final class Connection {
         switch type {
         case "ping":
             sendJSON(["type": "pong"])
+        case "meeting":
+            let r = server.handleMeeting(action: msg["action"] as? String ?? "")
+            var ack: [String: Any] = ["type": "ack", "id": "meeting", "ok": r.ok]
+            if let e = r.error { ack["error"] = e }
+            sendJSON(ack)
+            server.scheduleStateBroadcast()
         case "press", "slider":
             let id = msg["id"] as? String ?? ""
             let r = server.handleInput(type: type, id: id, gesture: msg["gesture"] as? String,

@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–4 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–5 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 ## Bouwen en starten
 
@@ -25,6 +25,7 @@ en voer de 6-cijferige code in. Daarna onthoudt de tablet de koppeling.
 | Lokaal netwerk | tablet bereiken, `cyberpad.local` publiceren | Systeeminstellingen › Privacy en beveiliging › Lokaal netwerk |
 | Toegankelijkheid | media-toetsen, vergrendelen, screenshots | Privacy en beveiliging › Toegankelijkheid (knop in het menu) |
 | Automatisering › System Events | dark mode wisselen | wordt gevraagd bij eerste gebruik |
+| Agenda | volgende afspraak tonen | wordt gevraagd als er een agendategel is, of via het menu |
 
 Let op: de app is ad-hoc ondertekend. Na elke nieuwe build kan macOS de Toegankelijkheid-toestemming
 vergeten; zet hem dan uit en weer aan.
@@ -55,7 +56,7 @@ Toetsnamen: `cmd`, `shift`, `alt`/`option`, `ctrl`, `fn` + een letter, cijfer, l
 `return`, `tab`, `space`, `delete`, `esc`, `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f20`.
 De toetsen volgen de Amerikaanse indeling (ook US-International).
 
-Tegelsoorten (`kind`): `button` (standaard), `slider`, `clock`. Plaats met `x`, `y` en optioneel `w`, `h`.
+Tegelsoorten (`kind`): `button` (standaard), `slider`, `clock`, `agenda`. Plaats met `x`, `y` en optioneel `w`, `h`.
 
 ### Gebaren en aan/uit-knoppen
 
@@ -86,6 +87,28 @@ macOS heeft geen openbare manier om Focus direct aan te zetten. Maak in de Opdra
 bijv. **Focus aan** (actie "Stel focus in" → aan) en **Focus uit**, en gebruik ze met `shortcut.run`.
 De standaard-layout heeft hier al een aan/uit-knop voor op de pagina **Werk**.
 
+### Vergaderingen
+
+Zodra je in een vergadering zit, verschijnt op de tablet vanzelf een **vergaderpaneel** met microfoon, camera,
+hand opsteken, scherm delen en ophangen (ophangen = twee keer tikken). Met *Verbergen* ga je terug naar je
+knoppen; het roze label in de statusbalk haalt het paneel terug.
+
+- **Herkenning:** een vergader-app (Zoom, Teams, Webex) draait én gebruikt de microfoon. Google Meet wordt herkend
+  aan de venstertitel in de browser (vereist Toegankelijkheid).
+- **Mute-status:** bij Zoom leest Cyberpad die uit het menu van Zoom (vereist Toegankelijkheid). Bij de andere apps
+  houdt Cyberpad zelf bij wat jij via de tablet doet; dat staat dan als "geschat" op het paneel.
+- Welke toetsen er gestuurd worden staat in `catalog/shortcuts.json`.
+
+### Agenda
+
+Een tegel met `"kind": "agenda"` toont je volgende afspraak met aftelling. Staat er een Zoom-, Teams-, Meet-, Webex-,
+FaceTime- of Whereby-link in de afspraak, dan opent **Deelnemen** die link. Cyberpad vraagt bij de eerste start om
+toegang tot Agenda als er een agendategel in je layout staat; anders via *Toestaan…* in het menu.
+Titels en tijden van afspraken gaan alleen naar gekoppelde tablets.
+
+Testen zonder echte vergadering of agenda: start met `CYBERPAD_FAKE_MEETING=teams` (of `zoom`, `meet`, `webex`)
+en/of `CYBERPAD_FAKE_AGENDA=1`. In de vergader-testmodus worden geen toetsen verstuurd.
+
 Menu › **Standaard-layout terugzetten…** zet de voorbeeldlayout terug; je huidige layout wordt eerst als back-up bewaard.
 
 ## Beveiliging
@@ -108,6 +131,8 @@ Sources/Cyberpad/
   Layout.swift        layout-model en bestand
   Actions.swift       alle acties, macro's, aan/uit-knoppen
   Keys.swift          toetscombinaties en tekst typen
+  MeetingMonitor.swift vergaderingen herkennen en bedienen
+  Agenda.swift        volgende afspraak en vergaderlink
   Catalog.swift       shortcut-bibliotheek
   Audio.swift         CoreAudio
   HostAlias.swift     cyberpad.local via mDNS

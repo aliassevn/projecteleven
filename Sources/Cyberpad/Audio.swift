@@ -69,6 +69,87 @@ final class AudioController {
         }
     }
 
+    struct MicUser: Hashable {
+        let pid: pid_t
+        let bundleID: String
+    }
+
+    /// Welke processen nu de microfoon gebruiken (macOS 14.2+). Nil als macOS dit niet kan vertellen.
+    func micUsers() -> Set<MicUser>? {
+        guard #available(macOS 14.2, *) else { return nil }
+        let sys = AudioObjectID(kAudioObjectSystemObject)
+        var addr = AudioObjectPropertyAddress(mSelector: fourCC("prs#"), // ProcessObjectList
+                                              mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(sys, &addr, 0, nil, &size) == noErr else { return nil }
+        var objs = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        if !objs.isEmpty {
+            guard AudioObjectGetPropertyData(sys, &addr, 0, nil, &size, &objs) == noErr else { return nil }
+        }
+
+        var users = Set<MicUser>()
+        for obj in objs {
+            var runAddr = AudioObjectPropertyAddress(mSelector: fourCC("piri"), // IsRunningInput
+                                                     mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var running: UInt32 = 0
+            var rsize = UInt32(MemoryLayout<UInt32>.size)
+            guard AudioObjectGetPropertyData(obj, &runAddr, 0, nil, &rsize, &running) == noErr, running != 0 else { continue }
+
+            var pidAddr = AudioObjectPropertyAddress(mSelector: fourCC("ppid"), mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var pid: pid_t = 0
+            var psize = UInt32(MemoryLayout<pid_t>.size)
+            AudioObjectGetPropertyData(obj, &pidAddr, 0, nil, &psize, &pid)
+
+            var bidAddr = AudioObjectPropertyAddress(mSelector: fourCC("pbid"), mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var cf: Unmanaged<CFString>?
+            var bsize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+            var bundle = ""
+            if AudioObjectGetPropertyData(obj, &bidAddr, 0, nil, &bsize, &cf) == noErr, let cf {
+                bundle = cf.takeRetainedValue() as String
+            }
+            users.insert(MicUser(pid: pid, bundleID: bundle))
+        }
+        return users
+    }
+
+    private func fourCC(_ s: String) -> AudioObjectPropertySelector {
+        s.utf8.reduce(0) { ($0 << 8) | AudioObjectPropertySelector($1) }
+    }
+
+    /// True als een app ergens een microfoon gebruikt (alle invoerapparaten, niet alleen de standaard).
+    /// Grover dan `micUsers()`: een koptelefoon met microfoon telt ook mee als er alleen muziek speelt.
+    var micInUse: Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
+                                              mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        let sys = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(sys, &addr, 0, nil, &size) == noErr, size > 0 else { return false }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(sys, &addr, 0, nil, &size, &ids) == noErr else { return false }
+
+        for dev in ids {
+            // Heeft dit apparaat invoerkanalen?
+            var streams = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams,
+                                                     mScope: kAudioDevicePropertyScopeInput,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var ssize: UInt32 = 0
+            guard AudioObjectGetPropertyDataSize(dev, &streams, 0, nil, &ssize) == noErr, ssize > 0 else { continue }
+
+            var running = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+                                                     mScope: kAudioObjectPropertyScopeGlobal,
+                                                     mElement: kAudioObjectPropertyElementMain)
+            var v: UInt32 = 0
+            var vsize = UInt32(MemoryLayout<UInt32>.size)
+            if AudioObjectGetPropertyData(dev, &running, 0, nil, &vsize, &v) == noErr, v != 0 { return true }
+        }
+        return false
+    }
+
     // MARK: CoreAudio-hulpjes
 
     private func device(input: Bool) -> AudioDeviceID? {

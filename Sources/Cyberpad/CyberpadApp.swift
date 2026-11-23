@@ -34,6 +34,8 @@ struct MenuView: View {
             pairingSection
             Divider()
             devicesSection
+            Divider()
+            statusSection
             if !core.hasAccessibility || core.layoutError != nil { Divider(); warnings }
             Divider()
             footer
@@ -102,6 +104,38 @@ struct MenuView: View {
                     Button("Intrekken", role: .destructive) { core.pairing.revoke(id: d.id) }.controlSize(.small)
                 }
             }
+        }
+    }
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: core.meetingInfo == nil ? "video.slash" : "video.fill")
+                    .foregroundStyle(core.meetingInfo == nil ? Color.secondary : Color.green)
+                if let m = core.meetingInfo {
+                    Text("In vergadering: \(m.name)")
+                    if let muted = m.muted {
+                        Text(muted ? "· mic uit" : "· mic aan").foregroundStyle(muted ? .red : .secondary)
+                        if m.statusSource == "estimated" { Text("(geschat)").font(.caption2).foregroundStyle(.secondary) }
+                    }
+                } else {
+                    Text("Geen vergadering").foregroundStyle(.secondary)
+                }
+            }
+            .font(.callout)
+            HStack(spacing: 6) {
+                Image(systemName: "calendar").foregroundStyle(.secondary)
+                switch core.agendaAccess {
+                case .granted: Text("Agenda gekoppeld").foregroundStyle(.secondary)
+                case .notDetermined:
+                    Text("Agenda niet gekoppeld").foregroundStyle(.secondary)
+                    Button("Toestaan…") { core.requestAgendaAccess() }.controlSize(.small)
+                case .denied:
+                    Text("Geen toegang tot Agenda").foregroundStyle(.orange)
+                    Button("Instellingen…") { core.requestAgendaAccess() }.controlSize(.small)
+                }
+            }
+            .font(.callout)
         }
     }
 

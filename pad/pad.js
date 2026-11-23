@@ -10,6 +10,14 @@
   var LONG_MS = 500;     // lang indrukken
   var DOUBLE_MS = 280;   // max. tijd tussen twee tikken
 
+  var MEETING_BUTTONS = {
+    mute:  { icon: '🎤', label: 'Microfoon' },
+    video: { icon: '📹', label: 'Camera' },
+    hand:  { icon: '✋', label: 'Hand opsteken' },
+    share: { icon: '🖥', label: 'Scherm delen' },
+    leave: { icon: '📞', label: 'Ophangen' }
+  };
+
   var app = {
     token: store('get', KEY_TOKEN),
     layout: null,
@@ -23,7 +31,11 @@
     retryTimer: null,
     pollTimer: null,
     clockTimer: null,
-    sliders: {}
+    sliders: {},
+    meetingKey: null,
+    meetingHidden: false,
+    meetingButtons: {},
+    leaveArmed: null
   };
 
   // ---------- hulpjes ----------
@@ -288,6 +300,12 @@
         if (h > 1) { node.className += ' big'; }
       } else if (t.kind === 'slider') {
         buildSlider(node, t);
+      } else if (t.kind === 'agenda') {
+        node.appendChild(el('div', 'agenda-head', 'VOLGENDE'));
+        node.appendChild(el('div', 'agenda-title', '…'));
+        node.appendChild(el('div', 'agenda-time', ''));
+        node.appendChild(el('div', 'agenda-join', 'DEELNEMEN ›'));
+        bindPress(node, t);
       } else {
         if (t.icon) { node.appendChild(el('div', 'icon', t.icon)); }
         node.appendChild(el('div', 'label', t.label));
@@ -337,6 +355,156 @@
     for (var id in app.sliders) {
       if (app.sliders.hasOwnProperty(id)) { app.sliders[id].update(); }
     }
+    updateAgenda();
+    updateMeeting();
+  }
+
+  // ---------- agenda ----------
+
+  function hm(ms) { var d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+
+  function dur(min) {
+    if (min < 60) { return min + ' min'; }
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + 'u' + (m ? ' ' + m + 'm' : '');
+  }
+
+  function updateAgenda() {
+    var nodes = document.querySelectorAll('.kind-agenda');
+    if (!nodes.length) { return; }
+    var a = app.values.agenda || { status: 'noAccess' };
+    var title, time, cls = '', join = false;
+    if (a.status === 'ok') {
+      var now = new Date().getTime();
+      title = a.title;
+      if (now < a.start) {
+        var mins = Math.ceil((a.start - now) / 60000);
+        time = hm(a.start) + '–' + hm(a.end) + ' · OVER ' + dur(mins).toUpperCase();
+        if (mins <= 5) { cls = ' soon'; }
+      } else {
+        time = 'NU · NOG ' + dur(Math.max(1, Math.ceil((a.end - now) / 60000))).toUpperCase();
+        cls = ' now';
+      }
+      join = a.hasLink === true;
+    } else if (a.status === 'none') {
+      title = 'Geen afspraken meer';
+      time = 'VANDAAG EN MORGEN';
+    } else if (a.status === 'denied') {
+      title = 'Geen toegang tot Agenda';
+      time = 'STA TOEGANG TOE OP DE MAC';
+    } else {
+      title = 'Agenda niet gekoppeld';
+      time = 'KLIK OP TOESTAAN IN DE MENUBALK';
+    }
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      n.querySelector('.agenda-title').textContent = title;
+      n.querySelector('.agenda-time').textContent = time;
+      n.querySelector('.agenda-join').style.display = join ? '' : 'none';
+      n.className = n.className.replace(/\s*\b(soon|now|has-link)\b/g, '') + cls + (join ? ' has-link' : '');
+    }
+  }
+
+  // ---------- vergaderpaneel ----------
+
+  function updateMeeting() {
+    var m = app.values.meeting;
+    var overlay = $('meeting'), pill = $('meeting-pill');
+    if (!m) {
+      app.meetingKey = null;
+      overlay.className = 'meeting hidden';
+      pill.className = 'meeting-pill hidden';
+      return;
+    }
+    var key = m.app + ':' + m.since;
+    if (key !== app.meetingKey) {
+      app.meetingKey = key;
+      app.meetingHidden = false; // nieuwe vergadering: paneel automatisch tonen
+      buildMeeting(m);
+    }
+    overlay.className = app.meetingHidden ? 'meeting hidden' : 'meeting';
+    pill.className = app.meetingHidden ? 'meeting-pill' : 'meeting-pill hidden';
+    pill.textContent = '● ' + m.name.toUpperCase();
+    $('meeting-title').textContent = '// VERGADERING · ' + m.name.toUpperCase();
+
+    var b = app.meetingButtons;
+    if (b.mute) { setMeetingState(b.mute, m.muted, 'MIC UIT', 'MIC AAN', 'MICROFOON'); }
+    if (b.video) { setMeetingState(b.video, m.video === null ? null : !m.video, 'CAMERA UIT', 'CAMERA AAN', 'CAMERA'); }
+    $('meeting-note').textContent = m.statusSource === 'app' ? '' :
+      m.statusSource === 'estimated' ? '≈ status bijgehouden door Cyberpad; kan afwijken als je in de app zelf klikt'
+                                     : 'Status onbekend voor ' + m.name;
+    updateMeetingClock();
+  }
+
+  // `off` = true betekent: mic/camera staat UIT → magenta.
+  function setMeetingState(node, off, offText, onText, unknownText) {
+    var label = node.querySelector('.label');
+    var cls = node.className.replace(/\s*\b(active|unknown)\b/g, '');
+    if (off === true) { label.textContent = offText; node.className = cls + ' active'; }
+    else if (off === false) { label.textContent = onText; node.className = cls; }
+    else { label.textContent = unknownText + ' ?'; node.className = cls + ' unknown'; }
+  }
+
+  function buildMeeting(m) {
+    var grid = $('meeting-grid');
+    grid.innerHTML = '';
+    app.meetingButtons = {};
+    for (var i = 0; i < m.actions.length; i++) {
+      (function (action) {
+        var spec = MEETING_BUTTONS[action];
+        if (!spec) { return; }
+        var node = el('div', 'tile mbtn mbtn-' + action);
+        node.appendChild(el('span', 'corner'));
+        node.appendChild(el('div', 'icon', spec.icon));
+        node.appendChild(el('div', 'label', spec.label));
+        bindTap(node, function () { meetingPress(action, node); });
+        grid.appendChild(node);
+        app.meetingButtons[action] = node;
+      })(m.actions[i]);
+    }
+  }
+
+  function meetingPress(action, node) {
+    if (action === 'leave') {
+      // Ophangen pas na een tweede tik binnen 3 seconden.
+      if (!app.leaveArmed) {
+        node.className += ' armed';
+        node.querySelector('.label').textContent = 'NOG EEN KEER = OPHANGEN';
+        app.leaveArmed = setTimeout(function () { disarmLeave(node); }, 3000);
+        return;
+      }
+      disarmLeave(node);
+    }
+    flash(node);
+    sendMeeting(action);
+  }
+
+  function disarmLeave(node) {
+    clearTimeout(app.leaveArmed);
+    app.leaveArmed = null;
+    node.className = node.className.replace(/\s*\barmed\b/g, '');
+    node.querySelector('.label').textContent = MEETING_BUTTONS.leave.label;
+  }
+
+  function sendMeeting(action) {
+    if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) {
+      app.ws.send(JSON.stringify({ type: 'meeting', action: action }));
+    } else if (app.mode === 'xhr' && app.connected) {
+      request('POST', '/api/meeting', { action: action }, function (err, status, data) {
+        if (data && data.ok === false && data.error) { toast(data.error); }
+        poll();
+      });
+    } else {
+      toast('Geen verbinding met de Mac');
+    }
+  }
+
+  function updateMeetingClock() {
+    var m = app.values.meeting;
+    if (!m) { return; }
+    var s = Math.max(0, Math.floor((new Date().getTime() - m.since) / 1000));
+    var h = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+    $('meeting-since').textContent = (h ? h + ':' + pad2(mm) : mm) + ':' + pad2(ss);
   }
 
   // ---------- aanraken ----------
@@ -525,7 +693,11 @@
     }, false);
     window.addEventListener('orientationchange', function () { setTimeout(render, 300); }, false);
 
-    app.clockTimer = setInterval(updateClock, 1000);
+    app.clockTimer = setInterval(function () { updateClock(); updateMeetingClock(); }, 1000);
+    setInterval(updateAgenda, 15000);
+
+    bindTap($('meeting-hide'), function () { app.meetingHidden = true; updateMeeting(); });
+    bindTap($('meeting-pill'), function () { app.meetingHidden = false; updateMeeting(); });
 
     // Verbinding controleren als de tablet uit slaap komt.
     document.addEventListener('visibilitychange', function () {

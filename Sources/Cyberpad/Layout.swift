@@ -81,7 +81,7 @@ struct Layout: Codable, Equatable {
                 Tile(id: "voldown", label: "Vol −", icon: "🔉", action: .init(type: "audio.volumeDown"), x: 3, y: 1),
                 Tile(id: "volup", label: "Vol +", icon: "🔊", action: .init(type: "audio.volumeUp"), x: 4, y: 1),
                 Tile(id: "safari", label: "Safari", icon: "🧭", action: .init(type: "app.open", app: "com.apple.Safari"), x: 0, y: 2),
-                Tile(id: "clock", label: "Tijd", kind: "clock", x: 1, y: 2, w: 2),
+                Tile(id: "agenda", label: "Volgende afspraak", kind: "agenda", x: 1, y: 2, w: 2),
                 Tile(id: "dark", label: "Dark mode", icon: "🌗", action: .init(type: "system.darkMode"), x: 3, y: 2),
                 Tile(id: "awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 4, y: 2),
             ]),

@@ -242,7 +242,7 @@ final class ActionRunner {
         _ = AXIsProcessTrustedWithOptions(opts)
     }
 
-    private func ensureAccessibility() throws {
+    func ensureAccessibility() throws {
         guard AXIsProcessTrusted() else {
             if !askedForAccessibility { askedForAccessibility = true; requestAccessibility() }
             throw ActionError.needsAccessibility
