@@ -19,6 +19,40 @@ struct ActionSpec: Codable, Equatable {
     }
 }
 
+/// Instellingen voor widget-tegels. Alleen de velden die bij het soort tegel horen worden gebruikt.
+struct WidgetConfig: Codable, Equatable {
+    // weather
+    var city: String?
+    var lat: Double?
+    var lon: Double?
+    // timer: duur in seconden · photos: seconden per foto
+    var seconds: Int?
+    // pomodoro: minuten werk / pauze
+    var work: Int?
+    var rest: Int?
+    // worldclock: tijdzones, bijv. "America/New_York"
+    var zones: [String]?
+    // photos: map met foto's (standaard ~/Pictures/Cyberpad)
+    var folder: String?
+    // terminal
+    var command: String?
+    var cwd: String?
+    var dangerous: Bool?
+    var timeout: Int?
+    // stats: welke regels (cpu, ram, net, battery, accessories)
+    var show: [String]?
+    // nowplaying: "music" of "spotify" (standaard: wat er speelt)
+    var player: String?
+
+    init(city: String? = nil, lat: Double? = nil, lon: Double? = nil, seconds: Int? = nil, work: Int? = nil,
+         rest: Int? = nil, zones: [String]? = nil, folder: String? = nil, command: String? = nil, cwd: String? = nil,
+         dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil) {
+        self.city = city; self.lat = lat; self.lon = lon; self.seconds = seconds; self.work = work; self.rest = rest
+        self.zones = zones; self.folder = folder; self.command = command; self.cwd = cwd; self.dangerous = dangerous
+        self.timeout = timeout; self.show = show; self.player = player
+    }
+}
+
 struct Tile: Codable, Equatable {
     var id: String
     var label: String
@@ -34,6 +68,8 @@ struct Tile: Codable, Equatable {
     /// Aan/uit-knop: Cyberpad onthoudt de stand. Bij "uit" wordt `offAction` gebruikt (als die er is).
     var toggle: Bool?
     var offAction: ActionSpec?
+    /// Instellingen voor widgets (weer, timer, terminal, …)
+    var config: WidgetConfig?
     var x: Int
     var y: Int
     var w: Int?
@@ -41,13 +77,17 @@ struct Tile: Codable, Equatable {
 
     init(id: String, label: String, icon: String? = nil, kind: String? = nil, action: ActionSpec? = nil,
          longPress: ActionSpec? = nil, doubleTap: ActionSpec? = nil, toggle: Bool? = nil, offAction: ActionSpec? = nil,
-         x: Int, y: Int, w: Int? = nil, h: Int? = nil) {
+         config: WidgetConfig? = nil, x: Int, y: Int, w: Int? = nil, h: Int? = nil) {
         self.id = id; self.label = label; self.icon = icon; self.kind = kind; self.action = action
         self.longPress = longPress; self.doubleTap = doubleTap; self.toggle = toggle; self.offAction = offAction
+        self.config = config
         self.x = x; self.y = y; self.w = w; self.h = h
     }
 
     var isButton: Bool { kind == nil || kind == "button" }
+
+    static let widgetKinds: Set<String> = ["weather", "nowplaying", "timer", "pomodoro", "worldclock", "photos", "stats", "terminal"]
+    var isWidget: Bool { Self.widgetKinds.contains(kind ?? "") }
 }
 
 struct Page: Codable, Equatable {
@@ -116,6 +156,18 @@ struct Layout: Codable, Equatable {
                 Tile(id: "mission", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 3, y: 2),
                 Tile(id: "expose", label: "App-vensters", icon: "🗂", action: .init(type: "keys.press", keys: "ctrl+down"), x: 4, y: 2),
             ]),
+            Page(id: "widgets", name: "Widgets", tiles: [
+                Tile(id: "nowplaying", label: "Nu speelt", kind: "nowplaying", x: 0, y: 0, w: 3),
+                Tile(id: "weather", label: "Weer", kind: "weather", config: .init(city: "Amsterdam"), x: 3, y: 0, w: 2),
+                Tile(id: "stats", label: "Systeem", kind: "stats", x: 0, y: 1, w: 2),
+                Tile(id: "timer", label: "Timer", kind: "timer", config: .init(seconds: 300), x: 2, y: 1),
+                Tile(id: "pomodoro", label: "Pomodoro", kind: "pomodoro", config: .init(work: 25, rest: 5), x: 3, y: 1),
+                Tile(id: "world", label: "Wereldklok", kind: "worldclock",
+                     config: .init(zones: ["America/New_York", "Asia/Tokyo"]), x: 4, y: 1),
+                Tile(id: "ping", label: "Ping", kind: "terminal",
+                     config: .init(command: "ping -c 5 1.1.1.1", timeout: 30), x: 0, y: 2, w: 3),
+                Tile(id: "photos", label: "Foto's", kind: "photos", config: .init(seconds: 10), x: 3, y: 2, w: 2),
+            ]),
             Page(id: "system", name: "Systeem", tiles: [
                 Tile(id: "lock", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 0),
                 Tile(id: "display", label: "Scherm uit", icon: "🌑", action: .init(type: "system.displayOff"), x: 1, y: 0),
@@ -123,6 +175,7 @@ struct Layout: Codable, Equatable {
                 Tile(id: "shotarea", label: "Selectie", icon: "✂️", action: .init(type: "system.screenshotArea"), x: 3, y: 0),
                 Tile(id: "finder", label: "Finder", icon: "🗂", action: .init(type: "app.open", app: "com.apple.finder"), x: 4, y: 0),
                 Tile(id: "github", label: "GitHub", icon: "🌐", action: .init(type: "url.open", url: "https://github.com"), x: 0, y: 1),
+                Tile(id: "mic-level", label: "Mic-volume", kind: "slider", action: .init(type: "audio.micVolume"), x: 0, y: 2),
                 Tile(id: "clock2", label: "Tijd", kind: "clock", x: 1, y: 1, w: 4, h: 2),
             ]),
         ]

@@ -42,6 +42,22 @@ final class AudioController {
 
     // MARK: Microfoon
 
+    var micVolume: Float32? {
+        guard let dev = device(input: true) else { return nil }
+        let vals = volumeElements(dev, input: true).compactMap { getFloat(dev, kAudioDevicePropertyVolumeScalar, input: true, element: $0) }
+        guard !vals.isEmpty else { return nil }
+        return vals.reduce(0, +) / Float32(vals.count)
+    }
+
+    func setMicVolume(_ v: Float32) {
+        guard let dev = device(input: true) else { return }
+        let clamped = min(max(v, 0), 1)
+        for el in volumeElements(dev, input: true) {
+            setFloat(dev, kAudioDevicePropertyVolumeScalar, input: true, element: el, value: clamped)
+        }
+        if clamped > 0 { savedMicVolume = nil }
+    }
+
     var micMuted: Bool {
         guard let dev = device(input: true) else { return false }
         if isSettable(dev, kAudioDevicePropertyMute, input: true, element: kAudioObjectPropertyElementMain),

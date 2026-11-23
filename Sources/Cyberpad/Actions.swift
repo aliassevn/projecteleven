@@ -41,6 +41,7 @@ final class ActionRunner {
         ]
         if let v = audio.volume { s["volume"] = (Double(v) * 100).rounded() / 100 }
         if let m = audio.muted { s["muted"] = m }
+        if let v = audio.micVolume { s["micVolume"] = (Double(v) * 100).rounded() / 100 }
         return s
     }
 
@@ -51,6 +52,8 @@ final class ActionRunner {
         case "audio.micMute": return "micMuted"
         case "system.keepAwake": return "keepAwake"
         case "system.darkMode": return "darkMode"
+        case "audio.volume": return "volume"
+        case "audio.micVolume": return "micVolume"
         default: return nil
         }
     }
@@ -147,6 +150,7 @@ final class ActionRunner {
     func setSlider(_ a: ActionSpec, value: Double) throws {
         switch a.type {
         case "audio.volume": audio.setVolume(Float32(value))
+        case "audio.micVolume": audio.setMicVolume(Float32(value))
         default: throw ActionError.unknown(a.type)
         }
     }

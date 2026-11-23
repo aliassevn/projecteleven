@@ -306,3 +306,122 @@ body {
   .meeting-grid .mbtn-mute, .meeting-grid .mbtn-video { min-height: 120px; }
   .agenda-title { font-size: 14px; }
 }
+
+/* ---------- widgets: algemeen ---------- */
+
+[data-widget] {
+  -webkit-box-align: stretch; -webkit-align-items: stretch; align-items: stretch;
+  padding: 14px 18px; text-align: left;
+}
+
+/* ---------- weer ---------- */
+
+.kind-weather .w-top { display: -webkit-box; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.kind-weather .w-icon { font-size: 40px; margin-right: 14px; }
+.kind-weather .w-temp { font-size: 46px; color: #00ffe0; text-shadow: 0 0 12px rgba(0,255,224,0.5); }
+.kind-weather .w-desc { font-size: 14px; margin-top: 6px; }
+.kind-weather .w-range { font-size: 11px; letter-spacing: 1px; color: rgba(200,255,246,0.65); margin-top: 6px; }
+.kind-weather .w-place { font-size: 10px; letter-spacing: 3px; color: rgba(200,255,246,0.45); margin-top: 8px; }
+
+/* ---------- nu speelt ---------- */
+
+.kind-nowplaying .np-info { overflow: hidden; }
+.kind-nowplaying .np-app { font-size: 10px; letter-spacing: 3px; color: rgba(200,255,246,0.5); }
+.kind-nowplaying.playing .np-app { color: #00ffe0; }
+.kind-nowplaying .np-title {
+  font-size: 20px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kind-nowplaying .np-artist {
+  font-size: 12px; color: rgba(200,255,246,0.65); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kind-nowplaying .np-bar {
+  height: 10px; margin-top: 12px; border: 1px solid rgba(0,255,224,0.4); position: relative;
+  /* groter raakvlak voor vingers */
+  -webkit-background-clip: content-box; background-clip: content-box;
+}
+.kind-nowplaying .np-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #00ffe0; }
+.kind-nowplaying .np-time { font-size: 10px; letter-spacing: 2px; color: rgba(200,255,246,0.5); margin-top: 6px; }
+.kind-nowplaying .np-ctrl { display: -webkit-box; display: -webkit-flex; display: flex; margin-top: 8px; }
+.kind-nowplaying .np-btn {
+  -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; text-align: center; font-size: 22px; padding: 6px 0;
+  border: 1px solid rgba(0,255,224,0.3); margin-right: 8px;
+}
+.kind-nowplaying .np-btn:last-child { margin-right: 0; }
+.np-btn.flash { background: rgba(255,43,214,0.3); }
+
+/* ---------- timer / pomodoro ---------- */
+
+.kind-timer, .kind-pomodoro { -webkit-box-align: center; -webkit-align-items: center; align-items: center; text-align: center; }
+.t-label { font-size: 10px; letter-spacing: 3px; color: rgba(200,255,246,0.55); text-transform: uppercase; }
+.t-time { font-size: 38px; margin: 6px 0; color: #c8fff6; }
+.t-sub { font-size: 9px; letter-spacing: 2px; color: rgba(200,255,246,0.5); }
+.t-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; }
+.t-fill { height: 100%; width: 100%; background: rgba(0,255,224,0.6); }
+.running .t-time { color: #00ffe0; text-shadow: 0 0 12px rgba(0,255,224,0.5); }
+.rest .t-time, .rest .t-sub { color: #ff2bd6; }
+.rest .t-fill { background: rgba(255,43,214,0.7); }
+.done { border-color: #ff2bd6; -webkit-animation: pulse 1.2s infinite; animation: pulse 1.2s infinite; }
+
+/* ---------- wereldklok ---------- */
+
+.wc-head { font-size: 10px; letter-spacing: 3px; color: rgba(200,255,246,0.5); margin-bottom: 8px; }
+.wc-row {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px solid rgba(0,255,224,0.12);
+}
+.wc-city { font-size: 11px; letter-spacing: 1px; color: rgba(200,255,246,0.75); }
+.wc-time { font-size: 18px; color: #00ffe0; }
+
+/* ---------- foto's ---------- */
+
+.kind-photos { padding: 0; }
+.ph-img {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  background: #000 center / cover no-repeat;
+  -webkit-transition: background-image 0.4s; transition: background-image 0.4s;
+}
+.ph-msg {
+  position: absolute; left: 12px; right: 12px; bottom: 10px;
+  font-size: 11px; line-height: 1.4; color: rgba(200,255,246,0.7); text-align: center;
+}
+
+/* ---------- systeem ---------- */
+
+.st-row {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  padding: 3px 0; font-size: 11px;
+}
+.st-key { width: 64px; letter-spacing: 2px; color: rgba(200,255,246,0.55); overflow: hidden; white-space: nowrap; }
+.st-val { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; color: #c8fff6; white-space: nowrap; }
+.st-bar { width: 60px; height: 6px; border: 1px solid rgba(0,255,224,0.35); position: relative; margin-left: 8px; }
+.st-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #00ffe0; }
+.st-fill.hot { background: #ff2bd6; }
+
+/* ---------- terminal ---------- */
+
+.kind-terminal { padding: 10px 14px; }
+.term-head {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between;
+  font-size: 11px; letter-spacing: 1px;
+}
+.term-label { color: #00ffe0; }
+.term-status { color: rgba(200,255,246,0.55); letter-spacing: 2px; font-size: 9px; }
+.term-out {
+  -webkit-box-flex: 1; -webkit-flex: 1; flex: 1;
+  margin: 8px 0; padding: 6px 8px; overflow: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  font-family: inherit; font-size: 10px; line-height: 1.35; color: #7dffb0;
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(0,255,224,0.15);
+  white-space: pre-wrap; word-break: break-all;
+}
+.term-btn {
+  font-size: 11px; letter-spacing: 3px; text-align: center; padding: 6px;
+  border: 1px solid rgba(0,255,224,0.45); color: #00ffe0;
+}
+.kind-terminal.running .term-btn { border-color: #ff3b5c; color: #ff8199; }
+.kind-terminal.running .term-status { color: #00ffe0; }
+.kind-terminal.failed .term-status { color: #ff8199; }
+.kind-terminal.armed .term-btn { background: #ff3b5c; border-color: #ff3b5c; color: #05060a; }

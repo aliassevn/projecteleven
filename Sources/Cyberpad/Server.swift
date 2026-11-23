@@ -4,6 +4,7 @@ import Network
 struct HTTPRequest {
     var method: String
     var path: String
+    var query: [String: String] = [:]
     var headers: [String: String] // sleutels in kleine letters
     var body: Data
 
@@ -25,6 +26,11 @@ final class Server {
 
     var meeting: MeetingMonitor?
     var agenda: AgendaProvider?
+    var widgets: WidgetHub?
+    /// Laatste keer dat een tablet iets vroeg (ook via XHR), om te weten of widgets bijgewerkt moeten worden.
+    private(set) var lastActivity = Date.distantPast
+    func touch() { lastActivity = Date() }
+    var hasActiveClients: Bool { !onlineDeviceIDs.isEmpty || Date().timeIntervalSince(lastActivity) < 30 }
 
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: Connection] = [:]
@@ -115,6 +121,7 @@ final class Server {
         if let v = t.icon { d["icon"] = v }
         if let v = t.w { d["w"] = v }
         if let v = t.h { d["h"] = v }
+        if t.kind == "terminal", t.config?.dangerous == true { d["dangerous"] = true }
         if t.longPress != nil { d["hasLong"] = true }
         if t.doubleTap != nil { d["hasDouble"] = true }
         if t.toggle == true {
@@ -130,7 +137,14 @@ final class Server {
         var s = actions.state()
         s["meeting"] = meeting?.current?.json() ?? NSNull()
         s["agenda"] = agenda?.json() ?? NSNull()
+        s["widgets"] = widgets?.state() ?? [:]
         return s
+    }
+
+    /// Bediening van een widget-tegel (timer, muziek, terminal…). De tegel bepaalt wat mag.
+    func handleWidget(id: String, action: String, value: Double?) -> (ok: Bool, error: String?) {
+        guard let tile = layouts.layout.tile(id: id), tile.isWidget, let widgets else { return (false, "Onbekende widget: \(id)") }
+        do { try widgets.handle(tile, action: action, value: value); return (true, nil) } catch { return (false, error.localizedDescription) }
     }
 
     /// Knop in het vergaderpaneel. Alleen vaste acties; welke toetsen dat zijn bepaalt de catalogus op de Mac.
@@ -195,13 +209,29 @@ final class Server {
             }
 
         case ("GET", "/api/layout"), ("GET", "/api/state"), ("POST", "/api/press"), ("POST", "/api/slider"),
-             ("POST", "/api/meeting"):
+             ("POST", "/api/meeting"), ("POST", "/api/widget"), ("GET", "/api/photo"):
             guard let device = pairing.authenticate(token: req.headers["x-cyberpad-token"]) else {
                 c.respond(401, json: ["error": "unauthorized"])
                 return
             }
             c.deviceID = device.id
+            lastActivity = Date()
             switch req.path {
+            case "/api/photo":
+                guard let tile = layouts.layout.tile(id: req.query["tile"] ?? ""), tile.kind == "photos", let widgets else {
+                    c.respond(404, text: "Not found"); return
+                }
+                widgets.photos.image(for: tile.config, index: Int(req.query["i"] ?? "0") ?? 0) { data in
+                    if let data { c.respond(200, body: data, contentType: "image/jpeg") } else { c.respond(404, text: "Geen foto") }
+                }
+            case "/api/widget":
+                let body = req.json() ?? [:]
+                let r = handleWidget(id: body["id"] as? String ?? "", action: body["action"] as? String ?? "",
+                                     value: (body["value"] as? NSNumber)?.doubleValue)
+                var out: [String: Any] = ["ok": r.ok]
+                if let e = r.error { out["error"] = e }
+                c.respond(200, json: out)
+                scheduleStateBroadcast()
             case "/api/layout":
                 c.respond(200, json: ["layout": layoutJSON(), "state": fullState()])
             case "/api/state":
@@ -341,9 +371,17 @@ private final class Connection {
 
         let body = buffer[bodyStart..<(bodyStart + length)]
         let target = String(reqLine[1])
-        let path = String(target.split(separator: "?", maxSplits: 1).first ?? "/")
+        let pieces = target.split(separator: "?", maxSplits: 1).map(String.init)
+        let path = pieces.first ?? "/"
+        var query: [String: String] = [:]
+        if pieces.count > 1 {
+            for pair in pieces[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1).map { String($0).removingPercentEncoding ?? String($0) }
+                if let k = kv.first { query[k] = kv.count > 1 ? kv[1] : "" }
+            }
+        }
         buffer.removeAll()
-        server.handle(HTTPRequest(method: String(reqLine[0]), path: path, headers: headers, body: Data(body)), on: self)
+        server.handle(HTTPRequest(method: String(reqLine[0]), path: path, query: query, headers: headers, body: Data(body)), on: self)
     }
 
     func respond(_ status: Int, json: Any) {
@@ -428,9 +466,20 @@ private final class Connection {
         }
 
         guard deviceID != nil else { close(); return }
+        server.touch()
         switch type {
         case "ping":
             sendJSON(["type": "pong"])
+        case "widget":
+            let id = msg["id"] as? String ?? ""
+            let r = server.handleWidget(id: id, action: msg["action"] as? String ?? "",
+                                        value: (msg["value"] as? NSNumber)?.doubleValue)
+            if !r.ok {
+                var ack: [String: Any] = ["type": "ack", "id": id, "ok": false]
+                if let e = r.error { ack["error"] = e }
+                sendJSON(ack)
+            }
+            server.scheduleStateBroadcast()
         case "meeting":
             let r = server.handleMeeting(action: msg["action"] as? String ?? "")
             var ack: [String: Any] = ["type": "ack", "id": "meeting", "ok": r.ok]

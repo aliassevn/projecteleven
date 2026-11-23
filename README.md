@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–5 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–6 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 ## Bouwen en starten
 
@@ -56,7 +56,7 @@ Toetsnamen: `cmd`, `shift`, `alt`/`option`, `ctrl`, `fn` + een letter, cijfer, l
 `return`, `tab`, `space`, `delete`, `esc`, `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f20`.
 De toetsen volgen de Amerikaanse indeling (ook US-International).
 
-Tegelsoorten (`kind`): `button` (standaard), `slider`, `clock`, `agenda`. Plaats met `x`, `y` en optioneel `w`, `h`.
+Tegelsoorten (`kind`): `button` (standaard), `slider`, `clock`, `agenda` en de widgets hieronder. Plaats met `x`, `y` en optioneel `w`, `h`.
 
 ### Gebaren en aan/uit-knoppen
 
@@ -86,6 +86,30 @@ Heb je sneltoetsen in een app aangepast, gebruik dan `keys.press`.
 macOS heeft geen openbare manier om Focus direct aan te zetten. Maak in de Opdrachten-app twee opdrachten,
 bijv. **Focus aan** (actie "Stel focus in" → aan) en **Focus uit**, en gebruik ze met `shortcut.run`.
 De standaard-layout heeft hier al een aan/uit-knop voor op de pagina **Werk**.
+
+### Widgets
+
+Widgets krijgen hun instellingen in `"config"`. Voorbeelden staan op de pagina **Widgets** van de standaard-layout.
+
+| `kind` | Toont | `config` | Bediening op de tablet |
+|---|---|---|---|
+| `weather` | temperatuur, weer, min/max, regenkans (Open-Meteo) | `city` of `lat` + `lon` | tik = verversen |
+| `nowplaying` | titel, artiest, voortgang uit Muziek of Spotify | `player`: `music` / `spotify` | tik = play/pauze, tik op balk = spoelen; vanaf 3 breed ook ⏮ ⏯ ⏭ |
+| `timer` | aftellen, loopt op de Mac door | `seconds` | tik = start/pauze, lang = reset, 2× = +1 min |
+| `pomodoro` | werk/pauze-rondes met geluid | `work`, `rest` (minuten) | als timer |
+| `worldclock` | tijd in andere zones | `zones`: bijv. `["America/New_York"]` (max. 4) | — |
+| `photos` | diavoorstelling | `folder` (standaard `~/Pictures/Cyberpad`), `seconds` | tik = volgende |
+| `stats` | CPU, geheugen, netwerk, batterij, Magic-accessoires | `show`: bijv. `["cpu","ram"]` | — |
+| `terminal` | live uitvoer van een commando | `command`, `cwd`, `timeout` (max. 600 s), `dangerous` | tik = start/stop |
+| `slider` + `audio.micVolume` | microfoonvolume | — | schuiven |
+
+- **Terminal:** het commando staat alleen in de layout op de Mac en draait in je eigen login-shell (`zsh -l`).
+  Met `"dangerous": true` moet je op de tablet twee keer tikken en weigert de Mac het zonder die bevestiging.
+  Na `timeout` seconden stopt Cyberpad het commando.
+- **Nu speelt** vraagt eenmalig om *Automatisering › Spotify/Muziek*; Cyberpad start die apps nooit zelf.
+- **Weer:** alleen de plaatsnaam of coördinaten gaan naar Open-Meteo.
+- **Niveaumeter** zit er bewust niet in: daarvoor moet Cyberpad continu de microfoon openen (oranje stip in de
+  menubalk) en dan zou de vergaderherkenning Cyberpad zelf als vergadering zien.
 
 ### Vergaderingen
 
@@ -133,6 +157,7 @@ Sources/Cyberpad/
   Keys.swift          toetscombinaties en tekst typen
   MeetingMonitor.swift vergaderingen herkennen en bedienen
   Agenda.swift        volgende afspraak en vergaderlink
+  Widgets/            weer, nu speelt, timers, systeemstats, foto's, terminal
   Catalog.swift       shortcut-bibliotheek
   Audio.swift         CoreAudio
   HostAlias.swift     cyberpad.local via mDNS

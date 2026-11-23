@@ -12,6 +12,7 @@ final class Core: ObservableObject {
     let server: Server
     let meeting: MeetingMonitor
     let agenda = AgendaProvider()
+    let widgets = WidgetHub()
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -43,6 +44,10 @@ final class Core: ObservableObject {
         actions.onAsyncError = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
         server.meeting = meeting
         server.agenda = agenda
+        server.widgets = widgets
+        widgets.update(layouts.layout)
+        widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
+        widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
         agenda.onChange = { [weak self] in
             guard let self else { return }
             self.agendaAccess = self.agenda.access
@@ -52,7 +57,8 @@ final class Core: ObservableObject {
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onRevoke = { [weak self] id in self?.server.disconnect(deviceID: id) }
-        layouts.onChange = { [weak self] _ in
+        layouts.onChange = { [weak self] l in
+            self?.widgets.update(l)
             self?.server.broadcastLayout()
             self?.layoutError = self?.layouts.lastError
         }
@@ -94,6 +100,7 @@ final class Core: ObservableObject {
             if meetingInfo != meeting.current { meetingInfo = meeting.current }
         }
         agenda.refresh()
+        widgets.tick(active: server.hasActiveClients)
         let s = server.fullState() as NSDictionary
         if s != lastState {
             lastState = s
