@@ -1,0 +1,28 @@
+{
+  "id": "cyberdeck",
+  "name": "Cyberdeck",
+  "description": "Neon cyaan en magenta op bijna-zwart, scanlijnen, glitch en een mono-lettertype.",
+  "colors": {
+    "bg": "#05060a",
+    "bg2": "#12040e",
+    "text": "#c8fff6",
+    "accent": "#00ffe0",
+    "accent2": "#ff2bd6",
+    "accent2Text": "#ff9cf0",
+    "danger": "#ff3b5c",
+    "dangerText": "#ff8199",
+    "ok": "#00ffa3",
+    "okText": "#7dffb0"
+  },
+  "font": "Menlo, \"SF Mono\", \"Roboto Mono\", Consolas, \"Courier New\", monospace",
+  "radius": 0,
+  "effects": {
+    "scanlines": true,
+    "glow": true,
+    "grid": true,
+    "corner": true,
+    "glitch": true,
+    "upper": true,
+    "bold": false
+  }
+}

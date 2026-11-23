@@ -163,7 +163,8 @@ Network.framework (server, Bonjour), Security (Keychain).
     *Besloten:* één web-editor (`shared/editor/`) voor Mac-venster, tablet én straks Windows (WebView2),
     in plaats van een aparte SwiftUI-editor. Zo hoeft de editor niet per platform opnieuw gebouwd te worden.
 50. Iconenkiezer: Lucide + Tabler (licenties meeleveren), emoji, app-iconen, eigen afbeeldingen/logo's.
-    *Nu:* emoji-kiezer. Iconensets, app-iconen en eigen afbeeldingen schuiven door naar fase 12 (thema's).
+    *Nu:* emoji, app-iconen en eigen afbeeldingen (fase 12). Lucide/Tabler meeleveren kan later (licentie
+    meeleveren, ±1–3 MB aan SVG's).
 51. **Webeditor op de tablet**: bewerkmodus met slepen en neerzetten (na bevestiging op de Mac of met PIN).
 52. Wijzigingen live naar alle tablets pushen.
 53. **Layouts exporteren/importeren** als `.cyberpad`-bestand of QR-code.
@@ -172,8 +173,11 @@ Network.framework (server, Bonjour), Security (Keychain).
 
 ### Fase 12 — Thema's, waaronder een eigen Cyberdeck (2–3 dagen)
 54. Basis-CSS met variabelen; per thema een gegenereerd CSS-bestand voor oude Safari.
+    *Uitgewerkt:* één sjabloon (`shared/pad/pad.css`) dat de computer per thema invult; geen CSS-variabelen nodig.
 55. Eigen ontwerpen: **Cyberdeck** (neon, scanlines, glitch, mono-font), Terminal, Cockpit, Vapor, Minimal.
 56. Open fonts (JetBrains Mono, VT323, Barlow Condensed, Orbitron).
+    *Nu:* lettertypen die al op iPad/Mac/Windows staan (werkt offline, niets te downloaden). Open fonts meeleveren
+    kan later; dat vraagt de lettertypebestanden plus hun licentie (OFL) in de repo.
 57. **Thema-bouwer**: kleuren, glow, randen, font, animaties → eigen thema opslaan en delen.
 
 ### Fase 13 — Diagnose (1 dag)

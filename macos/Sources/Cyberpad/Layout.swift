@@ -160,14 +160,16 @@ struct Tile: Codable, Equatable {
     var y: Int
     var w: Int?
     var h: Int?
+    /// Eigen accentkleur voor deze tegel (#rrggbb).
+    var color: String?
 
     init(id: String, label: String, icon: String? = nil, kind: String? = nil, action: ActionSpec? = nil,
          longPress: ActionSpec? = nil, doubleTap: ActionSpec? = nil, toggle: Bool? = nil, offAction: ActionSpec? = nil,
-         config: WidgetConfig? = nil, x: Int, y: Int, w: Int? = nil, h: Int? = nil) {
+         config: WidgetConfig? = nil, x: Int, y: Int, w: Int? = nil, h: Int? = nil, color: String? = nil) {
         self.id = id; self.label = label; self.icon = icon; self.kind = kind; self.action = action
         self.longPress = longPress; self.doubleTap = doubleTap; self.toggle = toggle; self.offAction = offAction
         self.config = config
-        self.x = x; self.y = y; self.w = w; self.h = h
+        self.x = x; self.y = y; self.w = w; self.h = h; self.color = color
     }
 
     var isButton: Bool { kind == nil || kind == "button" }
@@ -235,6 +237,8 @@ struct Layout: Codable, Equatable {
     var theme: String
     var pages: [Page]
     var profiles: [Profile]? = nil
+    /// Eigen aanpassingen op het thema (thema-bouwer).
+    var themeOverrides: ThemeOverrides? = nil
 
     func tile(id: String) -> Tile? {
         for p in pages { if let t = p.tiles.first(where: { $0.id == id }) { return t } }
@@ -507,6 +511,13 @@ extension Layout {
                     out.append("Profiel “\(pr.name)”: tijd moet als UU:MM")
                 }
                 if let d = r.days, d.contains(where: { !(1...7).contains($0) }) { out.append("Profiel “\(pr.name)”: dagen zijn 1 (ma) t/m 7 (zo)") }
+            }
+        }
+        out += themeOverrides?.problems() ?? []
+        for p in pages {
+            for t in p.tiles {
+                if let c = t.color, !ThemeOverrides.validColor(c) { out.append("Kleur van “\(t.label)” moet als #rrggbb") }
+                if let i = t.icon, i.count > 300 { out.append("Icoon van “\(t.label)” is te lang") }
             }
         }
         // Dubbele meldingen (bijv. een overlap over meerdere vakken) één keer tonen.

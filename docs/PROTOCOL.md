@@ -4,7 +4,7 @@ Dit document beschrijft wat de tablet-pagina (`shared/pad/`) van de computer ver
 (`macos/`) en de toekomstige Windows-versie (`windows/`) volgen allebei dit protocol, zodat één tablet-pagina,
 één layout-formaat en één set plugins voor beide werkt.
 
-Versie: 1 (fase 0–11).
+Versie: 1 (fase 0–12).
 
 ## Verbinding
 
@@ -81,6 +81,8 @@ tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzel
 | `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (intussen gewijzigd) of `422 {errors: […]}` |
 | `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (zonder op te slaan) |
 | `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[]}`: wat er in keuzelijsten staat |
+| `GET /api/editor/themes` | alle thema's (volledige definities) |
+| `POST /api/editor/icon` | `{data: "<base64 of data-URL>"}` → `{icon: "img:<naam>"}` (max. 700 KB, wordt 256 px PNG) |
 
 Na opslaan stuurt de computer elke tablet een nieuw `layout`-bericht. Export/import gebruikt het formaat
 `{"format": "cyberpad-layout", "version": 1, "exported": "…", "layout": {…}}` (extensie `.cyberpad`).
@@ -94,6 +96,7 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 {
   "version": 1, "columns": 5, "rows": 3, "theme": "cyberdeck",
   "profile": { "id": "werk", "name": "Werkdag", "fixed": false },
+  "themeClasses": "fx-glitch fx-upper", "themeKey": "55f9c631698d",
   "pages": [{ "id": "main", "name": "Main", "context": false, "tiles": [
     { "id": "mute", "label": "Geluid uit", "icon": "🔇", "kind": "button", "x": 3, "y": 0,
       "w": 1, "h": 1, "hasLong": true, "hasDouble": false, "toggle": true, "stateKey": "muted" }
@@ -101,6 +104,10 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 }
 ```
 
+- `themeClasses` gaan op `<html>`; verandert `themeKey`, dan laadt de tablet `pad.css?v=<themeKey>` opnieuw
+  (zie [THEMES.md](THEMES.md)). `pad.css` is het sjabloon met de themakleuren ingevuld.
+- Een tegel kan `color` (`#rrggbb`) en een `icon` als `app:<id>` of `img:<naam>` hebben; die afbeelding komt van
+  `GET /api/icon?src=…` (apparaat-token of editor-toegang).
 - Elke tablet krijgt zijn **eigen** layout: alleen de pagina's uit zijn profiel, in die volgorde.
   Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
 - `context: true`: pagina hoort bij een of meer apps (zie `state.context`).
@@ -167,6 +174,7 @@ Zelfde opbouw als hierboven, maar mét acties. Zie de README voor alle actietype
 | `page.apps` | bundle-id of app-naam | naam van het .exe-bestand (bijv. `Photoshop.exe`) of AppUserModelID |
 | profiel wisselen | `cyberpad://profile/<id>` (Opdrachten/Focus) | `cyberpad://profile/<id>` (protocol-handler) |
 | aanraakpad | CGEvent (muis, scrollwiel) | `SendInput` met `MOUSEINPUT` / `MOUSEEVENTF_WHEEL` |
+| `icon: "app:…"` | bundle-id → icoon via NSWorkspace | AppUserModelID of .exe → `SHGetFileInfo` / `IShellItemImageFactory` |
 
 Een layout die alleen platformneutrale acties gebruikt (media, audio, `url.open`, `ha.*`, `mqtt.*`,
 `webhook.call`, `plugin`, widgets) werkt op beide zonder aanpassing.

@@ -33,6 +33,8 @@ final class Server {
     var plugins: PluginManager?
     /// Map met de editor (shared/editor); nil = geen editor.
     var editorDir: URL?
+    var themes: ThemeStore?
+    var icons: IconService?
     /// Laatste keer dat een tablet iets vroeg (ook via XHR), om te weten of widgets bijgewerkt moeten worden.
     private(set) var lastActivity = Date.distantPast
     func touch() { lastActivity = Date() }
@@ -130,12 +132,17 @@ final class Server {
             },
         ]
         if let profile { d["profile"] = ["id": profile.id, "name": profile.name, "fixed": devProfile != nil] }
+        if let t = themes?.resolve(l) {
+            d["themeClasses"] = ThemeStore.classes(t)
+            d["themeKey"] = ThemeStore.key(t)
+        }
         return d
     }
 
     private static func padTile(_ t: Tile) -> [String: Any] {
         var d: [String: Any] = ["id": t.id, "label": t.label, "kind": t.kind ?? "button", "x": t.x, "y": t.y]
         if let v = t.icon { d["icon"] = v }
+        if let c = t.color, ThemeOverrides.validColor(c) { d["color"] = c }
         if let v = t.w { d["w"] = v }
         if let v = t.h { d["h"] = v }
         if t.kind == "terminal", t.config?.dangerous == true { d["dangerous"] = true }
@@ -242,6 +249,12 @@ final class Server {
         }
 
         if req.path.hasPrefix("/api/editor/") { handleEditor(req, on: c); return }
+        if req.method == "GET", req.path == "/api/icon" { handleIcon(req, on: c); return }
+        // De tablet-stijl: sjabloon met de kleuren van het gekozen thema ingevuld.
+        if req.method == "GET", req.path == "/pad.css", let themes, let css = themes.css(for: layouts.layout) {
+            c.respond(200, body: css, contentType: "text/css; charset=utf-8")
+            return
+        }
 
         switch (req.method, req.path) {
         case ("GET", "/api/ping"):
@@ -375,12 +388,35 @@ final class Server {
             } catch {
                 c.respond(200, json: ["errors": ["Layout klopt niet: \(error.localizedDescription)"]])
             }
+        case ("GET", "/api/editor/themes"):
+            guard let themes else { c.respond(404, json: ["error": "Geen thema's"]); return }
+            themes.reload()
+            let data = (try? JSONEncoder().encode(themes.themes)) ?? Data("[]".utf8)
+            c.respond(200, body: data, contentType: "application/json")
+        case ("POST", "/api/editor/icon"):
+            guard let icons, let b64 = req.json()?["data"] as? String,
+                  let raw = Data(base64Encoded: b64.replacingOccurrences(of: "^data:[^,]*,", with: "", options: .regularExpression)) else {
+                c.respond(400, json: ["error": "Geen afbeelding meegestuurd"]); return
+            }
+            do { c.respond(200, json: ["icon": try icons.store(raw)]) } catch {
+                c.respond(422, json: ["error": error.localizedDescription])
+            }
         case ("GET", "/api/editor/catalog"):
             guard let plugins else { c.respond(500, json: ["error": "Plugins niet beschikbaar"]); return }
             c.respond(200, json: editor.catalog(presets: actions.catalog, plugins: plugins))
         default:
             c.respond(404, json: ["error": "Onbekend"])
         }
+    }
+
+    /// Icoon als PNG voor tablet (apparaat-token) of editor.
+    private func handleIcon(_ req: HTTPRequest, on c: Connection) {
+        let device = pairing.authenticate(token: req.headers["x-cyberpad-token"])
+        guard device != nil || editor?.authorize(req, loopback: c.isLoopback) != nil else {
+            c.respond(401, json: ["error": "unauthorized"]); return
+        }
+        guard let src = req.query["src"], let data = icons?.png(src) else { c.respond(404, text: "Geen icoon"); return }
+        c.respond(200, body: data, contentType: "image/png")
     }
 
     private var stateBroadcastPending = false

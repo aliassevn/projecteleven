@@ -1,0 +1,28 @@
+{
+  "id": "cockpit",
+  "name": "Cockpit",
+  "description": "Amber instrumenten op donkergrijs, smalle letters, geen effecten. Rustig en goed leesbaar.",
+  "colors": {
+    "bg": "#101214",
+    "bg2": "#1d1408",
+    "text": "#ffe3b3",
+    "accent": "#ffb000",
+    "accent2": "#4fc3f7",
+    "accent2Text": "#a9e3ff",
+    "danger": "#ff4d4d",
+    "dangerText": "#ff9a9a",
+    "ok": "#7cdb4c",
+    "okText": "#bff0a4"
+  },
+  "font": "\"Avenir Next Condensed\", \"DIN Condensed\", \"Arial Narrow\", \"Roboto Condensed\", \"Helvetica Neue\", sans-serif",
+  "radius": 4,
+  "effects": {
+    "scanlines": false,
+    "glow": false,
+    "grid": true,
+    "corner": true,
+    "glitch": false,
+    "upper": true,
+    "bold": true
+  }
+}

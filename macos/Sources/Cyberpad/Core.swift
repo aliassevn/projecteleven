@@ -76,6 +76,8 @@ final class Core: ObservableObject {
         server.editor = editor
         server.plugins = plugins
         server.editorDir = Self.findResource("editor", env: "CYBERPAD_EDITOR_DIR")
+        server.themes = ThemeStore(dir: Self.findResource("themes", env: "CYBERPAD_THEMES_DIR"), padDir: server.padDir)
+        server.icons = IconService(supportDir: supportDir)
         editor.onRequest = { [weak self] device in
             guard let self else { return }
             self.approvals.show(device, approve: { self.editor.approve(device.id) }, deny: { self.editor.deny(device.id) })

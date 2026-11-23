@@ -12,6 +12,7 @@ Hier komt de Windows-versie. Nog niets gebouwd; dit is het plan.
 | Shortcut-bibliotheek | `shared/catalog/shortcuts.json` | aanvullen met `keysWindows` per sneltoets |
 | Plugins | `shared/plugins/`, `docs/PLUGINS.md` | ✓ zelfde `plugin.json` en berichten; `run.windows` |
 | Layout-editor | `shared/editor/` | ✓ in een WebView2-venster; alleen de editor-API (`docs/PROTOCOL.md`) en een export-brug |
+| Thema's | `shared/themes/`, `docs/THEMES.md` | ✓ sjabloon invullen (een paar regels code); app-iconen via de Windows Shell |
 
 ## Voorgestelde techniek
 

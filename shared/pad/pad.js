@@ -297,9 +297,57 @@
     if (idx < 0 && /^\d+$/.test(app.pageId || '')) { idx = parseInt(app.pageId, 10); } // oud: nummer
     app.page = idx >= 0 && idx < layout.pages.length ? idx : 0;
     app.ctxPage = undefined; // contextpagina opnieuw toepassen op de nieuwe pagina's
+    applyTheme(layout);
     var pn = $('profile-name');
     if (pn) { pn.textContent = layout.profile ? '· ' + layout.profile.name.toUpperCase() : ''; }
     render();
+  }
+
+  // Thema: klassen voor effecten en, als het uiterlijk veranderde, de CSS opnieuw laden zonder flikkeren.
+  function applyTheme(layout) {
+    var h = document.documentElement;
+    h.className = h.className.replace(/\s*\bfx-[a-z]+\b/g, '') + (layout.themeClasses ? ' ' + layout.themeClasses : '');
+    if (!layout.themeKey || layout.themeKey === app.themeKey) { return; }
+    app.themeKey = layout.themeKey;
+    var old = $('theme-css');
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'pad.css?v=' + encodeURIComponent(layout.themeKey);
+    link.onload = function () {
+      if (old && old.parentNode) { old.parentNode.removeChild(old); }
+      link.id = 'theme-css';
+      setTimeout(render, 50); // afmetingen kunnen veranderd zijn (lettertype)
+    };
+    old.parentNode.insertBefore(link, old.nextSibling);
+  }
+
+  // Iconen als afbeelding ("app:…" of "img:…") worden met het token opgehaald en bewaard zolang de pagina open is.
+  var ICONS = {};
+  function iconNode(icon) {
+    if (!/^(app|img):/.test(icon) || !window.URL || !URL.createObjectURL) { return el('div', 'icon', /^(app|img):/.test(icon) ? '◻' : icon); }
+    var n = el('div', 'icon-img');
+    var c = ICONS[icon];
+    if (c && c.url) { n.style.backgroundImage = 'url(' + c.url + ')'; return n; }
+    n.className += ' loading';
+    if (!c) {
+      c = ICONS[icon] = { url: null, wait: [] };
+      var x = new XMLHttpRequest();
+      x.open('GET', '/api/icon?src=' + encodeURIComponent(icon), true);
+      x.responseType = 'blob';
+      x.setRequestHeader('X-Cyberpad-Token', app.token);
+      x.onreadystatechange = function () {
+        if (x.readyState !== 4) { return; }
+        if (x.status === 200) { c.url = URL.createObjectURL(x.response); } else { delete ICONS[icon]; }
+        for (var i = 0; i < c.wait.length; i++) {
+          if (c.url) { c.wait[i].style.backgroundImage = 'url(' + c.url + ')'; }
+          c.wait[i].className = 'icon-img';
+        }
+        c.wait = [];
+      };
+      x.send();
+    }
+    c.wait.push(n);
+    return n;
   }
 
   function pageIndex(id) {
@@ -379,6 +427,12 @@
       node.style.height = (h * ch + (h - 1) * gap) + 'px';
       node.setAttribute('data-id', t.id);
       node.appendChild(el('span', 'corner'));
+      if (t.color) {
+        var strip = el('span', 'tile-color');
+        strip.style.background = t.color;
+        node.appendChild(strip);
+        node.style.borderColor = t.color;
+      }
 
       if (t.kind === 'clock') {
         node.appendChild(el('div', 'clock-time', '--:--'));
@@ -401,7 +455,7 @@
         node.appendChild(el('div', 'agenda-join', 'DEELNEMEN ›'));
         bindPress(node, t);
       } else {
-        if (t.icon) { node.appendChild(el('div', 'icon', t.icon)); }
+        if (t.icon) { node.appendChild(iconNode(t.icon)); }
         node.appendChild(el('div', 'label', t.label));
         if (t.hasLong || t.hasDouble) {
           node.appendChild(el('span', 'gestures', (t.hasLong ? '◷' : '') + (t.hasDouble ? '⁑' : '')));

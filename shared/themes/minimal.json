@@ -1,0 +1,28 @@
+{
+  "id": "minimal",
+  "name": "Minimal",
+  "description": "Licht en rustig: donkere tekst op wit, blauwe accenten, geen effecten.",
+  "colors": {
+    "bg": "#f4f5f7",
+    "bg2": "#ffffff",
+    "text": "#1d2330",
+    "accent": "#2563eb",
+    "accent2": "#db2777",
+    "accent2Text": "#9d174d",
+    "danger": "#dc2626",
+    "dangerText": "#b91c1c",
+    "ok": "#16a34a",
+    "okText": "#166534"
+  },
+  "font": "-apple-system, \"Helvetica Neue\", \"Segoe UI\", Roboto, Arial, sans-serif",
+  "radius": 10,
+  "effects": {
+    "scanlines": false,
+    "glow": false,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": false,
+    "bold": false
+  }
+}

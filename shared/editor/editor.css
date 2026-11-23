@@ -100,3 +100,25 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
   .side { width: 300px; }
   .msg { width: 90%; left: 5%; margin-left: 0; }
 }
+
+/* ---------- thema's en iconen (fase 12) ---------- */
+.themes { overflow: hidden; margin-bottom: 14px; }
+.tcard { float: left; width: 31%; margin: 0 2% 12px 0; padding: 10px; border: 1px solid rgba(0,255,224,0.2); cursor: pointer; min-height: 110px; }
+.tcard.on { border-color: #ff2bd6; box-shadow: 0 0 0 1px #ff2bd6; }
+.tcard .tname { font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
+.tcard .tdesc { font-size: 11px; color: rgba(200,255,246,0.55); line-height: 1.4; }
+.sw { display: inline-block; width: 14px; height: 14px; margin: 6px 4px 0 0; border: 1px solid rgba(255,255,255,0.2); }
+.colors .row { float: left; width: 31%; margin-right: 2%; }
+.colors { overflow: hidden; }
+.colors input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid rgba(0,255,224,0.3); background: none; vertical-align: middle; }
+.colors input[type=text] { width: 90px !important; display: inline-block; margin-left: 6px; }
+.preview { padding: 16px; margin: 12px 0; overflow: hidden; }
+.preview .pt { float: left; width: 120px; height: 90px; margin-right: 12px; border: 1px solid; display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  font-size: 12px; letter-spacing: 2px; }
+.icon-tabs span { display: inline-block; padding: 4px 10px; margin-right: 6px; border: 1px solid rgba(0,255,224,0.3); cursor: pointer; font-size: 11px; }
+.icon-tabs span.on { background: #00ffe0; color: #05060a; }
+.icon-prev { display: inline-block; width: 44px; height: 44px; vertical-align: middle; margin-right: 10px; background: center / contain no-repeat;
+  font-size: 30px; line-height: 44px; text-align: center; }
+.etile .ici { width: 34px; height: 34px; margin-bottom: 6px; background: center / contain no-repeat; }
+.etile .cstrip { position: absolute; left: 0; right: 0; top: 0; height: 3px; }

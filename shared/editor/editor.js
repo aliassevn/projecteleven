@@ -16,7 +16,9 @@
     undo: [],
     redo: [],
     problems: [],
-    jsonBad: 0           // aantal JSON-velden met een fout
+    jsonBad: 0,          // aantal JSON-velden met een fout
+    themes: [],
+    iconTab: null
   };
 
   var hasTouch = 'ontouchstart' in window;
@@ -198,6 +200,17 @@
       }
     }
     if (out.profiles && !out.profiles.length) { delete out.profiles; }
+    var o = out.themeOverrides;
+    if (o) {
+      if (o.colors && !Object.keys(o.colors).length) { delete o.colors; }
+      if (o.effects && !Object.keys(o.effects).length) { delete o.effects; }
+      if (!o.font) { delete o.font; }
+      if (o.radius === undefined || o.radius === null) { delete o.radius; }
+      if (!Object.keys(o).length) { delete out.themeOverrides; }
+    }
+    for (var pp = 0; pp < out.pages.length; pp++) {
+      for (var tt = 0; tt < out.pages[pp].tiles.length; tt++) { if (!out.pages[pp].tiles[tt].color) { delete out.pages[pp].tiles[tt].color; } }
+    }
     return out;
   }
 
@@ -262,6 +275,30 @@
     return true;
   }
 
+  // App-iconen en eigen afbeeldingen ophalen met de editor-toegang (een <img src> kan geen header meesturen).
+  var ICONS = {};
+  function loadIcon(src, apply) {
+    var c = ICONS[src];
+    if (c && c.url) { apply(c.url); return; }
+    if (!c) {
+      c = ICONS[src] = { url: null, wait: [] };
+      var x = new XMLHttpRequest();
+      x.open('GET', '/api/icon?src=' + encodeURIComponent(src), true);
+      x.responseType = 'blob';
+      x.setRequestHeader(E.auth.header, E.auth.token);
+      x.onreadystatechange = function () {
+        if (x.readyState !== 4) { return; }
+        if (x.status === 200) { c.url = URL.createObjectURL(x.response); }
+        for (var i = 0; i < c.wait.length; i++) { if (c.url) { c.wait[i](c.url); } }
+        c.wait = [];
+        if (!c.url) { delete ICONS[src]; }
+      };
+      x.send();
+    }
+    c.wait.push(apply);
+  }
+  function isImgIcon(i) { return /^(app|img):/.test(i || ''); }
+
   function tileGlyph(t) {
     var k = t.kind || 'button';
     var glyphs = { slider: '▭', dial: '◎', touchpad: '▦', clock: '🕒', agenda: '📅', weather: '⛅', nowplaying: '♪',
@@ -297,8 +334,15 @@
     n.appendChild(el('span', 'kd', (t.kind && t.kind !== 'button') ? kindDef(t.kind).name : ''));
     var marks = (t.longPress ? '◷' : '') + (t.doubleTap ? '⁑' : '') + (t.toggle ? '⏻' : '');
     if (marks) { n.appendChild(el('span', 'gs', marks)); }
-    var gl = tileGlyph(t);
-    if (gl) { n.appendChild(el('div', 'ic', gl)); }
+    if (t.color) { var cs = el('span', 'cstrip'); cs.style.background = t.color; n.appendChild(cs); n.style.borderColor = t.color; }
+    if (isImgIcon(t.icon)) {
+      var im = el('div', 'ici');
+      loadIcon(t.icon, function (u) { im.style.backgroundImage = 'url(' + u + ')'; });
+      n.appendChild(im);
+    } else {
+      var gl = tileGlyph(t);
+      if (gl) { n.appendChild(el('div', 'ic', gl)); }
+    }
     n.appendChild(el('div', 'lb', t.label));
     var rz = el('div', 'rz');
     n.appendChild(rz);
@@ -647,18 +691,8 @@
     top.appendChild(tools);
 
     top.appendChild(field({ key: 'label', label: 'Label', type: 'text' }, function () { return t.label; }, function (v) { t.label = v || ''; drawGridSoon(); }));
-    var iconRow = field({ key: 'icon', label: 'Icoon (emoji)', type: 'text' }, function () { return t.icon; }, function (v) { t.icon = v; drawGridSoon(); });
-    var emo = el('div', 'emoji');
-    var list = (E.schema.emoji || '').match(/(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[^\uD800-\uDFFF])️?/g) || [];
-    for (var i = 0; i < list.length; i++) {
-      (function (ch) {
-        var s = el('span', null, ch);
-        tap(s, function () { snapshot(); t.icon = ch; afterChange(false); drawSide(); });
-        emo.appendChild(s);
-      })(list[i]);
-    }
-    iconRow.appendChild(emo);
-    top.appendChild(iconRow);
+    top.appendChild(iconPicker(t));
+    top.appendChild(colorField('Kleur van de tegel', function () { return t.color; }, function (v) { t.color = v; drawGridSoon(); }));
 
     var kinds = [];
     for (var k = 0; k < E.schema.kinds.length; k++) { kinds.push(E.schema.kinds[k].kind); }
@@ -716,6 +750,269 @@
       }
       side.appendChild(as);
     }
+  }
+
+  // Icoon kiezen: emoji, app-icoon van de computer of een eigen afbeelding.
+  function iconPicker(t) {
+    var row = el('div', 'row');
+    row.appendChild(el('label', null, 'Icoon'));
+    var tab = E.iconTab || (/^app:/.test(t.icon || '') ? 'app' : /^img:/.test(t.icon || '') ? 'img' : 'emoji');
+    var head = el('div', 'icon-tabs');
+    var prev = el('span', 'icon-prev', isImgIcon(t.icon) ? '' : (t.icon || ''));
+    if (isImgIcon(t.icon)) { loadIcon(t.icon, function (u) { prev.style.backgroundImage = 'url(' + u + ')'; }); }
+    head.appendChild(prev);
+    var tabs = [['emoji', 'EMOJI'], ['app', 'APP-ICOON'], ['img', 'AFBEELDING']];
+    for (var i = 0; i < tabs.length; i++) {
+      (function (tb) {
+        var b = el('span', tb[0] === tab ? 'on' : '', tb[1]);
+        tap(b, function () { E.iconTab = tb[0]; drawSide(); });
+        head.appendChild(b);
+      })(tabs[i]);
+    }
+    var clear = el('span', '', 'GEEN');
+    tap(clear, function () { snapshot(); delete t.icon; afterChange(false); drawSide(); });
+    head.appendChild(clear);
+    row.appendChild(head);
+
+    if (tab === 'emoji') {
+      var inp = el('input');
+      inp.type = 'text';
+      inp.value = isImgIcon(t.icon) ? '' : (t.icon || '');
+      inp.placeholder = 'emoji of tekst';
+      on(inp, 'focus', snapshot);
+      on(inp, 'input', function () { t.icon = inp.value || undefined; prev.textContent = inp.value; afterChange(false); });
+      row.appendChild(inp);
+      var emo = el('div', 'emoji');
+      var list = (E.schema.emoji || '').match(/(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[^\uD800-\uDFFF])️?/g) || [];
+      for (var j = 0; j < list.length; j++) {
+        (function (ch) {
+          var sp = el('span', null, ch);
+          tap(sp, function () { snapshot(); t.icon = ch; afterChange(false); drawSide(); });
+          emo.appendChild(sp);
+        })(list[j]);
+      }
+      row.appendChild(emo);
+    } else if (tab === 'app') {
+      var sel = el('select');
+      sel.appendChild(optionEl('', '— kies een app —'));
+      for (var a = 0; a < E.catalog.apps.length; a++) { sel.appendChild(optionEl('app:' + E.catalog.apps[a].id, E.catalog.apps[a].name)); }
+      sel.value = /^app:/.test(t.icon || '') ? t.icon : '';
+      on(sel, 'change', function () { if (!sel.value) { return; } snapshot(); t.icon = sel.value; afterChange(false); drawSide(); });
+      row.appendChild(sel);
+      row.appendChild(el('div', 'hint', 'Het icoon van een app op deze computer. Handig bij "App openen".'));
+    } else {
+      var up = el('button', 'btn small', 'AFBEELDING KIEZEN…');
+      tap(up, function () { E.iconTarget = t; $('f-icon').click(); });
+      row.appendChild(up);
+      row.appendChild(el('div', 'hint', 'PNG, JPEG of HEIC tot 700 KB. Wordt verkleind tot 256 px en op de computer bewaard.'));
+    }
+    return row;
+  }
+
+  function uploadIcon(file) {
+    var t = E.iconTarget;
+    if (!t || !file) { return; }
+    if (file.size > 700 * 1024) { message('Afbeelding te groot (max. 700 KB).', true); return; }
+    var r = new FileReader();
+    r.onload = function () {
+      req('POST', '/api/editor/icon', { data: r.result }, function (st, d) {
+        if (st === 200 && d && d.icon) { snapshot(); t.icon = d.icon; afterChange(false); drawSide(); }
+        else { message((d && d.error) || 'Uploaden mislukt (' + st + ')', true); }
+      });
+    };
+    r.readAsDataURL(file);
+  }
+
+  // Kleurveld: kleurkiezer (waar de browser die heeft) plus tekstveld #rrggbb.
+  function colorField(label, get, set, noClear) {
+    var row = el('div', 'row');
+    row.appendChild(el('label', null, label));
+    var v = get() || '';
+    var pick = el('input');
+    try { pick.type = 'color'; } catch (e) { pick.type = 'text'; }
+    pick.value = v || '#000000';
+    var txt = el('input');
+    txt.type = 'text';
+    txt.value = v;
+    txt.placeholder = noClear ? '#rrggbb' : 'geen';
+    txt.style.width = '100px';
+    txt.style.display = 'inline-block';
+    txt.style.marginLeft = '6px';
+    function apply(val) {
+      var ok = val === '' ? !noClear : /^#[0-9a-fA-F]{6}$/.test(val);
+      txt.className = ok ? '' : 'bad';
+      if (ok) { set(val === '' ? undefined : val.toLowerCase()); afterChange(false); }
+    }
+    on(pick, 'focus', snapshot);
+    on(txt, 'focus', snapshot);
+    on(pick, 'input', function () { txt.value = pick.value; apply(pick.value); });
+    on(pick, 'change', function () { txt.value = pick.value; apply(pick.value); });
+    on(txt, 'input', function () { if (/^#[0-9a-fA-F]{6}$/.test(txt.value)) { pick.value = txt.value; } apply(txt.value); });
+    if (pick.type === 'color') { row.appendChild(pick); }
+    row.appendChild(txt);
+    if (!noClear && v) {
+      var cl = el('span', 'link', '  WISSEN');
+      tap(cl, function () { snapshot(); set(undefined); afterChange(false); drawSide(); });
+      row.appendChild(cl);
+    }
+    return row;
+  }
+
+  // ---------- thema-bouwer ----------
+
+  var FONTS = [
+    ['', '— lettertype van het thema —'],
+    ['Menlo, "SF Mono", Consolas, "Courier New", monospace', 'Mono (Menlo)'],
+    ['"Courier New", Courier, monospace', 'Typemachine (Courier)'],
+    ['"Avenir Next Condensed", "DIN Condensed", "Arial Narrow", sans-serif', 'Smal (Avenir Condensed)'],
+    ['Futura, "Avenir Next", "Century Gothic", sans-serif', 'Geometrisch (Futura)'],
+    ['-apple-system, "Helvetica Neue", "Segoe UI", Arial, sans-serif', 'Systeem (Helvetica)'],
+    ['"American Typewriter", "Courier New", serif', 'American Typewriter'],
+    ['Copperplate, "Copperplate Gothic Light", serif', 'Copperplate'],
+    ['"Chalkboard SE", "Comic Sans MS", sans-serif', 'Krijtbord']
+  ];
+  var COLOR_LABELS = { bg: 'Achtergrond', bg2: 'Achtergrond 2', text: 'Tekst', accent: 'Accent', accent2: 'Accent 2 (aan)',
+    accent2Text: 'Tekst op accent 2', danger: 'Waarschuwing', dangerText: 'Tekst waarschuwing', ok: 'Goed', okText: 'Tekst goed' };
+  var EFFECT_LABELS = { scanlines: 'Scanlijnen', glow: 'Gloed', grid: 'Raster op achtergrond', corner: 'Schuine hoek', glitch: 'Glitch', upper: 'HOOFDLETTERS', bold: 'Vet' };
+
+  function baseTheme() {
+    for (var i = 0; i < E.themes.length; i++) { if (E.themes[i].id === E.layout.theme) { return E.themes[i]; } }
+    return E.themes[0];
+  }
+  function resolved() {
+    var b = baseTheme(), o = E.layout.themeOverrides || {}, t = clone(b), k;
+    for (k in (o.colors || {})) { if (o.colors.hasOwnProperty(k)) { t.colors[k] = o.colors[k]; } }
+    if (o.font) { t.font = o.font; }
+    if (o.radius !== undefined) { t.radius = o.radius; }
+    for (k in (o.effects || {})) { if (o.effects.hasOwnProperty(k)) { t.effects[k] = o.effects[k]; } }
+    return t;
+  }
+  function overrides() { if (!E.layout.themeOverrides) { E.layout.themeOverrides = {}; } return E.layout.themeOverrides; }
+  function hasOverrides() {
+    var o = E.layout.themeOverrides;
+    if (!o) { return false; }
+    return !!(o.font || o.radius !== undefined || (o.colors && Object.keys(o.colors).length) || (o.effects && Object.keys(o.effects).length));
+  }
+  function hexA(hex, a) {
+    var v = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')';
+  }
+
+  function showTheme() {
+    $('modal-title').textContent = '// THEMA';
+    var body = $('modal-body');
+    body.innerHTML = '';
+    if (!E.themes.length) { body.appendChild(el('p', 'hint', 'Geen thema\'s gevonden.')); $('modal').className = 'modal'; return; }
+    var cards = el('div', 'themes');
+    for (var i = 0; i < E.themes.length; i++) {
+      (function (th) {
+        var c = el('div', 'tcard' + (th.id === baseTheme().id ? ' on' : ''));
+        c.style.background = th.colors.bg;
+        c.style.color = th.colors.text;
+        c.style.fontFamily = th.font;
+        c.style.borderRadius = th.radius + 'px';
+        var nm = el('div', 'tname', th.name);
+        nm.style.color = th.colors.accent;
+        c.appendChild(nm);
+        var ds = el('div', 'tdesc', th.description || '');
+        ds.style.color = hexA(th.colors.text, 0.7);
+        c.appendChild(ds);
+        var keys = ['accent', 'accent2', 'text', 'danger'];
+        for (var k = 0; k < keys.length; k++) { var sw = el('span', 'sw'); sw.style.background = th.colors[keys[k]]; c.appendChild(sw); }
+        tap(c, function () {
+          if (th.id === E.layout.theme) { return; }
+          if (hasOverrides() && !window.confirm('Eigen aanpassingen op het huidige thema wissen?')) { return; }
+          snapshot();
+          E.layout.theme = th.id;
+          delete E.layout.themeOverrides;
+          afterChange(false);
+          showTheme();
+        });
+        cards.appendChild(c);
+      })(E.themes[i]);
+    }
+    body.appendChild(cards);
+
+    // Voorbeeld met de huidige (aangepaste) kleuren.
+    var t = resolved();
+    var pv = el('div', 'preview');
+    pv.style.background = t.colors.bg;
+    pv.style.fontFamily = t.font;
+    var samples = [['NORMAAL', 'n'], ['AAN', 'a'], ['⚠ FOUT', 'd']];
+    for (var s2 = 0; s2 < samples.length; s2++) {
+      var kind = samples[s2][1];
+      var pt = el('div', 'pt', t.effects.upper ? samples[s2][0] : samples[s2][0].charAt(0) + samples[s2][0].slice(1).toLowerCase());
+      var col = kind === 'd' ? t.colors.danger : kind === 'a' ? t.colors.accent2 : t.colors.accent;
+      pt.style.borderColor = col;
+      pt.style.color = kind === 'd' ? t.colors.dangerText : kind === 'a' ? t.colors.accent2Text : t.colors.text;
+      pt.style.background = hexA(col, kind === 'n' ? 0.04 : 0.12);
+      pt.style.borderRadius = t.radius + 'px';
+      if (t.effects.glow) { pt.style.boxShadow = '0 0 14px ' + hexA(col, 0.35); }
+      pv.appendChild(pt);
+    }
+    body.appendChild(el('div', 'sec-title', '// VOORBEELD'));
+    body.appendChild(pv);
+
+    body.appendChild(el('div', 'sec-title', '// AANPASSEN (BLIJFT BIJ DEZE LAYOUT)'));
+    var cols = el('div', 'colors');
+    for (var ck in COLOR_LABELS) {
+      if (!COLOR_LABELS.hasOwnProperty(ck)) { continue; }
+      (function (key) {
+        cols.appendChild(colorField(COLOR_LABELS[key], function () { return resolved().colors[key]; }, function (v) {
+          var o = overrides();
+          if (!o.colors) { o.colors = {}; }
+          if (v && v !== baseTheme().colors[key]) { o.colors[key] = v; } else { delete o.colors[key]; }
+          clearTimeout(E.themeTimer);
+          E.themeTimer = setTimeout(showTheme, 600);
+        }, true));
+      })(ck);
+    }
+    body.appendChild(cols);
+
+    var fr = el('div', 'row');
+    fr.appendChild(el('label', null, 'Lettertype'));
+    var fsel = el('select');
+    var curFont = (E.layout.themeOverrides || {}).font || '';
+    var found = false;
+    for (var f = 0; f < FONTS.length; f++) { fsel.appendChild(optionEl(FONTS[f][0], FONTS[f][1])); if (FONTS[f][0] === curFont) { found = true; } }
+    if (!found) { fsel.appendChild(optionEl(curFont, curFont)); }
+    fsel.value = curFont;
+    on(fsel, 'change', function () { snapshot(); var o = overrides(); if (fsel.value) { o.font = fsel.value; } else { delete o.font; } afterChange(false); showTheme(); });
+    fr.appendChild(fsel);
+    body.appendChild(fr);
+
+    body.appendChild(field({ key: 'radius', label: 'Afronding (0–30 px)', type: 'number', placeholder: String(baseTheme().radius) },
+      function () { return (E.layout.themeOverrides || {}).radius; },
+      function (v) { var o = overrides(); if (v === undefined || isNaN(v)) { delete o.radius; } else { o.radius = Math.max(0, Math.min(30, v)); } }));
+
+    var fx = el('div', 'row');
+    fx.appendChild(el('span', 'lbl', 'Effecten'));
+    var chips = el('div', 'chips');
+    for (var ek in EFFECT_LABELS) {
+      if (!EFFECT_LABELS.hasOwnProperty(ek)) { continue; }
+      (function (key) {
+        var onE = !!t.effects[key];
+        var ch = el('span', onE ? 'on' : '', EFFECT_LABELS[key]);
+        tap(ch, function () {
+          snapshot();
+          var o = overrides();
+          if (!o.effects) { o.effects = {}; }
+          var want = !onE;
+          if (want === !!baseTheme().effects[key]) { delete o.effects[key]; } else { o.effects[key] = want; }
+          afterChange(false); showTheme();
+        });
+        chips.appendChild(ch);
+      })(ek);
+    }
+    fx.appendChild(chips);
+    body.appendChild(fx);
+
+    var reset = el('button', 'btn small', 'TERUG NAAR HET THEMA ZELF');
+    tap(reset, function () { snapshot(); delete E.layout.themeOverrides; afterChange(false); showTheme(); });
+    body.appendChild(reset);
+    body.appendChild(el('p', 'hint', 'Na Opslaan krijgen alle tablets het nieuwe uiterlijk. Je aanpassingen gaan mee in een geëxporteerd .cyberpad-bestand. ' +
+      'Lettertypen zijn standaardlettertypen van iPad, Mac en Windows; ontbreekt er een, dan gebruikt de tablet de volgende uit de lijst.'));
+    $('modal').className = 'modal';
   }
 
   var drawSoon = null;
@@ -996,7 +1293,7 @@
   // ---------- starten en toegang ----------
 
   function loadAll() {
-    var left = 3, failed = null;
+    var left = 4, failed = null;
     function done() {
       left--;
       if (left) { return; }
@@ -1014,6 +1311,7 @@
     };
     x.send();
     req('GET', '/api/editor/catalog', null, function (st, d) { if (st === 200 && d) { E.catalog = d; } done(); });
+    req('GET', '/api/editor/themes', null, function (st, d) { if (st === 200 && d && d.length) { E.themes = d; } done(); });
     req('GET', '/api/editor/layout', null, function (st, d) {
       if (st === 200 && d && d.layout) { E.layout = d.layout; E.revision = d.revision; }
       else if (st === 403) { failed = 'permission'; }
@@ -1067,6 +1365,8 @@
     tap($('b-redo'), redoIt);
     tap($('b-save'), save);
     tap($('b-profiles'), showProfiles);
+    tap($('b-theme'), showTheme);
+    on($('f-icon'), 'change', function () { var f = $('f-icon').files[0]; if (f) { uploadIcon(f); } $('f-icon').value = ''; });
     tap($('b-export'), exportLayout);
     tap($('b-import'), function () { $('f-import').click(); });
     on($('f-import'), 'change', function () { var f = $('f-import').files[0]; if (f) { importFile(f); } $('f-import').value = ''; });

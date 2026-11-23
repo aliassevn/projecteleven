@@ -1,0 +1,28 @@
+{
+  "id": "vapor",
+  "name": "Vapor",
+  "description": "Vaporwave: paars, roze en mint, ronde hoeken en zachte gloed.",
+  "colors": {
+    "bg": "#160b2e",
+    "bg2": "#2a0f3d",
+    "text": "#f6e7ff",
+    "accent": "#ff71ce",
+    "accent2": "#01cdfe",
+    "accent2Text": "#9ff0ff",
+    "danger": "#ff4f6d",
+    "dangerText": "#ffa3b4",
+    "ok": "#05ffa1",
+    "okText": "#a6ffd9"
+  },
+  "font": "Futura, \"Avenir Next\", \"Century Gothic\", \"Segoe UI\", sans-serif",
+  "radius": 14,
+  "effects": {
+    "scanlines": false,
+    "glow": true,
+    "grid": true,
+    "corner": false,
+    "glitch": false,
+    "upper": true,
+    "bold": false
+  }
+}

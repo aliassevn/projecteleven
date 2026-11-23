@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–11 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–12 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
@@ -49,6 +49,12 @@ Menu › **Layout bewerken…** opent de editor in een eigen venster:
   Heeft iemand anders intussen opgeslagen, dan krijg je een waarschuwing in plaats van dat je zijn werk overschrijft.
 - **↶ / ↷** (⌘Z / ⇧⌘Z) maakt wijzigingen ongedaan. **Exporteren** maakt een `.cyberpad`-bestand; **Importeren**
   laadt er een (pas na Opslaan echt actief).
+
+- **Thema:** knop **THEMA** in de editor. Kies Cyberdeck, Terminal, Cockpit, Vapor of Minimal, en pas eventueel
+  kleuren, lettertype, afronding en effecten aan (met voorbeeld). Na Opslaan wisselen alle tablets direct van
+  uiterlijk. Zie [docs/THEMES.md](docs/THEMES.md).
+- **Iconen en kleur per tegel:** emoji, het icoon van een app op je Mac, of een eigen afbeelding (PNG/JPEG/HEIC,
+  max. 700 KB). Een tegel kan ook een eigen kleur krijgen (streep bovenaan en rand).
 
 **Op de tablet:** ⚙ › *Layout bewerken*. De Mac vraagt dan in een venstertje of die tablet mag bewerken;
 na *Toestaan* kan dat 30 minuten (langer zolang je bezig bent). Zonder toestemming krijgt een tablet nooit de
@@ -325,6 +331,7 @@ macos/                    Mac-versie (Swift)
     Plugins/              plugins zoeken, toestaan, starten en berichten
     Context/              actieve app, profielen, cyberpad://-links
     Editor/               toegang tot de editor, goedkeuren vanaf tablets, editorvenster (WKWebView)
+    Theme/                thema's inlezen, tablet-CSS invullen, app-iconen en eigen afbeeldingen
     Catalog.swift         shortcut-bibliotheek
     Audio.swift           CoreAudio
     HostAlias.swift       cyberpad.local via mDNS
@@ -334,9 +341,11 @@ shared/                   gedeeld door macOS en Windows
   catalog/                shortcuts.json (sneltoetsen per app)
   plugins/                meegeleverde voorbeeldplugins
   editor/                 layout-editor (ES5) + schema.json met alle acties en tegelsoorten
+  themes/                 thema's (Cyberdeck, Terminal, Cockpit, Vapor, Minimal)
 docs/
   PROTOCOL.md             tablet ↔ computer: routes, berichten, status
   PLUGINS.md              plugins schrijven
+  THEMES.md               thema's en iconen
 windows/                  Windows 11-versie (gepland)
 ```
 

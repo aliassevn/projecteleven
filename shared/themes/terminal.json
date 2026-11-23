@@ -1,0 +1,28 @@
+{
+  "id": "terminal",
+  "name": "Terminal",
+  "description": "Groene fosfor op zwart, zoals een oude monitor. Scanlijnen, geen raster.",
+  "colors": {
+    "bg": "#020402",
+    "bg2": "#071407",
+    "text": "#9cff9c",
+    "accent": "#33ff66",
+    "accent2": "#d8ff4d",
+    "accent2Text": "#eaff9a",
+    "danger": "#ff5533",
+    "dangerText": "#ff9a80",
+    "ok": "#33ff66",
+    "okText": "#9cff9c"
+  },
+  "font": "\"Courier New\", Courier, Menlo, Consolas, monospace",
+  "radius": 0,
+  "effects": {
+    "scanlines": true,
+    "glow": true,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": true,
+    "bold": true
+  }
+}
