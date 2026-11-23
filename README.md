@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–9 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–10 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
@@ -172,6 +172,30 @@ of time-out na 10 s), dan verschijnt er een melding op de tablet en springt een 
 Bij wegvallen van Home Assistant of de broker probeert Cyberpad steeds opnieuw (2 s tot 1 min). De tegels worden
 grijs met de reden erbij. Een geweigerd token of wachtwoord wordt niet opnieuw geprobeerd tot je het aanpast.
 
+### Op de tablet
+
+- **⚙ rechtsboven** opent de instellingen van díe tablet: rustscherm (na 2–30 min, of uit), foto's op het
+  rustscherm, tikgeluid, animaties (uit = sneller op oude iPads; op iOS 12 en ouder staan ze standaard uit) en
+  *deze tablet ontkoppelen*.
+- **Verbinding weg:** alles blijft zichtbaar met de laatst bekende stand. Een rode balk telt af tot de volgende
+  poging; *Nu proberen* probeert het meteen.
+- **Rustscherm:** na de ingestelde tijd zonder aanraken een gedimde klok met datum, volgende afspraak en wat er
+  speelt, eventueel over foto's uit je `photos`-tegel. De klok verschuift elke minuut een beetje (tegen inbranden).
+  Een tik brengt je terug zonder iets in te drukken. Een vergadering haalt het rustscherm ook weg.
+- **Schermvullend:** Safari › Deel › *Zet op beginscherm*. Daarna één keer opnieuw koppelen: iOS bewaart de
+  koppeling van de beginscherm-app apart van Safari.
+
+| Tegel | Doet | Instellingen |
+|---|---|---|
+| `"kind": "touchpad"` | trackpad: 1 vinger bewegen, tik = klik, 2 vingers scrollen, tik met 2 = rechtsklik, vasthouden en bewegen = slepen | `config.speed` (standaard 1,5), `config.natural` (natuurlijk scrollen, standaard aan) |
+| `"kind": "dial"` | draaiknop: rondjes draaien met één vinger, per 15° één stap | `action` (zie hieronder), `config.step` |
+
+Een draaiknop met `audio.volume`, `audio.micVolume` of `ha.level` verandert die waarde per stap (`config.step`,
+standaard 0,03). Met `pointer.scroll` scrolt hij. Met een andere actie voert hij die met de klok mee uit en de
+`offAction` tegen de klok in, bijvoorbeeld `ctrl+right` / `ctrl+left` om tussen bureaubladen te wisselen.
+Aanraakpad en draaiknop werken alleen als die tegel in je layout staat, en hebben Toegankelijkheid nodig
+(behalve volume en `ha.level`). Het aanraakpad werkt alleen via WebSocket, niet via de terugval voor oude tablets.
+
 ### Profielen en contextpagina's
 
 **Contextpagina:** geef een pagina een lijst `apps`. Komt een van die apps vooraan op de Mac, dan springt de tablet
@@ -259,6 +283,7 @@ macos/                    Mac-versie (Swift)
   Package.swift
   Resources/Info.plist
   scripts/build.sh        bouwt macos/build/Cyberpad.app
+  scripts/make-pad-icons.swift  tekent shared/pad/icons
   Sources/Cyberpad/
     CyberpadApp.swift     menubalk-venster
     Core.swift            koppelt alles aan elkaar
@@ -268,6 +293,7 @@ macos/                    Mac-versie (Swift)
     Layout.swift          layout-model en bestand
     Actions.swift         alle acties, macro's, aan/uit-knoppen
     Keys.swift            toetscombinaties en tekst typen
+    Pointer.swift         muis en scrollen voor het aanraakpad
     MeetingMonitor.swift  vergaderingen herkennen en bedienen
     Agenda.swift          volgende afspraak en vergaderlink
     Widgets/              weer, nu speelt, timers, systeemstats, foto's, terminal
@@ -278,7 +304,7 @@ macos/                    Mac-versie (Swift)
     HostAlias.swift       cyberpad.local via mDNS
     NetUtil.swift         IP-adressen, lokaal-netwerkcontrole
 shared/                   gedeeld door macOS en Windows
-  pad/                    tablet-pagina (ES5, werkt vanaf iOS 9)
+  pad/                    tablet-pagina (ES5, werkt vanaf iOS 9), manifest en iconen
   catalog/                shortcuts.json (sneltoetsen per app)
   plugins/                meegeleverde voorbeeldplugins
 docs/

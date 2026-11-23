@@ -6,6 +6,8 @@
   var KEY_TOKEN = 'cyberpad.token';
   var KEY_LAYOUT = 'cyberpad.layout';
   var KEY_PAGE = 'cyberpad.page';
+  var KEY_STATE = 'cyberpad.state';       // laatst bekende status (voor offline)
+  var KEY_SETTINGS = 'cyberpad.settings'; // instellingen van deze tablet
 
   var LONG_MS = 500;     // lang indrukken
   var DOUBLE_MS = 280;   // max. tijd tussen twee tikken
@@ -167,16 +169,44 @@
 
   function scheduleReconnect() {
     clearTimeout(app.retryTimer);
-    var secs = Math.round(app.retryDelay / 1000);
-    setStatus(false, 'VERBINDING WEG · OPNIEUW OVER ' + secs + 'S');
+    app.retryAt = new Date().getTime() + app.retryDelay;
+    setStatus(false, 'VERBINDING WEG');
     app.retryTimer = setTimeout(connect, app.retryDelay);
     app.retryDelay = Math.min(app.retryDelay * 2, 15000);
+    updateOffline();
   }
 
   function onConnected(mode) {
     app.mode = mode;
     app.retryDelay = 1000;
+    app.retryAt = 0;
+    app.lastOnline = new Date().getTime();
     setStatus(true, mode === 'ws' ? 'ONLINE' : 'ONLINE · XHR');
+    updateOffline();
+  }
+
+  // Balk "verbinding weg" met aftellen; alles blijft zichtbaar met de laatst bekende stand.
+  function updateOffline() {
+    var bar = $('offline');
+    if (!bar) { return; }
+    var show = !(app.connected || !app.token || !app.retryAt);
+    // Tegels iets omlaag zolang de balk er staat, zodat hij niets bedekt.
+    var h = document.documentElement, had = /\bhas-offline-bar\b/.test(h.className);
+    if (show !== had) {
+      h.className = h.className.replace(/\s*\bhas-offline-bar\b/g, '') + (show ? ' has-offline-bar' : '');
+      render();
+    }
+    if (!show) { bar.className = 'offline-bar hidden'; return; }
+    var left = Math.max(0, Math.ceil((app.retryAt - new Date().getTime()) / 1000));
+    var txt = 'VERBINDING MET DE MAC WEG · ' + (left > 0 ? 'OPNIEUW OVER ' + left + ' S' : 'VERBINDEN…');
+    if (app.lastOnline) { txt += ' · LAATST ' + hm(app.lastOnline); }
+    setText(bar, 'offline-text', txt);
+    bar.className = 'offline-bar';
+  }
+
+  function retryNow() {
+    app.retryDelay = 1000;
+    connect();
   }
 
   function connectWs() {
@@ -313,6 +343,9 @@
     if (!values) { return; }
     app.values = values;
     updateValues();
+    // Hoogstens eens per 10 s bewaren, voor als de Mac later onbereikbaar is.
+    var now = new Date().getTime();
+    if (now - (app.stateSaved || 0) > 10000) { app.stateSaved = now; store('set', KEY_STATE, JSON.stringify(values)); }
   }
 
   function render() {
@@ -331,6 +364,8 @@
     var cols = L.columns || 5, rows = L.rows || 3;
     var gap = window.innerWidth < 600 ? 8 : 14;
     var W = pad.clientWidth, H = pad.clientHeight;
+    // Nog geen afmetingen (verborgen, net gedraaid of uit slaap): straks opnieuw.
+    if (!W || !H) { clearTimeout(app.renderRetry); app.renderRetry = setTimeout(render, 300); return; }
     var cw = (W - gap * (cols - 1)) / cols;
     var ch = (H - gap * (rows - 1)) / rows;
 
@@ -351,6 +386,10 @@
         if (h > 1) { node.className += ' big'; }
       } else if (t.kind === 'slider') {
         buildSlider(node, t);
+      } else if (t.kind === 'touchpad') {
+        buildTouchpad(node, t);
+      } else if (t.kind === 'dial') {
+        buildDial(node, t);
       } else if (WIDGETS[t.kind]) {
         node.setAttribute('data-widget', t.kind);
         node.cpTile = t;
@@ -381,7 +420,8 @@
     var tabs = $('tabs');
     tabs.innerHTML = '';
     var pages = app.layout.pages;
-    document.documentElement.className = pages.length > 1 ? 'has-tabs' : '';
+    var h = document.documentElement;
+    h.className = h.className.replace(/\s*\bhas-tabs\b/g, '') + (pages.length > 1 ? ' has-tabs' : '');
     if (pages.length < 2) { return; }
     for (var i = 0; i < pages.length; i++) {
       (function (idx) {
@@ -511,6 +551,7 @@
     if (key !== app.meetingKey) {
       app.meetingKey = key;
       app.meetingHidden = false; // nieuwe vergadering: paneel automatisch tonen
+      hideAmbient();
       buildMeeting(m);
     }
     overlay.className = app.meetingHidden ? 'meeting hidden' : 'meeting';
@@ -578,6 +619,7 @@
   }
 
   function sendMeeting(action) {
+    feedback(2);
     if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) {
       app.ws.send(JSON.stringify({ type: 'meeting', action: action }));
     } else if (app.mode === 'xhr' && app.connected) {
@@ -680,7 +722,7 @@
   }
 
   function fire(id, gesture) {
-    if (navigator.vibrate) { try { navigator.vibrate(gesture === 'tap' ? 10 : 25); } catch (e) { /* */ } }
+    feedback(gesture === 'tap' ? 1 : 2);
     send('press', id, null, gesture === 'tap' ? null : gesture);
   }
 
@@ -770,6 +812,7 @@
   // ---------- widgets ----------
 
   function sendWidget(id, action, value) {
+    feedback(1);
     var msg = { type: 'widget', id: id, action: action };
     if (value !== undefined && value !== null) { msg.value = value; }
     if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) {
@@ -1262,9 +1305,394 @@
     x.send();
   }
 
+  // ---------- instellingen (per tablet) ----------
+
+  function oldIOS() {
+    var m = /OS (\d+)_/.exec(navigator.userAgent);
+    return !!(m && /iP(ad|hone|od)/.test(navigator.userAgent) && parseInt(m[1], 10) < 13);
+  }
+
+  var DEFAULT_SETTINGS = { ambient: 5, ambientPhotos: true, sound: false, anim: !oldIOS() };
+  function loadSettings() {
+    var s = {};
+    try { s = JSON.parse(store('get', KEY_SETTINGS) || '{}') || {}; } catch (e) { s = {}; }
+    for (var k in DEFAULT_SETTINGS) {
+      if (DEFAULT_SETTINGS.hasOwnProperty(k) && s[k] === undefined) { s[k] = DEFAULT_SETTINGS[k]; }
+    }
+    return s;
+  }
+  app.settings = loadSettings();
+
+  function saveSettings() {
+    store('set', KEY_SETTINGS, JSON.stringify(app.settings));
+    applySettings();
+  }
+
+  function applySettings() {
+    var h = document.documentElement;
+    h.className = h.className.replace(/\s*\blite\b/g, '') + (app.settings.anim ? '' : ' lite');
+  }
+
+  var SETTING_ROWS = [
+    { key: 'ambient', label: 'Rustscherm na', options: [[0, 'UIT'], [2, '2 MIN'], [5, '5 MIN'], [15, '15 MIN'], [30, '30 MIN']] },
+    { key: 'ambientPhotos', label: 'Foto\'s op rustscherm', options: [[true, 'AAN'], [false, 'UIT']] },
+    { key: 'sound', label: 'Tikgeluid', options: [[true, 'AAN'], [false, 'UIT']] },
+    { key: 'anim', label: 'Animaties', options: [[true, 'AAN'], [false, 'UIT (SNELLER)']] }
+  ];
+
+  function showSettings() {
+    var box = $('settings-rows');
+    box.innerHTML = '';
+    for (var i = 0; i < SETTING_ROWS.length; i++) {
+      (function (row) {
+        var r = el('div', 'set-row');
+        r.appendChild(el('span', 'set-label', row.label));
+        var opts = el('span', 'set-opts');
+        for (var j = 0; j < row.options.length; j++) {
+          (function (opt) {
+            var b = el('span', 'set-opt' + (app.settings[row.key] === opt[0] ? ' on' : ''), opt[1]);
+            bindTap(b, function () { app.settings[row.key] = opt[0]; saveSettings(); showSettings(); });
+            opts.appendChild(b);
+          })(row.options[j]);
+        }
+        r.appendChild(opts);
+        box.appendChild(r);
+      })(SETTING_ROWS[i]);
+    }
+    var standalone = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    $('settings-home').textContent = standalone
+      ? 'Cyberpad draait schermvullend vanaf het beginscherm.'
+      : 'Schermvullend? Safari › Deel › Zet op beginscherm. Daarna één keer opnieuw koppelen (iOS bewaart de koppeling apart).';
+    $('settings').className = 'settings';
+  }
+
+  // ---------- tikgeluid en trillen ----------
+
+  var audioCtx = null;
+  function unlockAudio() {
+    if (audioCtx || !app.settings.sound) { return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { return; }
+    try { audioCtx = new AC(); } catch (e) { audioCtx = null; }
+  }
+
+  // level 1 = gewone tik, 2 = nadrukkelijk (lang, dubbel, vergaderknop)
+  function feedback(level) {
+    if (navigator.vibrate) { try { navigator.vibrate(level > 1 ? 25 : 10); } catch (e) { /* */ } }
+    if (!app.settings.sound) { return; }
+    unlockAudio();
+    if (!audioCtx) { return; }
+    try {
+      var t = audioCtx.currentTime;
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'square';
+      o.frequency.value = level > 1 ? 660 : 1320;
+      g.gain.setValueAtTime(0.06, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.06);
+    } catch (e) { /* geen geluid */ }
+  }
+
+  // ---------- aanraakpad (muis) ----------
+
+  function sendPointer(id, msg) {
+    if (!(app.mode === 'ws' && app.ws && app.ws.readyState === 1)) { return false; }
+    msg.type = 'pointer';
+    msg.id = id;
+    app.ws.send(JSON.stringify(msg));
+    return true;
+  }
+
+  function buildTouchpad(node, t) {
+    node.appendChild(el('div', 'tp-label', t.label || 'AANRAAKPAD'));
+    node.appendChild(el('div', 'tp-help', '1 vinger: bewegen · tik: klik · 2 vingers: scrollen · tik met 2: rechtsklik · vasthouden: slepen'));
+    var acc = { dx: 0, dy: 0, sx: 0, sy: 0 }, timer = null;
+    var startT = 0, moved = 0, fingers = 0, maxFingers = 0, last = null, holdTimer = null, dragging = false;
+
+    function flush() {
+      timer = null;
+      if (acc.dx || acc.dy) { sendPointer(t.id, { op: 'move', dx: acc.dx, dy: acc.dy }); acc.dx = acc.dy = 0; }
+      if (acc.sx || acc.sy) { sendPointer(t.id, { op: 'scroll', dx: Math.round(acc.sx), dy: Math.round(acc.sy) }); acc.sx = acc.sy = 0; }
+    }
+    function queue() { if (!timer) { timer = setTimeout(flush, 25); } }
+    function center(ts) {
+      var x = 0, y = 0;
+      for (var i = 0; i < ts.length; i++) { x += ts[i].clientX; y += ts[i].clientY; }
+      return { x: x / ts.length, y: y / ts.length };
+    }
+    function needWs() {
+      if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) { return true; }
+      toast('Het aanraakpad werkt alleen met een WebSocket-verbinding');
+      return false;
+    }
+
+    if (hasTouch) {
+      node.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (!needWs()) { return; }
+        fingers = e.touches.length;
+        if (fingers === 1) {
+          startT = new Date().getTime(); moved = 0; maxFingers = 1;
+          clearTimeout(holdTimer);
+          holdTimer = setTimeout(function () {
+            if (moved < 8 && fingers === 1) { dragging = true; setCls(node, 'dragging', true); feedback(2); sendPointer(t.id, { op: 'down' }); }
+          }, 450);
+        }
+        maxFingers = Math.max(maxFingers, fingers);
+        last = center(e.touches);
+      }, false);
+      node.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        if (!last) { return; }
+        var c = center(e.touches), dx = c.x - last.x, dy = c.y - last.y;
+        last = c;
+        moved += Math.abs(dx) + Math.abs(dy);
+        if (e.touches.length >= 2) { acc.sx += dx; acc.sy += dy; } else { acc.dx += dx; acc.dy += dy; }
+        queue();
+      }, false);
+      node.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        fingers = e.touches.length;
+        if (fingers > 0) { last = center(e.touches); return; }
+        clearTimeout(holdTimer);
+        flush();
+        var short = new Date().getTime() - startT < 300 && moved < 10;
+        if (dragging) {
+          dragging = false; setCls(node, 'dragging', false); sendPointer(t.id, { op: 'up' });
+        } else if (short) {
+          feedback(1);
+          sendPointer(t.id, { op: 'click', button: maxFingers >= 2 ? 'right' : 'left' });
+        }
+        last = null;
+      }, false);
+      node.addEventListener('touchcancel', function () {
+        clearTimeout(holdTimer); last = null;
+        if (dragging) { dragging = false; setCls(node, 'dragging', false); sendPointer(t.id, { op: 'up' }); }
+      }, false);
+    } else {
+      // Testen met een muis: slepen = bewegen, klik = klik, scrollwiel = scrollen.
+      var down = null;
+      node.addEventListener('mousedown', function (e) { if (needWs()) { down = { x: e.clientX, y: e.clientY }; moved = 0; } }, false);
+      document.addEventListener('mousemove', function (e) {
+        if (!down) { return; }
+        acc.dx += e.clientX - down.x; acc.dy += e.clientY - down.y;
+        moved += Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y);
+        down = { x: e.clientX, y: e.clientY }; queue();
+      }, false);
+      document.addEventListener('mouseup', function (e) {
+        if (!down) { return; }
+        down = null; flush();
+        if (moved < 4) { sendPointer(t.id, { op: 'click', button: e.button === 2 ? 'right' : 'left' }); }
+      }, false);
+      node.addEventListener('wheel', function (e) { e.preventDefault(); acc.sx -= e.deltaX; acc.sy -= e.deltaY; queue(); }, false);
+      node.addEventListener('contextmenu', function (e) { e.preventDefault(); }, false);
+    }
+  }
+
+  // ---------- draaiknop ----------
+
+  var DIAL_DEG = 15; // graden per tik
+
+  function sendDial(id, steps) {
+    if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) {
+      app.ws.send(JSON.stringify({ type: 'dial', id: id, steps: steps }));
+    } else if (app.mode === 'xhr' && app.connected) {
+      request('POST', '/api/dial', { id: id, steps: steps }, function (err, status, data) {
+        if (data && data.ok === false && data.error) { toast(data.error); }
+        poll();
+      });
+    }
+  }
+
+  function buildDial(node, t) {
+    var ring = el('div', 'dial-ring');
+    var knob = el('div', 'dial-knob');
+    knob.appendChild(el('div', 'dial-mark'));
+    ring.appendChild(knob);
+    node.appendChild(ring);
+    node.appendChild(el('div', 'dial-value', ''));
+    node.appendChild(el('div', 'label', t.label));
+    if (t.stateKey) { node.setAttribute('data-state', t.stateKey); }
+    var rot = 0, lastA = null, accDeg = 0, pending = 0, timer = null;
+
+    function angle(x, y) {
+      var r = ring.getBoundingClientRect();
+      return Math.atan2(y - (r.top + r.height / 2), x - (r.left + r.width / 2)) * 180 / Math.PI;
+    }
+    function turn(a) {
+      if (lastA === null) { lastA = a; return; }
+      var d = a - lastA;
+      if (d > 180) { d -= 360; } else if (d < -180) { d += 360; }
+      lastA = a;
+      rot += d; accDeg += d;
+      knob.style.webkitTransform = knob.style.transform = 'rotate(' + rot + 'deg)';
+      while (Math.abs(accDeg) >= DIAL_DEG) {
+        var st = accDeg > 0 ? 1 : -1;
+        accDeg -= st * DIAL_DEG; pending += st;
+        if (navigator.vibrate) { try { navigator.vibrate(4); } catch (e) { /* */ } }
+      }
+      if (pending && !timer) {
+        timer = setTimeout(function () { timer = null; if (pending) { sendDial(t.id, pending); pending = 0; } }, 60);
+      }
+    }
+    function start() { lastA = null; accDeg = 0; setCls(node, 'pressed', true); }
+    function end() { lastA = null; setCls(node, 'pressed', false); }
+
+    if (hasTouch) {
+      node.addEventListener('touchstart', function (e) { e.preventDefault(); start(); turn(angle(e.touches[0].clientX, e.touches[0].clientY)); }, false);
+      node.addEventListener('touchmove', function (e) { e.preventDefault(); turn(angle(e.touches[0].clientX, e.touches[0].clientY)); }, false);
+      node.addEventListener('touchend', function (e) { e.preventDefault(); end(); }, false);
+      node.addEventListener('touchcancel', end, false);
+    } else {
+      var isDown = false;
+      node.addEventListener('mousedown', function (e) { isDown = true; start(); turn(angle(e.clientX, e.clientY)); }, false);
+      document.addEventListener('mousemove', function (e) { if (isDown) { turn(angle(e.clientX, e.clientY)); } }, false);
+      document.addEventListener('mouseup', function () { if (isDown) { isDown = false; end(); } }, false);
+      node.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        var st = e.deltaY < 0 ? 1 : -1;
+        rot += st * DIAL_DEG;
+        knob.style.webkitTransform = knob.style.transform = 'rotate(' + rot + 'deg)';
+        sendDial(t.id, st);
+      }, false);
+    }
+
+    app.sliders[t.id] = {
+      update: function () {
+        var v = t.stateKey ? stateLevel(t.stateKey) : undefined;
+        setText(node, 'dial-value', typeof v === 'number' ? Math.round(v * 100) + '%' : '');
+        setCls(node, 'stale', !!(t.stateKey && stateStale(t.stateKey)));
+      }
+    };
+  }
+
+  // ---------- rustscherm (ambient) ----------
+
+  function touched() {
+    app.lastTouch = new Date().getTime();
+  }
+
+  function photoTileId() {
+    var pages = (app.layout && app.layout.pages) || [];
+    for (var i = 0; i < pages.length; i++) {
+      for (var j = 0; j < pages[i].tiles.length; j++) { if (pages[i].tiles[j].kind === 'photos') { return pages[i].tiles[j].id; } }
+    }
+    return null;
+  }
+
+  function ambientCheck() {
+    var a = app.settings.ambient;
+    if (app.ambientOn || !a || !app.token) { return; }
+    if ($('pair').className.indexOf('hidden') < 0 || $('settings').className.indexOf('hidden') < 0) { return; }
+    if ($('meeting').className.indexOf('hidden') < 0) { return; }
+    if (new Date().getTime() - app.lastTouch >= a * 60000) { showAmbient(); }
+  }
+
+  function showAmbient() {
+    app.ambientOn = true;
+    app.ambientPhoto = -1;
+    updateAmbient();
+    ambientPhotoNext();
+    $('ambient').className = 'ambient';
+  }
+
+  function hideAmbient() {
+    if (!app.ambientOn) { return; }
+    app.ambientOn = false;
+    $('ambient').className = 'ambient hidden';
+    touched();
+  }
+
+  function updateAmbient() {
+    if (!app.ambientOn) { return; }
+    var d = new Date();
+    $('amb-time').textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    $('amb-date').textContent = DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+    var lines = [];
+    var ag = app.values.agenda;
+    if (ag && ag.status === 'ok') { lines.push('▸ ' + dayLabel(ag.start) + hm(ag.start) + '  ' + ag.title); }
+    var w = app.values.widgets || {};
+    for (var k in w) {
+      if (w.hasOwnProperty(k) && w[k] && w[k].status === 'ok' && w[k].title && w[k].state === 'playing') {
+        lines.push('♪ ' + w[k].title + (w[k].artist ? ' — ' + w[k].artist : ''));
+        break;
+      }
+    }
+    if (!app.connected) { lines.push('⚠ GEEN VERBINDING MET DE MAC'); }
+    $('amb-info').textContent = lines.join('\n');
+    // Elke minuut een iets andere plek, tegen inbranden.
+    if (d.getSeconds() < 2 || !app.ambientShift) {
+      app.ambientShift = true;
+      var box = $('amb-box');
+      box.style.marginLeft = Math.round((Math.random() - 0.5) * 120) + 'px';
+      box.style.marginTop = Math.round((Math.random() - 0.5) * 80) + 'px';
+    }
+  }
+
+  // "" voor vandaag, anders "MORGEN " of de dag ("DO ").
+  function dayLabel(ms) {
+    var d = new Date(ms), now = new Date();
+    var a = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var days = Math.round((b - a) / 86400000);
+    if (days <= 0) { return ''; }
+    if (days === 1) { return 'MORGEN '; }
+    return DAYS[d.getDay()] + ' ';
+  }
+
+  function ambientPhotoNext() {
+    var bg = $('amb-photo');
+    var id = app.settings.ambientPhotos ? photoTileId() : null;
+    var data = id ? (app.values.widgets || {})[id] : null;
+    if (!id || !data || !data.count || !app.connected || !window.URL || !URL.createObjectURL) {
+      bg.style.backgroundImage = 'none';
+      return;
+    }
+    app.ambientPhoto = (app.ambientPhoto + 1) % data.count;
+    var x = new XMLHttpRequest();
+    x.open('GET', '/api/photo?tile=' + encodeURIComponent(id) + '&i=' + app.ambientPhoto, true);
+    x.responseType = 'blob';
+    x.setRequestHeader('X-Cyberpad-Token', app.token);
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4 || x.status !== 200 || !app.ambientOn) { return; }
+      var url = URL.createObjectURL(x.response);
+      bg.style.backgroundImage = 'url(' + url + ')';
+      if (app.ambientUrl) { URL.revokeObjectURL(app.ambientUrl); }
+      app.ambientUrl = url;
+    };
+    x.send();
+  }
+
   // ---------- start ----------
 
   function init() {
+    applySettings();
+    app.lastTouch = new Date().getTime();
+    // Laatst bekende status tonen tot de Mac antwoordt.
+    try { app.values = JSON.parse(store('get', KEY_STATE) || '{}') || {}; } catch (e) { app.values = {}; }
+
+    // Elke aanraking telt als activiteit; het rustscherm vangt zijn eigen tik af.
+    var evStart = hasTouch ? 'touchstart' : 'mousedown';
+    document.addEventListener(evStart, function () { touched(); unlockAudio(); }, true);
+    $('ambient').addEventListener(evStart, function (e) { e.preventDefault(); e.stopPropagation(); hideAmbient(); }, false);
+    if (hasTouch) { $('ambient').addEventListener('touchend', function (e) { e.preventDefault(); e.stopPropagation(); }, false); }
+    setInterval(ambientCheck, 10000);
+    setInterval(function () { updateAmbient(); updateOffline(); }, 1000);
+    setInterval(function () { if (app.ambientOn) { ambientPhotoNext(); } }, 30000);
+
+    bindTap($('settings-open'), showSettings);
+    bindTap($('settings-close'), function () { $('settings').className = 'settings hidden'; });
+    bindTap($('settings-forget'), function () {
+      if (window.confirm('Deze tablet ontkoppelen? Je moet daarna opnieuw de code invoeren.')) {
+        $('settings').className = 'settings hidden';
+        forget('Ontkoppeld. Voer een nieuwe code in om opnieuw te koppelen.');
+      }
+    });
+    bindTap($('offline-retry'), retryNow);
+    // Alleen voor testen: index.html?debug → rustscherm direct op te roepen via de console.
+    if (/[?&]debug\b/.test(location.search)) { window.cyberpadDebug = { ambient: showAmbient, settings: showSettings }; }
     bindTap($('pair-btn'), doPair);
     $('pair-code').addEventListener('keyup', function (e) {
       if (e.keyCode === 13 || $('pair-code').value.replace(/\D/g, '').length === 6) { doPair(); }

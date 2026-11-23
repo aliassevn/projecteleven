@@ -5,6 +5,7 @@ import IOKit.pwr_mgt
 /// Voert acties uit. Alles wat de tablet kan laten gebeuren staat in deze ene lijst.
 final class ActionRunner {
     let audio = AudioController()
+    let pointer = PointerController()
     var catalog = ShortcutCatalog.empty
     /// Home Assistant, MQTT en webhooks (fase 7).
     weak var integrations: Integrations?
@@ -182,6 +183,36 @@ final class ActionRunner {
             }
 
         default: throw ActionError.unknown(a.type)
+        }
+    }
+
+    /// Draaiknop: `steps` tikken (positief = met de klok mee).
+    /// Volume, mic-volume en ha.level veranderen relatief; `pointer.scroll` scrollt;
+    /// anders: `action` met de klok mee en `offAction` tegen de klok in (max. 10 keer per bericht).
+    func dial(_ tile: Tile, steps: Int) throws {
+        guard let a = tile.action else { throw ActionError.missing("action") }
+        let n = max(min(steps, 20), -20)
+        guard n != 0 else { return }
+        let step = min(max(tile.config?.step ?? 0.03, 0.005), 0.5)
+        switch a.type {
+        case "audio.volume":
+            audio.changeVolume(by: Float32(Double(n) * step))
+        case "audio.micVolume":
+            audio.setMicVolume(min(max((audio.micVolume ?? 0) + Float32(Double(n) * step), 0), 1))
+        case "ha.level":
+            guard let e = a.entity, let i = integrations else { throw ActionError.missing("entity") }
+            let cur = i.ha.entityJSON(e)["level"] as? Double ?? 0
+            try i.ha.setLevel(e, min(max(cur + Double(n) * step, 0), 1))
+        case "pointer.scroll":
+            try ensureAccessibility()
+            pointer.scroll(dx: 0, dy: Double(n) * 40 * (tile.config?.speed ?? 1), natural: tile.config?.natural ?? true)
+        default:
+            let act: ActionSpec
+            if n > 0 { act = a } else {
+                guard let off = tile.offAction else { throw ActionError.missing("offAction (tegen de klok in)") }
+                act = off
+            }
+            for _ in 0..<min(abs(n), 10) { try run(act) }
         }
     }
 

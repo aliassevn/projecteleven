@@ -4,14 +4,15 @@ Dit document beschrijft wat de tablet-pagina (`shared/pad/`) van de computer ver
 (`macos/`) en de toekomstige Windows-versie (`windows/`) volgen allebei dit protocol, zodat één tablet-pagina,
 één layout-formaat en één set plugins voor beide werkt.
 
-Versie: 1 (fase 0–9).
+Versie: 1 (fase 0–10).
 
 ## Verbinding
 
 - HTTP/1.1 en WebSocket op **poort 7420**, op alle netwerkkaarten.
 - Alleen verbindingen uit het lokale netwerk (privé-adressen en link-local) worden aangenomen.
 - Vindbaar als `cyberpad.local` (mDNS A-record) en als Bonjour/DNS-SD-dienst `_http._tcp`.
-- De tablet-pagina wordt door dezelfde server geserveerd (`GET /` → `index.html`, `/pad.js`, `/pad.css`).
+- De tablet-pagina wordt door dezelfde server geserveerd (`GET /` → `index.html`, `/pad.js`, `/pad.css`,
+  `/manifest.json`, `/icons/…`).
   Paden met `..` of die met een punt beginnen worden geweigerd.
 
 ## Koppelen
@@ -41,6 +42,9 @@ Frames volgens RFC 6455; berichten van de tablet moeten gemaskeerd zijn en zijn 
 | | `{"type":"slider","id":"<tegel>","value":0.0…1.0}` |
 | | `{"type":"widget","id":"<tegel>","action":"…","value":n?}` |
 | | `{"type":"meeting","action":"mute\|video\|hand\|share\|leave"}` |
+| | `{"type":"pointer","id":"<touchpad-tegel>","op":"move\|scroll","dx":n,"dy":n}`: hooguit ~40× per seconde |
+| | `{"type":"pointer","id":"…","op":"click","button":"left\|right"}`, `"op":"down"` / `"up"` (slepen) |
+| | `{"type":"dial","id":"<dial-tegel>","steps":n}`: n tikken van 15°, positief = met de klok mee |
 | computer → tablet | `{"type":"welcome","device":"iPad"}` |
 | | `{"type":"layout","layout":{…}}` (zie hieronder) |
 | | `{"type":"state","state":{…}}`: bij elke wijziging, hooguit ~7× per seconde |
@@ -58,7 +62,7 @@ Alle met token, allemaal JSON:
 | `GET /api/layout` | `{"layout":{…},"state":{…}}` |
 | `GET /api/state` | `{"state":{…}}` (de tablet vraagt dit elke 2 s op) |
 | `POST /api/press` | body als het WS-bericht → `{"ok":bool,"error"?}` |
-| `POST /api/slider`, `/api/widget`, `/api/meeting` | idem |
+| `POST /api/slider`, `/api/widget`, `/api/meeting`, `/api/dial` | idem (`pointer` alleen via WebSocket) |
 | `GET /api/photo?tile=<id>&i=<n>` | JPEG (max. 1280 px) voor een `photos`-tegel |
 
 ## Layout zoals de tablet hem krijgt
@@ -81,11 +85,13 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
   Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
 - `context: true`: pagina hoort bij een of meer apps (zie `state.context`).
 - `kind`: `button`, `slider`, `clock`, `agenda`, `weather`, `nowplaying`, `timer`, `pomodoro`, `worldclock`,
-  `photos`, `stats`, `terminal`, `ha`, `mqtt`, `plugin`.
+  `photos`, `stats`, `terminal`, `ha`, `mqtt`, `plugin`, `touchpad`, `dial`.
 - `stateKey`: welke statuswaarde de knop laat oplichten (of de schuif vult):
   ingebouwd (`muted`, `micMuted`, `keepAwake`, `darkMode`, `volume`, `micVolume`),
   `ha:<entiteit>` of `mqtt:<topic>`.
 - `toggle: true` zonder `stateKey`: de computer onthoudt aan/uit in `state.toggles[<tegel>]`.
+- Fouten bij `pointer` (bijv. geen Toegankelijkheid) meldt de computer hooguit eens per 3 s.
+  Valt de verbinding weg tijdens slepen, dan laat de computer de muisknop los.
 - `dangerous: true` (alleen `terminal`): de tablet vraagt een tweede tik en stuurt dan `value: 1`.
 
 ## Status (`state`)
@@ -140,6 +146,7 @@ Zelfde opbouw als hierboven, maar mét acties. Zie de README voor alle actietype
 | `preset` | `shared/catalog/shortcuts.json` → `keys` | idem → `keysWindows` (nog in te vullen) |
 | `page.apps` | bundle-id of app-naam | naam van het .exe-bestand (bijv. `Photoshop.exe`) of AppUserModelID |
 | profiel wisselen | `cyberpad://profile/<id>` (Opdrachten/Focus) | `cyberpad://profile/<id>` (protocol-handler) |
+| aanraakpad | CGEvent (muis, scrollwiel) | `SendInput` met `MOUSEINPUT` / `MOUSEEVENTF_WHEEL` |
 
 Een layout die alleen platformneutrale acties gebruikt (media, audio, `url.open`, `ha.*`, `mqtt.*`,
 `webhook.call`, `plugin`, widgets) werkt op beide zonder aanpassing.

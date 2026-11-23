@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Cyberpad">
 <meta name="theme-color" content="#05060a">
 <title>Cyberpad</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="stylesheet" href="pad.css">
 </head>
 <body>
@@ -18,6 +21,12 @@
     <span id="meeting-pill" class="meeting-pill hidden">● VERGADERING</span>
     <span id="status-text" class="status-text">VERBINDEN…</span>
     <span id="status-dot" class="dot"></span>
+    <span id="settings-open" class="settings-open">⚙</span>
+  </div>
+
+  <div id="offline" class="offline-bar hidden">
+    <span class="offline-text">VERBINDING MET DE MAC WEG</span>
+    <span id="offline-retry" class="offline-retry">NU PROBEREN</span>
   </div>
 
   <div id="pad" class="pad"></div>
@@ -40,6 +49,27 @@
       <input id="pair-code" class="pair-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="000000">
       <button id="pair-btn" class="pair-btn">KOPPEL</button>
       <p id="pair-msg" class="pair-msg"></p>
+    </div>
+  </div>
+
+  <div id="settings" class="settings hidden">
+    <div class="settings-box">
+      <div class="settings-head">
+        <span class="pair-title">// INSTELLINGEN</span>
+        <span id="settings-close" class="meeting-hide">SLUITEN ✕</span>
+      </div>
+      <div id="settings-rows"></div>
+      <p id="settings-home" class="settings-note"></p>
+      <span id="settings-forget" class="set-opt danger">DEZE TABLET ONTKOPPELEN</span>
+    </div>
+  </div>
+
+  <div id="ambient" class="ambient hidden">
+    <div id="amb-photo" class="amb-photo"></div>
+    <div id="amb-box" class="amb-box">
+      <div id="amb-time" class="amb-time">--:--</div>
+      <div id="amb-date" class="amb-date"></div>
+      <div id="amb-info" class="amb-info"></div>
     </div>
   </div>
 

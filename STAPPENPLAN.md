@@ -150,9 +150,12 @@ Network.framework (server, Bonjour), Security (Keychain).
 44. **Offline-bestendig**: layout en thema in `localStorage`; bij verbindingsverlies blijft alles zichtbaar
     met de melding "verbinding weg" en een teller tot het opnieuw verbinden.
 45. **Aanraakpad-modus**: tablet als extra trackpad, plus draaiknop-gebaar voor volume/scrollen.
+    *Uitgewerkt als tegels* (`touchpad`, `dial`), zodat je ze naast gewone knoppen op een pagina zet.
 46. **Ambient-modus**: na X minuten zonder aanraken klok, stats of foto's tonen, gedimd; tik = terug.
 47. **Animaties en geluid** bij indrukken (uit te zetten; licht houden voor oude iPads).
 48. "Toevoegen aan beginscherm" (web-app-manifest, schermvullend, geen adresbalk).
+    *Beperking:* zonder https is er geen service worker; is de Mac uit, dan kan een (her)geopende pagina niet laden.
+    Een pagina die al open staat blijft wel werken met de laatst bekende stand.
 
 ### Fase 11 — Editors (4–5 dagen)
 49. **SwiftUI-editor op de Mac**: grid-grootte, knoppen slepen, actie kiezen, icoon/kleur/label, pagina's, profielen.

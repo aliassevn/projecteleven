@@ -118,17 +118,24 @@ struct WidgetConfig: Codable, Equatable {
     var plugin: String?
     var widget: String?
     var params: [String: JSONValue]?
+    // touchpad: snelheid (standaard 1,5) en natuurlijk scrollen (standaard aan)
+    var speed: Double?
+    var natural: Bool?
+    // dial: stap per tik van de draaiknop (0…1 voor volume/helderheid, standaard 0,03)
+    var step: Double?
 
     init(city: String? = nil, lat: Double? = nil, lon: Double? = nil, seconds: Int? = nil, work: Int? = nil,
          rest: Int? = nil, zones: [String]? = nil, folder: String? = nil, command: String? = nil, cwd: String? = nil,
          dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil,
          entity: String? = nil, topic: String? = nil, unit: String? = nil, field: String? = nil,
-         plugin: String? = nil, widget: String? = nil, params: [String: JSONValue]? = nil) {
+         plugin: String? = nil, widget: String? = nil, params: [String: JSONValue]? = nil,
+         speed: Double? = nil, natural: Bool? = nil, step: Double? = nil) {
         self.city = city; self.lat = lat; self.lon = lon; self.seconds = seconds; self.work = work; self.rest = rest
         self.zones = zones; self.folder = folder; self.command = command; self.cwd = cwd; self.dangerous = dangerous
         self.timeout = timeout; self.show = show; self.player = player
         self.entity = entity; self.topic = topic; self.unit = unit; self.field = field
         self.plugin = plugin; self.widget = widget; self.params = params
+        self.speed = speed; self.natural = natural; self.step = step
     }
 }
 
@@ -320,6 +327,23 @@ struct Layout: Codable, Equatable {
                 Tile(id: "hook-n8n", label: "n8n-flow", icon: "🪝",
                      action: .init(type: "webhook.call", webhook: "n8n"), x: 1, y: 2),
             ]),
+            // Tablet als trackpad en draaiknoppen (fase 10). Muis en scrollen vereisen Toegankelijkheid.
+            Page(id: "touch", name: "Bediening", tiles: [
+                Tile(id: "touchpad", label: "Aanraakpad", kind: "touchpad", config: .init(speed: 1.5, natural: true),
+                     x: 0, y: 0, w: 3, h: 3),
+                Tile(id: "dial-volume", label: "Volume", kind: "dial", action: .init(type: "audio.volume"),
+                     config: .init(step: 0.03), x: 3, y: 0),
+                Tile(id: "dial-scroll", label: "Scrollen", kind: "dial", action: .init(type: "pointer.scroll"), x: 4, y: 0),
+                Tile(id: "dial-spaces", label: "Bureaubladen", kind: "dial",
+                     action: .init(type: "keys.press", keys: "ctrl+right"),
+                     offAction: .init(type: "keys.press", keys: "ctrl+left"), x: 3, y: 1),
+                Tile(id: "dial-zoom", label: "Zoomen", kind: "dial",
+                     action: .init(type: "keys.press", keys: "cmd+="),
+                     offAction: .init(type: "keys.press", keys: "cmd+-"), x: 4, y: 1),
+                Tile(id: "dial-light", label: "Woonkamer", kind: "dial",
+                     action: .init(type: "ha.level", entity: "light.woonkamer"), config: .init(step: 0.05), x: 3, y: 2),
+                Tile(id: "mission2", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 4, y: 2),
+            ]),
             // Voorbeeldplugins uit shared/plugins; ze werken pas na Aanzetten in de menubalk.
             Page(id: "plugins", name: "Plugins", tiles: [
                 Tile(id: "pl-hallo", label: "Zeg hallo", icon: "👋",
@@ -345,9 +369,9 @@ struct Layout: Codable, Equatable {
             ]),
         ],
         profiles: [
-            Profile(id: "werk", name: "Werkdag", pages: ["main", "work", "widgets", "plugins", "system"],
+            Profile(id: "werk", name: "Werkdag", pages: ["main", "work", "touch", "widgets", "plugins", "system"],
                     when: [TimeRule(days: [1, 2, 3, 4, 5], from: "08:00", to: "18:00")]),
-            Profile(id: "thuis", name: "Thuis", pages: ["main", "home", "widgets", "plugins", "system"], default: true),
+            Profile(id: "thuis", name: "Thuis", pages: ["main", "home", "touch", "widgets", "plugins", "system"], default: true),
 
         ]
     )

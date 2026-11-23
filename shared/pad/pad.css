@@ -52,6 +52,7 @@ body {
 
 .offline .status-text { color: #ff6b85; }
 .offline .pad { opacity: 0.55; }
+.has-offline-bar .pad { top: 76px; }
 
 /* ---------- grid ---------- */
 
@@ -468,3 +469,57 @@ body {
 }
 .pl-btn.flash { background: rgba(255,43,214,0.3); }
 .kind-plugin.stale .ha-sub { color: #ff8199; white-space: normal; }
+
+/* ---------- fase 10: tablet-ervaring ---------- */
+.settings-open { margin-left: 14px; font-size: 16px; color: rgba(200,255,246,0.6); cursor: pointer; padding: 0 4px; }
+
+.offline-bar {
+  position: absolute; left: 0; right: 0; top: 36px; z-index: 30; height: 30px; line-height: 30px;
+  padding: 0 14px; font-size: 11px; letter-spacing: 2px; color: #ffd0d9;
+  background: rgba(255,59,92,0.18); border-bottom: 1px solid rgba(255,59,92,0.6);
+}
+.offline-bar.hidden { display: none; }
+.offline-retry { float: right; color: #00ffe0; border: 1px solid rgba(0,255,224,0.5); padding: 0 10px; line-height: 22px; margin-top: 3px; cursor: pointer; }
+
+.settings, .ambient { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 60; }
+.settings { background: rgba(5,6,10,0.94); }
+.settings.hidden, .ambient.hidden { display: none; }
+.settings-box { max-width: 620px; margin: 60px auto 0; padding: 0 20px; }
+.settings-head { overflow: hidden; margin-bottom: 18px; }
+.settings-head .meeting-hide { float: right; }
+.set-row { padding: 12px 0; border-bottom: 1px solid rgba(0,255,224,0.15); overflow: hidden; }
+.set-label { float: left; font-size: 13px; letter-spacing: 2px; color: #c8fff6; line-height: 34px; }
+.set-opts { float: right; }
+.set-opt {
+  display: inline-block; margin-left: 6px; padding: 0 10px; height: 32px; line-height: 30px; font-size: 11px;
+  letter-spacing: 2px; color: rgba(200,255,246,0.7); border: 1px solid rgba(0,255,224,0.3); cursor: pointer;
+}
+.set-opt.on { color: #05060a; background: #00ffe0; border-color: #00ffe0; }
+.set-opt.danger { margin: 18px 0 0; color: #ff8199; border-color: rgba(255,59,92,0.6); }
+.settings-note { font-size: 12px; line-height: 1.6; color: rgba(200,255,246,0.6); margin-top: 18px; }
+
+.ambient { background: #000; cursor: pointer; }
+.amb-photo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-size: cover; background-position: center; opacity: 0.35; }
+.amb-box { position: absolute; left: 0; right: 0; top: 30%; text-align: center; }
+.amb-time { font-size: 120px; letter-spacing: 6px; color: rgba(0,255,224,0.55); text-shadow: 0 0 24px rgba(0,255,224,0.25); }
+.amb-date { font-size: 16px; letter-spacing: 8px; color: rgba(200,255,246,0.4); margin-top: 6px; }
+.amb-info { font-size: 15px; line-height: 1.8; color: rgba(200,255,246,0.45); margin-top: 28px; white-space: pre-line; padding: 0 30px; }
+
+.kind-touchpad { cursor: crosshair; background: rgba(0,255,224,0.02); }
+.tp-label { font-size: 11px; letter-spacing: 4px; color: rgba(200,255,246,0.45); }
+.tp-help { font-size: 10px; letter-spacing: 1px; color: rgba(200,255,246,0.3); margin-top: 10px; text-align: center; padding: 0 16px; }
+.kind-touchpad.dragging { border-color: #ff2bd6; }
+
+.dial-ring {
+  width: 64%; max-width: 150px; position: relative; border-radius: 50%;
+  border: 2px solid rgba(0,255,224,0.5); box-shadow: 0 0 14px rgba(0,255,224,0.15);
+}
+.dial-ring:before { content: ''; display: block; padding-top: 100%; }
+.dial-knob { position: absolute; left: 10%; top: 10%; right: 10%; bottom: 10%; border-radius: 50%; background: rgba(0,255,224,0.06); }
+.dial-mark { position: absolute; left: 50%; top: 6%; width: 4px; height: 22%; margin-left: -2px; background: #00ffe0; }
+.dial-value { font-size: 14px; color: #00ffe0; margin-top: 8px; min-height: 18px; }
+.kind-dial.pressed .dial-ring { border-color: #ff2bd6; }
+
+/* Snelle modus voor oude iPads: geen overgangen, gloed of scanlijnen. */
+.lite * { -webkit-transition: none !important; transition: none !important; text-shadow: none !important; box-shadow: none !important; }
+.lite .scanlines { display: none; }

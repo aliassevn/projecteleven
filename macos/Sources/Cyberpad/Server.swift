@@ -149,7 +149,7 @@ final class Server {
     }
 
     private static func integrationStateKey(_ t: Tile) -> String? {
-        guard t.isButton || t.kind == "slider" else { return nil }
+        guard t.isButton || t.kind == "slider" || t.kind == "dial" else { return nil }
         if let topic = t.config?.topic { return "mqtt:" + topic }
         if let a = t.action, ["ha.toggle", "ha.level"].contains(a.type), let e = a.entity { return "ha:" + e }
         return nil
@@ -170,6 +170,28 @@ final class Server {
     func handleWidget(id: String, action: String, value: Double?) -> (ok: Bool, error: String?) {
         guard let tile = layouts.layout.tile(id: id), tile.isWidget, let widgets else { return (false, "Onbekende widget: \(id)") }
         do { try widgets.handle(tile, action: action, value: value); return (true, nil) } catch { return (false, error.localizedDescription) }
+    }
+
+    /// Aanraakpad: alleen voor een tegel met `"kind": "touchpad"` uit de layout.
+    func handlePointer(id: String, _ msg: [String: Any]) -> (ok: Bool, error: String?) {
+        guard let tile = layouts.layout.tile(id: id), tile.kind == "touchpad" else { return (false, "Geen aanraakpad: \(id)") }
+        do { try actions.ensureAccessibility() } catch { return (false, error.localizedDescription) }
+        func num(_ k: String) -> Double { (msg[k] as? NSNumber)?.doubleValue ?? 0 }
+        let p = actions.pointer
+        switch msg["op"] as? String {
+        case "move": p.move(dx: num("dx"), dy: num("dy"), speed: tile.config?.speed ?? 1.5)
+        case "scroll": p.scroll(dx: num("dx"), dy: num("dy"), natural: tile.config?.natural ?? true)
+        case "click": p.click(right: msg["button"] as? String == "right")
+        case "down": p.button(down: true)
+        case "up": p.button(down: false)
+        default: return (false, "Onbekende muisactie")
+        }
+        return (true, nil)
+    }
+
+    func handleDial(id: String, steps: Int) -> (ok: Bool, error: String?) {
+        guard let tile = layouts.layout.tile(id: id), tile.kind == "dial" else { return (false, "Geen draaiknop: \(id)") }
+        do { try actions.dial(tile, steps: steps); return (true, nil) } catch { return (false, error.localizedDescription) }
     }
 
     /// Knop in het vergaderpaneel. Alleen vaste acties; welke toetsen dat zijn bepaalt de catalogus op de Mac.
@@ -234,7 +256,7 @@ final class Server {
             }
 
         case ("GET", "/api/layout"), ("GET", "/api/state"), ("POST", "/api/press"), ("POST", "/api/slider"),
-             ("POST", "/api/meeting"), ("POST", "/api/widget"), ("GET", "/api/photo"):
+             ("POST", "/api/meeting"), ("POST", "/api/widget"), ("GET", "/api/photo"), ("POST", "/api/dial"):
             guard let device = pairing.authenticate(token: req.headers["x-cyberpad-token"]) else {
                 c.respond(401, json: ["error": "unauthorized"])
                 return
@@ -261,6 +283,13 @@ final class Server {
                 c.respond(200, json: ["layout": layoutJSON(for: device.id), "state": fullState()])
             case "/api/state":
                 c.respond(200, json: ["state": fullState()])
+            case "/api/dial":
+                let body = req.json() ?? [:]
+                let r = handleDial(id: body["id"] as? String ?? "", steps: (body["steps"] as? NSNumber)?.intValue ?? 0)
+                var out: [String: Any] = ["ok": r.ok]
+                if let e = r.error { out["error"] = e }
+                c.respond(200, json: out)
+                scheduleStateBroadcast()
             case "/api/meeting":
                 let r = handleMeeting(action: (req.json() ?? [:])["action"] as? String ?? "")
                 var out: [String: Any] = ["ok": r.ok]
@@ -359,9 +388,13 @@ private final class Connection {
         }
     }
 
+    private var lastPointerError = Date.distantPast
+    private var usedPointer = false
+
     func close() {
         guard !closed else { return }
         closed = true
+        if usedPointer { server.actions.pointer.release() } // geen ingedrukte muisknop laten hangen
         helloTimer?.cancel()
         nw.cancel()
         server.remove(self)
@@ -499,6 +532,26 @@ private final class Connection {
             let id = msg["id"] as? String ?? ""
             let r = server.handleWidget(id: id, action: msg["action"] as? String ?? "",
                                         value: (msg["value"] as? NSNumber)?.doubleValue)
+            if !r.ok {
+                var ack: [String: Any] = ["type": "ack", "id": id, "ok": false]
+                if let e = r.error { ack["error"] = e }
+                sendJSON(ack)
+            }
+            server.scheduleStateBroadcast()
+        case "pointer":
+            let id = msg["id"] as? String ?? ""
+            let r = server.handlePointer(id: id, msg)
+            // Fouten (bijv. geen Toegankelijkheid) hoogstens eens per 3 s melden, niet bij elke beweging.
+            if !r.ok, Date().timeIntervalSince(lastPointerError) > 3 {
+                lastPointerError = Date()
+                var ack: [String: Any] = ["type": "ack", "id": id, "ok": false]
+                if let e = r.error { ack["error"] = e }
+                sendJSON(ack)
+            }
+            usedPointer = true
+        case "dial":
+            let id = msg["id"] as? String ?? ""
+            let r = server.handleDial(id: id, steps: (msg["steps"] as? NSNumber)?.intValue ?? 0)
             if !r.ok {
                 var ack: [String: Any] = ["type": "ack", "id": id, "ok": false]
                 if let e = r.error { ack["error"] = e }
