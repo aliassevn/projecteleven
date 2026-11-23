@@ -3,3 +3,4 @@
 build/
 dustyPad.app/
 *.xcodeproj/xcuserdata/
+macos/Resources/AppIcon.iconset/
