@@ -154,15 +154,21 @@ Network.framework (server, Bonjour), Security (Keychain).
 46. **Ambient-modus**: na X minuten zonder aanraken klok, stats of foto's tonen, gedimd; tik = terug.
 47. **Animaties en geluid** bij indrukken (uit te zetten; licht houden voor oude iPads).
 48. "Toevoegen aan beginscherm" (web-app-manifest, schermvullend, geen adresbalk).
+    Plus een knop ⛶ en de instelling *Altijd schermvullend* (Fullscreen-API, iPadOS 12+), zonder opnieuw te koppelen.
     *Beperking:* zonder https is er geen service worker; is de Mac uit, dan kan een (her)geopende pagina niet laden.
     Een pagina die al open staat blijft wel werken met de laatst bekende stand.
 
 ### Fase 11 — Editors (4–5 dagen)
 49. **SwiftUI-editor op de Mac**: grid-grootte, knoppen slepen, actie kiezen, icoon/kleur/label, pagina's, profielen.
+    *Besloten:* één web-editor (`shared/editor/`) voor Mac-venster, tablet én straks Windows (WebView2),
+    in plaats van een aparte SwiftUI-editor. Zo hoeft de editor niet per platform opnieuw gebouwd te worden.
 50. Iconenkiezer: Lucide + Tabler (licenties meeleveren), emoji, app-iconen, eigen afbeeldingen/logo's.
+    *Nu:* emoji-kiezer. Iconensets, app-iconen en eigen afbeeldingen schuiven door naar fase 12 (thema's).
 51. **Webeditor op de tablet**: bewerkmodus met slepen en neerzetten (na bevestiging op de Mac of met PIN).
 52. Wijzigingen live naar alle tablets pushen.
 53. **Layouts exporteren/importeren** als `.cyberpad`-bestand of QR-code.
+    *Nu:* `.cyberpad`-bestand. Een hele layout past niet in een QR-code; delen via QR kan later via een
+    eenmalige downloadlink.
 
 ### Fase 12 — Thema's, waaronder een eigen Cyberdeck (2–3 dagen)
 54. Basis-CSS met variabelen; per thema een gegenereerd CSS-bestand voor oude Safari.

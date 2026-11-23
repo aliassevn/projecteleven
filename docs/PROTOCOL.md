@@ -4,7 +4,7 @@ Dit document beschrijft wat de tablet-pagina (`shared/pad/`) van de computer ver
 (`macos/`) en de toekomstige Windows-versie (`windows/`) volgen allebei dit protocol, zodat één tablet-pagina,
 één layout-formaat en één set plugins voor beide werkt.
 
-Versie: 1 (fase 0–10).
+Versie: 1 (fase 0–11).
 
 ## Verbinding
 
@@ -64,6 +64,26 @@ Alle met token, allemaal JSON:
 | `POST /api/press` | body als het WS-bericht → `{"ok":bool,"error"?}` |
 | `POST /api/slider`, `/api/widget`, `/api/meeting`, `/api/dial` | idem (`pointer` alleen via WebSocket) |
 | `GET /api/photo?tile=<id>&i=<n>` | JPEG (max. 1280 px) voor een `photos`-tegel |
+
+## Editor (`/editor/`)
+
+De editor (`shared/editor/`) is een gewone webpagina op dezelfde server. `schema.json` beschrijft alle actietypes,
+tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzelfde schema.
+
+| Toegang | Hoe |
+|---|---|
+| Op de computer zelf | header `X-Cyberpad-Editor: <token>`; het token staat alleen in het editorvenster (via `#mac=` in de URL) en werkt alleen vanaf 127.0.0.1 / ::1 |
+| Vanaf een tablet | `POST /api/editor/request` (apparaat-token) → op de computer verschijnt *Toestaan / Weigeren*; `GET /api/editor/status` → `granted`, `pending` of `denied`; toestemming geldt 30 min, verlengd bij gebruik |
+
+| Route (met editor-toegang) | Doet |
+|---|---|
+| `GET /api/editor/layout` | `{layout, revision}`: de volledige layout mét acties |
+| `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (intussen gewijzigd) of `422 {errors: […]}` |
+| `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (zonder op te slaan) |
+| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[]}`: wat er in keuzelijsten staat |
+
+Na opslaan stuurt de computer elke tablet een nieuw `layout`-bericht. Export/import gebruikt het formaat
+`{"format": "cyberpad-layout", "version": 1, "exported": "…", "layout": {…}}` (extensie `.cyberpad`).
 
 ## Layout zoals de tablet hem krijgt
 

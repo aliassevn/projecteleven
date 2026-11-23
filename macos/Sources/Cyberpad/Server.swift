@@ -17,7 +17,7 @@ struct HTTPRequest {
 final class Server {
     static let port: UInt16 = 7420
     static let maxHeader = 16 * 1024
-    static let maxBody = 64 * 1024
+    static let maxBody = 1024 * 1024 // layouts uit de editor kunnen groter zijn dan een gewoon bericht
 
     let pairing: PairingManager
     let layouts: LayoutStore
@@ -29,6 +29,10 @@ final class Server {
     var widgets: WidgetHub?
     var integrations: Integrations?
     var context: ContextEngine?
+    var editor: EditorService?
+    var plugins: PluginManager?
+    /// Map met de editor (shared/editor); nil = geen editor.
+    var editorDir: URL?
     /// Laatste keer dat een tablet iets vroeg (ook via XHR), om te weten of widgets bijgewerkt moeten worden.
     private(set) var lastActivity = Date.distantPast
     func touch() { lastActivity = Date() }
@@ -237,6 +241,8 @@ final class Server {
             return
         }
 
+        if req.path.hasPrefix("/api/editor/") { handleEditor(req, on: c); return }
+
         switch (req.method, req.path) {
         case ("GET", "/api/ping"):
             c.respond(200, json: ["ok": true, "app": "Cyberpad"])
@@ -309,10 +315,71 @@ final class Server {
             }
 
         case ("GET", _):
-            serveStatic(req.path, on: c)
+            if req.path == "/editor" || req.path.hasPrefix("/editor/"), let dir = editorDir {
+                let rest = String(req.path.dropFirst("/editor".count))
+                serveStatic(rest.isEmpty || rest == "/" ? "/index.html" : rest, root: dir, on: c)
+            } else {
+                serveStatic(req.path, root: padDir, on: c)
+            }
 
         default:
             c.respond(405, text: "Method not allowed")
+        }
+    }
+
+    // MARK: Editor
+
+    private func handleEditor(_ req: HTTPRequest, on c: Connection) {
+        guard let editor else { c.respond(404, text: "Not found"); return }
+        // Tablet vraagt toestemming (gewoon apparaat-token).
+        if req.path == "/api/editor/request" || req.path == "/api/editor/status" {
+            guard let device = pairing.authenticate(token: req.headers["x-cyberpad-token"]) else {
+                c.respond(401, json: ["error": "unauthorized"]); return
+            }
+            let st = req.method == "POST" && req.path == "/api/editor/request" ? editor.request(device) : editor.status(device.id)
+            c.respond(200, json: ["status": st])
+            return
+        }
+        guard editor.authorize(req, loopback: c.isLoopback) != nil else {
+            c.respond(403, json: ["error": "Geen toestemming om te bewerken"]); return
+        }
+        switch (req.method, req.path) {
+        case ("GET", "/api/editor/layout"):
+            // De volledige layout, mét acties: alleen voor de editor.
+            let enc = JSONEncoder()
+            guard let data = try? enc.encode(layouts.layout), let obj = try? JSONSerialization.jsonObject(with: data) else {
+                c.respond(500, json: ["error": "Layout niet leesbaar"]); return
+            }
+            c.respond(200, json: ["layout": obj, "revision": layouts.revision])
+        case ("PUT", "/api/editor/layout"):
+            guard let body = req.json(), let obj = body["layout"],
+                  let data = try? JSONSerialization.data(withJSONObject: obj) else {
+                c.respond(400, json: ["error": "Geen layout meegestuurd"]); return
+            }
+            let l: Layout
+            do { l = try JSONDecoder().decode(Layout.self, from: data) } catch {
+                c.respond(422, json: ["ok": false, "errors": ["Layout klopt niet: \(error.localizedDescription)"]]); return
+            }
+            switch layouts.saveFromEditor(l, baseRevision: body["baseRevision"] as? String) {
+            case .ok(let rev): c.respond(200, json: ["ok": true, "revision": rev])
+            case .conflict: c.respond(409, json: ["ok": false, "errors": ["De layout is intussen elders gewijzigd. Laad opnieuw."]])
+            case .invalid(let errs): c.respond(422, json: ["ok": false, "errors": errs])
+            }
+        case ("POST", "/api/editor/validate"):
+            guard let obj = req.json()?["layout"], let data = try? JSONSerialization.data(withJSONObject: obj) else {
+                c.respond(400, json: ["error": "Geen layout"]); return
+            }
+            do {
+                let l = try JSONDecoder().decode(Layout.self, from: data)
+                c.respond(200, json: ["errors": l.problems()])
+            } catch {
+                c.respond(200, json: ["errors": ["Layout klopt niet: \(error.localizedDescription)"]])
+            }
+        case ("GET", "/api/editor/catalog"):
+            guard let plugins else { c.respond(500, json: ["error": "Plugins niet beschikbaar"]); return }
+            c.respond(200, json: editor.catalog(presets: actions.catalog, plugins: plugins))
+        default:
+            c.respond(404, json: ["error": "Onbekend"])
         }
     }
 
@@ -327,15 +394,15 @@ final class Server {
         }
     }
 
-    private func serveStatic(_ rawPath: String, on c: Connection) {
+    private func serveStatic(_ rawPath: String, root: URL, on c: Connection) {
         var path = rawPath.removingPercentEncoding ?? rawPath
         if path == "/" { path = "/index.html" }
         let parts = path.split(separator: "/").map(String.init)
         guard !parts.isEmpty, !parts.contains(where: { $0 == ".." || $0.hasPrefix(".") }) else {
             c.respond(404, text: "Not found"); return
         }
-        let file = parts.reduce(padDir) { $0.appendingPathComponent($1) }
-        guard file.standardizedFileURL.path.hasPrefix(padDir.standardizedFileURL.path),
+        let file = parts.reduce(root) { $0.appendingPathComponent($1) }
+        guard file.standardizedFileURL.path.hasPrefix(root.standardizedFileURL.path + "/"),
               let data = try? Data(contentsOf: file) else {
             c.respond(404, text: "Not found"); return
         }
@@ -352,6 +419,7 @@ private final class Connection {
     let nw: NWConnection
     unowned let server: Server
     let remoteIP: String
+    let isLoopback: Bool
     var deviceID: String?
     private(set) var isWebSocket = false
     private var buffer = Data()
@@ -363,6 +431,7 @@ private final class Connection {
         self.nw = nw
         self.server = server
         self.remoteIP = NetUtil.describe(nw.endpoint)
+        self.isLoopback = NetUtil.isLoopback(nw.endpoint)
     }
 
     func start() {

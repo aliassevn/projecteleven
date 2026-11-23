@@ -13,6 +13,7 @@ let package = Package(
                 .linkedFramework("IOKit"),
                 .linkedFramework("Network"),
                 .linkedFramework("Security"),
+                .linkedFramework("WebKit"),
             ]
         )
     ]

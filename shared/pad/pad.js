@@ -1312,7 +1312,38 @@
     return !!(m && /iP(ad|hone|od)/.test(navigator.userAgent) && parseInt(m[1], 10) < 13);
   }
 
-  var DEFAULT_SETTINGS = { ambient: 5, ambientPhotos: true, sound: false, anim: !oldIOS() };
+  var DEFAULT_SETTINGS = { ambient: 5, ambientPhotos: true, sound: false, anim: !oldIOS(), fullscreen: false };
+
+  // ---------- schermvullend ----------
+  // iPadOS 12+ (en Android/desktop) kennen de Fullscreen-API; de iPhone en oude iPads niet.
+  // Schermvullend mag alleen na een tik; met de instelling aan gebeurt dat bij de eerste tik na het laden.
+
+  function fsElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.webkitCurrentFullScreenElement || null;
+  }
+  function fsSupported() {
+    var d = document.documentElement;
+    return !!(d.requestFullscreen || d.webkitRequestFullscreen || d.webkitRequestFullScreen);
+  }
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      !!(window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches ||
+                               window.matchMedia('(display-mode: fullscreen)').matches));
+  }
+  function enterFullscreen() {
+    if (fsElement() || isStandalone()) { return; }
+    var d = document.documentElement;
+    try {
+      var r = d.requestFullscreen ? d.requestFullscreen() : d.webkitRequestFullscreen ? d.webkitRequestFullscreen() : d.webkitRequestFullScreen();
+      if (r && r['catch']) { r['catch'](function () { /* geweigerd */ }); }
+    } catch (e) { /* niet ondersteund */ }
+  }
+  function exitFullscreen() {
+    try {
+      if (document.exitFullscreen) { document.exitFullscreen(); } else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+    } catch (e) { /* */ }
+  }
+  function toggleFullscreen() { if (fsElement()) { exitFullscreen(); } else { enterFullscreen(); } }
   function loadSettings() {
     var s = {};
     try { s = JSON.parse(store('get', KEY_SETTINGS) || '{}') || {}; } catch (e) { s = {}; }
@@ -1337,13 +1368,15 @@
     { key: 'ambient', label: 'Rustscherm na', options: [[0, 'UIT'], [2, '2 MIN'], [5, '5 MIN'], [15, '15 MIN'], [30, '30 MIN']] },
     { key: 'ambientPhotos', label: 'Foto\'s op rustscherm', options: [[true, 'AAN'], [false, 'UIT']] },
     { key: 'sound', label: 'Tikgeluid', options: [[true, 'AAN'], [false, 'UIT']] },
-    { key: 'anim', label: 'Animaties', options: [[true, 'AAN'], [false, 'UIT (SNELLER)']] }
+    { key: 'anim', label: 'Animaties', options: [[true, 'AAN'], [false, 'UIT (SNELLER)']] },
+    { key: 'fullscreen', label: 'Altijd schermvullend', options: [[true, 'AAN'], [false, 'UIT']], fs: true }
   ];
 
   function showSettings() {
     var box = $('settings-rows');
     box.innerHTML = '';
     for (var i = 0; i < SETTING_ROWS.length; i++) {
+      if (SETTING_ROWS[i].fs && (!fsSupported() || isStandalone())) { continue; }
       (function (row) {
         var r = el('div', 'set-row');
         r.appendChild(el('span', 'set-label', row.label));
@@ -1361,9 +1394,17 @@
     }
     var standalone = window.navigator.standalone === true ||
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-    $('settings-home').textContent = standalone
-      ? 'Cyberpad draait schermvullend vanaf het beginscherm.'
-      : 'Schermvullend? Safari › Deel › Zet op beginscherm. Daarna één keer opnieuw koppelen (iOS bewaart de koppeling apart).';
+    var note;
+    if (standalone) {
+      note = 'Cyberpad draait schermvullend vanaf het beginscherm.';
+    } else if (fsSupported()) {
+      note = 'Schermvullend: tik op ⛶ rechtsboven, of zet "Altijd schermvullend" aan (dan gaat het vanzelf bij de eerste tik). ' +
+             'Ook kan: Safari › Deel › Zet op beginscherm; daarna één keer opnieuw koppelen.';
+    } else {
+      note = 'Schermvullend kan op dit apparaat alleen via Safari › Deel › Zet op beginscherm. ' +
+             'Daarna één keer opnieuw koppelen (iOS bewaart de koppeling apart).';
+    }
+    $('settings-home').textContent = note;
     $('settings').className = 'settings';
   }
 
@@ -1683,7 +1724,20 @@
     setInterval(function () { if (app.ambientOn) { ambientPhotoNext(); } }, 30000);
 
     bindTap($('settings-open'), showSettings);
+    // Knop ⛶ alleen tonen als het apparaat het kan en we niet al schermvullend vanaf het beginscherm draaien.
+    if (fsSupported() && !isStandalone()) {
+      $('fs-toggle').className = 'fs-toggle';
+      bindTap($('fs-toggle'), toggleFullscreen);
+      var fsChange = function () { setCls($('fs-toggle'), 'on', !!fsElement()); setTimeout(render, 200); };
+      document.addEventListener('fullscreenchange', fsChange, false);
+      document.addEventListener('webkitfullscreenchange', fsChange, false);
+      // "Altijd schermvullend": bij de eerste tik (een tik is vereist door de browser).
+      document.addEventListener(hasTouch ? 'touchend' : 'click', function () {
+        if (app.settings.fullscreen && !fsElement()) { enterFullscreen(); }
+      }, true);
+    }
     bindTap($('settings-close'), function () { $('settings').className = 'settings hidden'; });
+    bindTap($('settings-edit'), function () { location.href = '/editor/'; });
     bindTap($('settings-forget'), function () {
       if (window.confirm('Deze tablet ontkoppelen? Je moet daarna opnieuw de code invoeren.')) {
         $('settings').className = 'settings hidden';

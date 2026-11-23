@@ -16,6 +16,8 @@ final class Core: ObservableObject {
     let integrations: Integrations
     let plugins: PluginManager
     let context: ContextEngine
+    let editor = EditorService()
+    private let approvals = EditorApprovalPanel()
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -70,6 +72,14 @@ final class Core: ObservableObject {
         context.onProfileChange = { [weak self] in self?.server.broadcastLayout() }
         context.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onProfileChange = { [weak self] _ in self?.server.broadcastLayout() }
+        editor.pairing = pairing
+        server.editor = editor
+        server.plugins = plugins
+        server.editorDir = Self.findResource("editor", env: "CYBERPAD_EDITOR_DIR")
+        editor.onRequest = { [weak self] device in
+            guard let self else { return }
+            self.approvals.show(device, approve: { self.editor.approve(device.id) }, deny: { self.editor.deny(device.id) })
+        }
         widgets.update(layouts.layout)
         widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
@@ -81,7 +91,10 @@ final class Core: ObservableObject {
 
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
-        pairing.onRevoke = { [weak self] id in self?.server.disconnect(deviceID: id) }
+        pairing.onRevoke = { [weak self] id in
+            self?.editor.revokeAll(for: id)
+            self?.server.disconnect(deviceID: id)
+        }
         layouts.onChange = { [weak self] l in
             self?.context.update(l)
             self?.widgets.update(l)
@@ -118,6 +131,7 @@ final class Core: ObservableObject {
         ]
         if ProcessInfo.processInfo.environment["CYBERPAD_DEBUG"] != nil {
             NSLog("Cyberpad: koppelcode %@", pairing.code)
+            NSLog("Cyberpad: editor http://127.0.0.1:%d/editor/#mac=%@", Int(Server.port), editor.token)
         }
     }
 
@@ -158,6 +172,7 @@ final class Core: ObservableObject {
     // MARK: Acties vanuit het menu
 
     func openLayoutFile() { NSWorkspace.shared.open(layouts.url) }
+    func openEditor() { EditorWindow.shared.show(token: editor.token) }
     func openSupportFolder() { NSWorkspace.shared.open(supportDir) }
     func openIntegrations() { IntegrationsWindow.shared.show() }
     /// cyberpad://profile/<id> (bijv. vanuit een Focus-automatisering in Opdrachten).

@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–10 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–11 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
@@ -34,7 +34,31 @@ en voer de 6-cijferige code in. Daarna onthoudt de tablet de koppeling.
 Let op: de app is ad-hoc ondertekend. Na elke nieuwe build kan macOS de Toegankelijkheid-toestemming
 vergeten; zet hem dan uit en weer aan.
 
-## Layout aanpassen
+## Layout bewerken
+
+Menu › **Layout bewerken…** opent de editor in een eigen venster:
+
+- **Tegels:** tik op een leeg vak (+) om er een toe te voegen, sleep om te verplaatsen, sleep het roze hoekje om
+  te vergroten. Rechts kies je label, icoon (emoji), soort, instellingen en wat tik, lang indrukken en dubbeltik
+  doen. Macro's bouw je stap voor stap, met pauzes.
+- **Pagina's:** tabs bovenaan; *+ Pagina* voegt er een toe. Per pagina: naam, volgorde en de apps waarvoor hij
+  een contextpagina is. Het raster (kolommen en rijen) geldt voor alle pagina's.
+- **Profielen:** welke pagina's per profiel, tijdregels en het standaardprofiel.
+- **Opslaan** (⌘S): de Mac controleert alles (niets buiten het raster, geen overlap, geen dubbele namen), bewaart
+  de vorige versie als `layout-backup-editor-….json` (de laatste 20) en werkt alle tablets direct bij.
+  Heeft iemand anders intussen opgeslagen, dan krijg je een waarschuwing in plaats van dat je zijn werk overschrijft.
+- **↶ / ↷** (⌘Z / ⇧⌘Z) maakt wijzigingen ongedaan. **Exporteren** maakt een `.cyberpad`-bestand; **Importeren**
+  laadt er een (pas na Opslaan echt actief).
+
+**Op de tablet:** ⚙ › *Layout bewerken*. De Mac vraagt dan in een venstertje of die tablet mag bewerken;
+na *Toestaan* kan dat 30 minuten (langer zolang je bezig bent). Zonder toestemming krijgt een tablet nooit de
+volledige layout met acties te zien.
+
+**Schermvullend op de iPad:** tik op **⛶** in de statusbalk, of zet ⚙ › *Altijd schermvullend* aan; dan gaat het
+vanzelf bij de eerste tik (Safari staat schermvullend alleen toe na een tik). Werkt op iPadOS 12 en nieuwer.
+Op een iPhone of een oudere iPad: Safari › Deel › *Zet op beginscherm*.
+
+## Layout aanpassen (zonder editor)
 
 Menu › **Layout bewerken** opent `~/Library/Application Support/Cyberpad/layout.json`.
 Wijzigingen verschijnen binnen 2 seconden op alle tablets.
@@ -299,6 +323,8 @@ macos/                    Mac-versie (Swift)
     Widgets/              weer, nu speelt, timers, systeemstats, foto's, terminal
     Integrations/         Home Assistant, MQTT, webhooks, sleutelhanger, venster Koppelingen
     Plugins/              plugins zoeken, toestaan, starten en berichten
+    Context/              actieve app, profielen, cyberpad://-links
+    Editor/               toegang tot de editor, goedkeuren vanaf tablets, editorvenster (WKWebView)
     Catalog.swift         shortcut-bibliotheek
     Audio.swift           CoreAudio
     HostAlias.swift       cyberpad.local via mDNS
@@ -307,6 +333,7 @@ shared/                   gedeeld door macOS en Windows
   pad/                    tablet-pagina (ES5, werkt vanaf iOS 9), manifest en iconen
   catalog/                shortcuts.json (sneltoetsen per app)
   plugins/                meegeleverde voorbeeldplugins
+  editor/                 layout-editor (ES5) + schema.json met alle acties en tegelsoorten
 docs/
   PROTOCOL.md             tablet ↔ computer: routes, berichten, status
   PLUGINS.md              plugins schrijven

@@ -256,14 +256,17 @@ struct MenuView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button("Layout bewerken") { core.openLayoutFile() }
+                Button("Layout bewerken…") { core.openEditor() }
                 Button("Koppelingen…") { core.openIntegrations() }
                 Button("Map") { core.openSupportFolder() }
                 Button("Plugins") { core.openPluginFolder() }
                 Spacer()
                 Button("Stop") { NSApp.terminate(nil) }
             }
-            Button("Standaard-layout terugzetten…") { core.resetLayout() }
+            HStack {
+                Button("layout.json openen") { core.openLayoutFile() }
+                Button("Standaard-layout terugzetten…") { core.resetLayout() }
+            }
         }
         .controlSize(.small)
     }

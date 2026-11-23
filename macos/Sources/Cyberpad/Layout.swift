@@ -416,6 +416,33 @@ final class LayoutStore {
         return backup
     }
 
+    /// Vingerafdruk van het bestand zoals het nu op schijf staat (tegen gelijktijdig bewerken).
+    var revision: String {
+        guard let d = try? Data(contentsOf: url) else { return "" }
+        return PairingManager.sha256(String(decoding: d, as: UTF8.self))
+    }
+
+    enum EditorSave { case ok(String), conflict, invalid([String]) }
+
+    /// Opslaan vanuit de editor: alleen als niemand anders intussen iets veranderde, met back-up (laatste 20 bewaard).
+    func saveFromEditor(_ l: Layout, baseRevision: String?) -> EditorSave {
+        if let base = baseRevision, base != revision { return .conflict }
+        let problems = l.problems()
+        guard problems.isEmpty else { return .invalid(problems) }
+        let fm = FileManager.default
+        let dir = url.deletingLastPathComponent()
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd-HHmmss-SSS"
+        try? fm.copyItem(at: url, to: dir.appendingPathComponent("layout-backup-editor-\(f.string(from: Date())).json"))
+        if let old = try? fm.contentsOfDirectory(atPath: dir.path).filter({ $0.hasPrefix("layout-backup-editor-") }).sorted(),
+           old.count > 20 {
+            for name in old.prefix(old.count - 20) { try? fm.removeItem(at: dir.appendingPathComponent(name)) }
+        }
+        save(l)
+        reload()
+        return .ok(revision)
+    }
+
     private func modDate() -> Date? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
     }
@@ -436,5 +463,54 @@ final class LayoutStore {
             lastError = "layout.json kon niet worden gelezen: \(error.localizedDescription)"
             NSLog("Cyberpad: %@", lastError!)
         }
+    }
+}
+
+
+// MARK: Controle (editor)
+
+extension Layout {
+    static let maxColumns = 12
+    static let maxRows = 8
+
+    /// Fouten die opslaan tegenhouden. Leeg = in orde.
+    func problems() -> [String] {
+        var out: [String] = []
+        if !(1...Self.maxColumns).contains(columns) { out.append("Kolommen moet tussen 1 en \(Self.maxColumns) liggen") }
+        if !(1...Self.maxRows).contains(rows) { out.append("Rijen moet tussen 1 en \(Self.maxRows) liggen") }
+        if pages.isEmpty { out.append("Er moet minstens één pagina zijn") }
+        var pageIDs = Set<String>(), tileIDs = Set<String>()
+        for p in pages {
+            if p.id.isEmpty || !pageIDs.insert(p.id).inserted { out.append("Pagina-id “\(p.id)” is leeg of dubbel") }
+            if p.name.trimmingCharacters(in: .whitespaces).isEmpty { out.append("Pagina “\(p.id)” heeft geen naam") }
+            var taken = Set<Int>()
+            for t in p.tiles {
+                if t.id.isEmpty || !tileIDs.insert(t.id).inserted { out.append("Tegel-id “\(t.id)” is leeg of dubbel") }
+                let w = t.w ?? 1, h = t.h ?? 1
+                if t.x < 0 || t.y < 0 || w < 1 || h < 1 || t.x + w > columns || t.y + h > rows {
+                    out.append("“\(t.label)” op \(p.name) valt buiten het raster")
+                    continue
+                }
+                for dy in 0..<h {
+                    for dx in 0..<w where !taken.insert((t.y + dy) * 100 + t.x + dx).inserted {
+                        out.append("“\(t.label)” op \(p.name) overlapt een andere tegel")
+                    }
+                }
+            }
+        }
+        var profileIDs = Set<String>()
+        for pr in profiles ?? [] {
+            if pr.id.isEmpty || !profileIDs.insert(pr.id).inserted { out.append("Profiel-id “\(pr.id)” is leeg of dubbel") }
+            for pid in pr.pages where !pageIDs.contains(pid) { out.append("Profiel “\(pr.name)” noemt een onbekende pagina “\(pid)”") }
+            for r in pr.when ?? [] {
+                if r.from != nil && TimeRule.minutes(r.from) == nil || r.to != nil && TimeRule.minutes(r.to) == nil {
+                    out.append("Profiel “\(pr.name)”: tijd moet als UU:MM")
+                }
+                if let d = r.days, d.contains(where: { !(1...7).contains($0) }) { out.append("Profiel “\(pr.name)”: dagen zijn 1 (ma) t/m 7 (zo)") }
+            }
+        }
+        // Dubbele meldingen (bijv. een overlap over meerdere vakken) één keer tonen.
+        var seen = Set<String>()
+        return out.filter { seen.insert($0).inserted }
     }
 }

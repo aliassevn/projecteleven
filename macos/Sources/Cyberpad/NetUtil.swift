@@ -90,6 +90,16 @@ enum NetUtil {
         }
     }
 
+    /// Alleen deze Mac zelf (127.0.0.1 / ::1).
+    static func isLoopback(_ endpoint: NWEndpoint) -> Bool {
+        guard case let .hostPort(host, _) = endpoint else { return false }
+        switch host {
+        case .ipv4(let a): return a.isLoopback
+        case .ipv6(let a): return a.isLoopback || (a.asIPv4?.isLoopback ?? false)
+        default: return false
+        }
+    }
+
     static func describe(_ endpoint: NWEndpoint) -> String {
         if case let .hostPort(host, _) = endpoint {
             switch host {
