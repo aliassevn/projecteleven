@@ -9,6 +9,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Core.shared.start()
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for u in urls { Core.shared.handle(url: u) }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         Core.shared.plugins.stopAll()
     }
@@ -107,6 +111,17 @@ struct MenuView: View {
                         }
                     }
                     Spacer()
+                    if !core.context.profiles.isEmpty {
+                        Menu(core.context.profiles.first { $0.id == d.profile }?.name ?? "Automatisch") {
+                            Button("Automatisch") { core.pairing.setProfile(id: d.id, profile: nil) }
+                            Divider()
+                            ForEach(core.context.profiles, id: \.id) { p in
+                                Button(p.name) { core.pairing.setProfile(id: d.id, profile: p.id) }
+                            }
+                        }
+                        .controlSize(.small)
+                        .fixedSize()
+                    }
                     Button("Intrekken", role: .destructive) { core.pairing.revoke(id: d.id) }.controlSize(.small)
                 }
             }
@@ -142,9 +157,39 @@ struct MenuView: View {
                 }
             }
             .font(.callout)
+            profileRow
             integrationRow("house", "Home Assistant", core.integrations.ha.status)
             integrationRow("antenna.radiowaves.left.and.right", "MQTT", core.integrations.mqtt.status)
             if let e = core.integrations.configError { Text(e).font(.caption).foregroundStyle(.orange) }
+        }
+    }
+
+    @ViewBuilder
+    private var profileRow: some View {
+        if !core.context.profiles.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "rectangle.stack").foregroundStyle(.secondary)
+                Picker("Profiel", selection: Binding(get: { core.context.override ?? "auto" },
+                                                     set: { core.context.setOverride($0) })) {
+                    Text("Automatisch (\(core.context.autoProfile?.name ?? "—"))").tag("auto")
+                    ForEach(core.context.profiles, id: \.id) { p in Text(p.name).tag(p.id) }
+                }
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .fixedSize()
+            }
+            .font(.callout)
+        }
+        if let a = core.context.frontApp {
+            HStack(spacing: 6) {
+                Image(systemName: "macwindow").foregroundStyle(.secondary)
+                Text(a.name).lineLimit(1)
+                if let page = core.context.contextPage,
+                   let name = core.layouts.layout.pages.first(where: { $0.id == page })?.name {
+                    Text("→ pagina \(name)").foregroundStyle(.secondary)
+                }
+            }
+            .font(.callout)
         }
     }
 

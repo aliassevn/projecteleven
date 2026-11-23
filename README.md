@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–8 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–9 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
@@ -171,6 +171,38 @@ of time-out na 10 s), dan verschijnt er een melding op de tablet en springt een 
 
 Bij wegvallen van Home Assistant of de broker probeert Cyberpad steeds opnieuw (2 s tot 1 min). De tegels worden
 grijs met de reden erbij. Een geweigerd token of wachtwoord wordt niet opnieuw geprobeerd tot je het aanpast.
+
+### Profielen en contextpagina's
+
+**Contextpagina:** geef een pagina een lijst `apps`. Komt een van die apps vooraan op de Mac, dan springt de tablet
+naar die pagina (de tab krijgt een ◆). Ga je naar een andere app, dan gaat de tablet terug naar de pagina die
+jij het laatst zelf koos. Zelf een tab kiezen gaat altijd voor.
+
+```json
+{ "id": "photoshop", "name": "Photoshop", "apps": ["com.adobe.Photoshop", "Adobe Photoshop 2026"], "tiles": [ … ] }
+```
+
+**Profielen** bepalen welke pagina's een tablet ziet, in welke volgorde:
+
+```json
+"profiles": [
+  { "id": "werk",  "name": "Werkdag", "pages": ["main", "work", "widgets"],
+    "when": [{ "days": [1, 2, 3, 4, 5], "from": "08:00", "to": "18:00" }] },
+  { "id": "thuis", "name": "Thuis",   "pages": ["main", "home", "widgets"], "default": true }
+]
+```
+
+- `days`: 1 = maandag … 7 = zondag (weglaten = elke dag). `from` later dan `to` loopt over middernacht.
+- Welk profiel een tablet krijgt, in volgorde:
+  1. een **vast profiel voor die tablet** (menu › Gekoppelde tablets, keuzeknop naast de naam);
+  2. een **handmatig gekozen profiel** (menu › Profiel);
+  3. het eerste profiel waarvan een **tijdregel** nu past;
+  4. het profiel met `"default": true`.
+- De naam van het profiel staat in de statusbalk van de tablet.
+
+**Focus-modus:** macOS geeft apps geen toegang tot de actieve Focus. Gebruik daarom een automatisering in de
+Opdrachten-app: *Automatisering › Focus › Werk › Bij inschakelen › Open URL* `cyberpad://profile/werk`
+(en bij uitschakelen `cyberpad://profile/auto`). Dezelfde links werken ook in gewone opdrachten.
 
 ### Plugins
 

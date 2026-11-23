@@ -28,6 +28,7 @@ final class Server {
     var agenda: AgendaProvider?
     var widgets: WidgetHub?
     var integrations: Integrations?
+    var context: ContextEngine?
     /// Laatste keer dat een tablet iets vroeg (ook via XHR), om te weten of widgets bijgewerkt moeten worden.
     private(set) var lastActivity = Date.distantPast
     func touch() { lastActivity = Date() }
@@ -95,8 +96,11 @@ final class Server {
         for c in connections.values where c.isWebSocket && c.deviceID != nil { c.sendJSON(msg) }
     }
 
+    /// Elke tablet krijgt zijn eigen layout (afhankelijk van zijn profiel).
     func broadcastLayout() {
-        broadcast(["type": "layout", "layout": layoutJSON()])
+        for c in connections.values where c.isWebSocket && c.deviceID != nil {
+            c.sendJSON(["type": "layout", "layout": layoutJSON(for: c.deviceID)])
+        }
     }
 
     func disconnect(deviceID: String) {
@@ -107,14 +111,22 @@ final class Server {
 
     /// De layout zoals de tablet hem krijgt: alleen wat nodig is om te tekenen.
     /// Wat een knop doet (toetsen, teksten, opdrachten) blijft op de Mac.
-    func layoutJSON() -> Any {
+    /// Alleen de pagina's uit het profiel van deze tablet.
+    func layoutJSON(for deviceID: String?) -> Any {
         let l = layouts.layout
-        return [
+        let devProfile = deviceID.flatMap { id in pairing.devices.first { $0.id == id }?.profile }
+        let profile = context?.profile(deviceProfile: devProfile)
+        let pages = context?.pages(for: profile) ?? l.pages
+        var d: [String: Any] = [
             "version": l.version, "columns": l.columns, "rows": l.rows, "theme": l.theme,
-            "pages": l.pages.map { p -> [String: Any] in
-                ["id": p.id, "name": p.name, "tiles": p.tiles.map(Self.padTile)]
+            "pages": pages.map { p -> [String: Any] in
+                var pd: [String: Any] = ["id": p.id, "name": p.name, "tiles": p.tiles.map(Self.padTile)]
+                if p.apps?.isEmpty == false { pd["context"] = true }
+                return pd
             },
         ]
+        if let profile { d["profile"] = ["id": profile.id, "name": profile.name, "fixed": devProfile != nil] }
+        return d
     }
 
     private static func padTile(_ t: Tile) -> [String: Any] {
@@ -150,6 +162,7 @@ final class Server {
         s["agenda"] = agenda?.json() ?? NSNull()
         s["widgets"] = widgets?.state() ?? [:]
         if let i = integrations?.state() { s.merge(i) { $1 } }
+        if let c = context?.json() { s["context"] = c }
         return s
     }
 
@@ -245,7 +258,7 @@ final class Server {
                 c.respond(200, json: out)
                 scheduleStateBroadcast()
             case "/api/layout":
-                c.respond(200, json: ["layout": layoutJSON(), "state": fullState()])
+                c.respond(200, json: ["layout": layoutJSON(for: device.id), "state": fullState()])
             case "/api/state":
                 c.respond(200, json: ["state": fullState()])
             case "/api/meeting":
@@ -471,7 +484,7 @@ private final class Connection {
             helloTimer?.cancel()
             deviceID = device.id
             sendJSON(["type": "welcome", "device": device.name])
-            sendJSON(["type": "layout", "layout": server.layoutJSON()])
+            sendJSON(["type": "layout", "layout": server.layoutJSON(for: device.id)])
             sendJSON(["type": "state", "state": server.fullState()])
             server.onClientsChanged?()
             return

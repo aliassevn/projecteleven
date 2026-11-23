@@ -173,6 +173,52 @@ struct Page: Codable, Equatable {
     var id: String
     var name: String
     var tiles: [Tile]
+    /// Contextpagina: als een van deze apps vooraan komt, springt de tablet naar deze pagina.
+    /// Bundle-id (com.adobe.Photoshop) of app-naam (Photoshop).
+    var apps: [String]?
+
+    init(id: String, name: String, tiles: [Tile], apps: [String]? = nil) {
+        self.id = id; self.name = name; self.tiles = tiles; self.apps = apps
+    }
+}
+
+/// Tijdvenster voor een profiel. Dagen: 1 = maandag … 7 = zondag. `from` later dan `to` = over middernacht.
+struct TimeRule: Codable, Equatable {
+    var days: [Int]?
+    var from: String?   // "08:00"
+    var to: String?     // "18:00"
+
+    static func minutes(_ s: String?) -> Int? {
+        guard let s else { return nil }
+        let p = s.split(separator: ":")
+        guard p.count == 2, let h = Int(p[0]), let m = Int(p[1]), (0..<24).contains(h), (0..<60).contains(m) else { return nil }
+        return h * 60 + m
+    }
+
+    func matches(_ date: Date, calendar: Calendar = .current) -> Bool {
+        let wd = calendar.component(.weekday, from: date)      // 1 = zondag
+        let day = wd == 1 ? 7 : wd - 1                          // 1 = maandag
+        let now = calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date)
+        let f = Self.minutes(from) ?? 0, t = Self.minutes(to) ?? 24 * 60
+        if f <= t {
+            guard days?.contains(day) ?? true else { return false }
+            return now >= f && now < t
+        }
+        // Over middernacht: het deel na middernacht hoort bij de dag ervoor.
+        if now >= f { return days?.contains(day) ?? true }
+        if now < t { return days?.contains(day == 1 ? 7 : day - 1) ?? true }
+        return false
+    }
+}
+
+/// Profiel: welke pagina's een tablet ziet. Automatisch op tijd, of gekozen via menu, Focus (Opdrachten) of per tablet.
+struct Profile: Codable, Equatable {
+    var id: String
+    var name: String
+    var pages: [String]
+    var when: [TimeRule]?
+    /// Profiel als er geen tijdregel past.
+    var `default`: Bool?
 }
 
 struct Layout: Codable, Equatable {
@@ -181,6 +227,7 @@ struct Layout: Codable, Equatable {
     var rows: Int
     var theme: String
     var pages: [Page]
+    var profiles: [Profile]? = nil
 
     func tile(id: String) -> Tile? {
         for p in pages { if let t = p.tiles.first(where: { $0.id == id }) { return t } }
@@ -234,7 +281,7 @@ struct Layout: Codable, Equatable {
                 Tile(id: "shortcuts", label: "Opdrachten", icon: "⚡️", action: .init(type: "app.open", app: "com.apple.shortcuts"), x: 2, y: 2),
                 Tile(id: "mission", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 3, y: 2),
                 Tile(id: "expose", label: "App-vensters", icon: "🗂", action: .init(type: "keys.press", keys: "ctrl+down"), x: 4, y: 2),
-            ]),
+            ], apps: ["us.zoom.xos", "com.microsoft.teams2", "com.tinyspeck.slackmacgap", "com.microsoft.VSCode"]),
             Page(id: "widgets", name: "Widgets", tiles: [
                 Tile(id: "nowplaying", label: "Nu speelt", kind: "nowplaying", x: 0, y: 0, w: 3),
                 Tile(id: "weather", label: "Weer", kind: "weather", config: .init(city: "Amsterdam"), x: 3, y: 0, w: 2),
@@ -296,6 +343,12 @@ struct Layout: Codable, Equatable {
                 Tile(id: "mic-level", label: "Mic-volume", kind: "slider", action: .init(type: "audio.micVolume"), x: 0, y: 2),
                 Tile(id: "clock2", label: "Tijd", kind: "clock", x: 1, y: 1, w: 4, h: 2),
             ]),
+        ],
+        profiles: [
+            Profile(id: "werk", name: "Werkdag", pages: ["main", "work", "widgets", "plugins", "system"],
+                    when: [TimeRule(days: [1, 2, 3, 4, 5], from: "08:00", to: "18:00")]),
+            Profile(id: "thuis", name: "Thuis", pages: ["main", "home", "widgets", "plugins", "system"], default: true),
+
         ]
     )
 }

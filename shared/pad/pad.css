@@ -37,6 +37,9 @@ body {
   background: rgba(5,6,10,0.85);
 }
 .brand { color: #00ffe0; font-weight: bold; text-shadow: 0 0 8px rgba(0,255,224,0.7); }
+.profile-name { margin-left: 12px; color: rgba(200,255,246,0.55); letter-spacing: 3px; }
+.tab.context:before { content: '◆ '; color: #ff2bd6; }
+.tab.auto { border-color: #ff2bd6; color: #ff9cf0; }
 .status-text {
   -webkit-box-flex: 1; -webkit-flex: 1; flex: 1;
   text-align: right; padding-right: 10px; color: rgba(200,255,246,0.6);

@@ -9,6 +9,8 @@ struct Device: Codable, Identifiable, Equatable {
     var tokenHash: String
     var created: Date
     var lastSeen: Date?
+    /// Vast profiel voor deze tablet; nil = automatisch (tijd, Focus, menu).
+    var profile: String?
 }
 
 /// Koppelcodes, tokens per tablet en bescherming tegen raden.
@@ -23,6 +25,7 @@ final class PairingManager: ObservableObject {
     @Published private(set) var devices: [Device] = []
 
     var onRevoke: ((String) -> Void)?
+    var onProfileChange: ((String) -> Void)?
 
     private var failures: [String: (count: Int, blockedUntil: Date?)] = [:]
     private var failuresThisCode = 0
@@ -96,6 +99,13 @@ final class PairingManager: ObservableObject {
         devices[i].lastSeen = Date()
         if Date().timeIntervalSince(lastSaved) > 60 { save() }
         return devices[i]
+    }
+
+    func setProfile(id: String, profile: String?) {
+        guard let i = devices.firstIndex(where: { $0.id == id }), devices[i].profile != profile else { return }
+        devices[i].profile = profile
+        save()
+        onProfileChange?(id)
     }
 
     func revoke(id: String) {

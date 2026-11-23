@@ -4,7 +4,7 @@ Dit document beschrijft wat de tablet-pagina (`shared/pad/`) van de computer ver
 (`macos/`) en de toekomstige Windows-versie (`windows/`) volgen allebei dit protocol, zodat één tablet-pagina,
 één layout-formaat en één set plugins voor beide werkt.
 
-Versie: 1 (fase 0–8).
+Versie: 1 (fase 0–9).
 
 ## Verbinding
 
@@ -69,13 +69,17 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 ```json
 {
   "version": 1, "columns": 5, "rows": 3, "theme": "cyberdeck",
-  "pages": [{ "id": "main", "name": "Main", "tiles": [
+  "profile": { "id": "werk", "name": "Werkdag", "fixed": false },
+  "pages": [{ "id": "main", "name": "Main", "context": false, "tiles": [
     { "id": "mute", "label": "Geluid uit", "icon": "🔇", "kind": "button", "x": 3, "y": 0,
       "w": 1, "h": 1, "hasLong": true, "hasDouble": false, "toggle": true, "stateKey": "muted" }
   ]}]
 }
 ```
 
+- Elke tablet krijgt zijn **eigen** layout: alleen de pagina's uit zijn profiel, in die volgorde.
+  Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
+- `context: true`: pagina hoort bij een of meer apps (zie `state.context`).
 - `kind`: `button`, `slider`, `clock`, `agenda`, `weather`, `nowplaying`, `timer`, `pomodoro`, `worldclock`,
   `photos`, `stats`, `terminal`, `ha`, `mqtt`, `plugin`.
 - `stateKey`: welke statuswaarde de knop laat oplichten (of de schuif vult):
@@ -97,9 +101,14 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
   "widgets": { "<tegel>": { … } },
   "ha": { "<entiteit>": { "status": "ok", "state": "on", "on": true, "name": "…", "level": 0.6, … } },
   "mqtt": { "<topic>": "<laatste bericht>" },
-  "integrations": { "ha": "off|connecting|connected|error", "mqtt": "…" }
+  "integrations": { "ha": "off|connecting|connected|error", "mqtt": "…" },
+  "context": { "page": "work" | null }
 }
 ```
+
+`context.page` is de pagina die bij de app vooraan hoort. De tablet springt erheen als die pagina in zijn layout
+staat, en terug naar de laatst zelf gekozen pagina als `page` weer `null` wordt. Welke app er vooraan staat,
+gaat niet naar de tablet.
 
 Tijden zijn milliseconden sinds 1970 (UTC). De tablet rekent tijden zelf uit, omdat oude Safari geen tijdzones kent.
 
@@ -129,6 +138,8 @@ Zelfde opbouw als hierboven, maar mét acties. Zie de README voor alle actietype
 | `shortcut.run` | Opdrachten-app | PowerShell-script of Power Automate-flow |
 | `system.darkMode` | systeemvormgeving | app- en systeemthema (register) |
 | `preset` | `shared/catalog/shortcuts.json` → `keys` | idem → `keysWindows` (nog in te vullen) |
+| `page.apps` | bundle-id of app-naam | naam van het .exe-bestand (bijv. `Photoshop.exe`) of AppUserModelID |
+| profiel wisselen | `cyberpad://profile/<id>` (Opdrachten/Focus) | `cyberpad://profile/<id>` (protocol-handler) |
 
 Een layout die alleen platformneutrale acties gebruikt (media, audio, `url.open`, `ha.*`, `mqtt.*`,
 `webhook.call`, `plugin`, widgets) werkt op beide zonder aanpassing.

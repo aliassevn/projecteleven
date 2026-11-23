@@ -30,6 +30,8 @@ Hier komt de Windows-versie. Nog niets gebouwd; dit is het plan.
 | Opdrachten-app | PowerShell-script of Power Automate Desktop-flow |
 | Sleutelhanger | Windows Referentiebeheer (Credential Manager) / DPAPI |
 | Toegankelijkheid | niet nodig; wel een eenmalige vraag van de Windows Firewall |
+| Actieve app (contextpagina) | `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` → procesnaam |
+| Focus-modus → profiel | geen API; `cyberpad://profile/<id>` via protocol-handler of Taakplanner |
 | Ad-hoc ondertekening | onondertekend → SmartScreen-waarschuwing; later code-signing |
 
 ## Aandachtspunten

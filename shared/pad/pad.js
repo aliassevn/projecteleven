@@ -22,7 +22,12 @@
     token: store('get', KEY_TOKEN),
     layout: null,
     values: {},
-    page: parseInt(store('get', KEY_PAGE) || '0', 10) || 0,
+    page: 0,
+    // Pagina onthouden op id (profielen kunnen pagina's weglaten of verschuiven).
+    pageId: store('get', KEY_PAGE),
+    ctxPage: undefined,  // contextpagina waar de Mac nu om vraagt
+    returnPage: null,    // pagina om naar terug te gaan als de app weer weg is
+    autoPage: false,     // huidige pagina is automatisch gekozen
     ws: null,
     mode: null,          // 'ws' of 'xhr'
     connected: false,
@@ -258,8 +263,50 @@
     if (!layout || !layout.pages) { return; }
     app.layout = layout;
     store('set', KEY_LAYOUT, JSON.stringify(layout));
-    if (app.page >= layout.pages.length) { app.page = 0; }
+    var idx = pageIndex(app.pageId);
+    if (idx < 0 && /^\d+$/.test(app.pageId || '')) { idx = parseInt(app.pageId, 10); } // oud: nummer
+    app.page = idx >= 0 && idx < layout.pages.length ? idx : 0;
+    app.ctxPage = undefined; // contextpagina opnieuw toepassen op de nieuwe pagina's
+    var pn = $('profile-name');
+    if (pn) { pn.textContent = layout.profile ? '· ' + layout.profile.name.toUpperCase() : ''; }
     render();
+  }
+
+  function pageIndex(id) {
+    var pages = (app.layout && app.layout.pages) || [];
+    for (var i = 0; i < pages.length; i++) { if (pages[i].id === id) { return i; } }
+    return -1;
+  }
+
+  // auto = gekozen door de actieve app op de Mac; dan niet onthouden als jouw keuze.
+  function goPage(idx, auto) {
+    app.page = idx;
+    app.autoPage = !!auto;
+    if (!auto) {
+      app.pageId = app.layout.pages[idx].id;
+      store('set', KEY_PAGE, app.pageId);
+    }
+    render();
+  }
+
+  // Contextpagina: springt naar de pagina van de actieve app en terug als die app weer weg is.
+  function updateContext() {
+    var L = app.layout;
+    if (!L) { return; }
+    var target = (app.values.context && app.values.context.page) || null;
+    if (target === app.ctxPage) { return; }
+    app.ctxPage = target;
+    var cur = L.pages[app.page];
+    if (target) {
+      var idx = pageIndex(target);
+      if (idx < 0 || idx === app.page) { return; }
+      if (app.returnPage === null && cur) { app.returnPage = app.autoPage ? null : cur.id; }
+      goPage(idx, true);
+    } else if (app.autoPage) {
+      var back = pageIndex(app.returnPage || app.pageId);
+      app.returnPage = null;
+      goPage(back >= 0 ? back : 0, false);
+    }
   }
 
   function setValues(values) {
@@ -338,11 +385,13 @@
     if (pages.length < 2) { return; }
     for (var i = 0; i < pages.length; i++) {
       (function (idx) {
-        var b = el('div', 'tab' + (idx === app.page ? ' active' : ''), pages[idx].name);
+        var cls = 'tab' + (idx === app.page ? ' active' : '') + (pages[idx].context ? ' context' : '');
+        if (idx === app.page && app.autoPage) { cls += ' auto'; }
+        var b = el('div', cls, pages[idx].name);
         bindTap(b, function () {
-          app.page = idx;
-          store('set', KEY_PAGE, String(idx));
-          render();
+          // Zelf kiezen gaat altijd voor; niet meer terugspringen.
+          app.returnPage = null;
+          goPage(idx, false);
         });
         tabs.appendChild(b);
       })(i);
@@ -398,6 +447,7 @@
     updateAgenda();
     updateMeeting();
     updateWidgets();
+    updateContext();
   }
 
   // ---------- agenda ----------

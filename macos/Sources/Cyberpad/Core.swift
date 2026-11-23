@@ -15,6 +15,7 @@ final class Core: ObservableObject {
     let widgets = WidgetHub()
     let integrations: Integrations
     let plugins: PluginManager
+    let context: ContextEngine
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -41,6 +42,7 @@ final class Core: ObservableObject {
         integrations = Integrations(dir: supportDir)
         plugins = PluginManager(supportDir: supportDir, builtInDir: Self.findResource("plugins", env: "CYBERPAD_PLUGINS_DIR"))
         layouts = LayoutStore(dir: supportDir)
+        context = ContextEngine(layout: layouts.layout)
         server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findResource("pad", env: "CYBERPAD_PAD_DIR"))
         meeting = MeetingMonitor(actions: actions)
         actions.catalog = ShortcutCatalog.load(from: Self.findResource("catalog", env: "CYBERPAD_CATALOG_DIR")
@@ -63,6 +65,11 @@ final class Core: ObservableObject {
         plugins.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         plugins.scan()
         plugins.update(layouts.layout)
+        server.context = context
+        context.onContextChange = { [weak self] in self?.server.scheduleStateBroadcast() }
+        context.onProfileChange = { [weak self] in self?.server.broadcastLayout() }
+        context.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
+        pairing.onProfileChange = { [weak self] _ in self?.server.broadcastLayout() }
         widgets.update(layouts.layout)
         widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
@@ -76,6 +83,7 @@ final class Core: ObservableObject {
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onRevoke = { [weak self] id in self?.server.disconnect(deviceID: id) }
         layouts.onChange = { [weak self] l in
+            self?.context.update(l)
             self?.widgets.update(l)
             self?.integrations.update(l)
             self?.plugins.update(l)
@@ -122,6 +130,7 @@ final class Core: ObservableObject {
         }
         agenda.refresh()
         if tickCount % 3 == 0 { integrations.reloadIfChanged(); plugins.rescanIfChanged() }
+        if tickCount % 15 == 0 { context.tick() }
         widgets.tick(active: server.hasActiveClients)
         let s = server.fullState() as NSDictionary
         if s != lastState {
@@ -151,6 +160,14 @@ final class Core: ObservableObject {
     func openLayoutFile() { NSWorkspace.shared.open(layouts.url) }
     func openSupportFolder() { NSWorkspace.shared.open(supportDir) }
     func openIntegrations() { IntegrationsWindow.shared.show() }
+    /// cyberpad://profile/<id> (bijv. vanuit een Focus-automatisering in Opdrachten).
+    func handle(url: URL) {
+        if let err = context.handle(url) {
+            NSLog("Cyberpad: %@", err)
+            server.broadcast(["type": "toast", "text": err])
+        }
+    }
+
     func openPluginFolder() { NSWorkspace.shared.open(plugins.userDir) }
 
     /// Een plugin draait met jouw rechten; daarom eerst een duidelijke vraag.
