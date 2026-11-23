@@ -95,26 +95,50 @@ final class Server {
         }
     }
 
+    /// De layout zoals de tablet hem krijgt: alleen wat nodig is om te tekenen.
+    /// Wat een knop doet (toetsen, teksten, opdrachten) blijft op de Mac.
     func layoutJSON() -> Any {
-        guard let data = try? JSONEncoder().encode(layouts.layout),
-              let obj = try? JSONSerialization.jsonObject(with: data) else { return [:] }
-        return obj
+        let l = layouts.layout
+        return [
+            "version": l.version, "columns": l.columns, "rows": l.rows, "theme": l.theme,
+            "pages": l.pages.map { p -> [String: Any] in
+                ["id": p.id, "name": p.name, "tiles": p.tiles.map(Self.padTile)]
+            },
+        ]
+    }
+
+    private static func padTile(_ t: Tile) -> [String: Any] {
+        var d: [String: Any] = ["id": t.id, "label": t.label, "kind": t.kind ?? "button", "x": t.x, "y": t.y]
+        if let v = t.icon { d["icon"] = v }
+        if let v = t.w { d["w"] = v }
+        if let v = t.h { d["h"] = v }
+        if t.longPress != nil { d["hasLong"] = true }
+        if t.doubleTap != nil { d["hasDouble"] = true }
+        if t.toggle == true {
+            d["toggle"] = true
+        } else if let key = ActionRunner.stateKey(for: t.action?.type) {
+            d["stateKey"] = key
+        }
+        return d
     }
 
     // MARK: Berichten van de tablet (WebSocket én XHR gebruiken dezelfde route)
 
-    /// Voert een druk of schuifbeweging uit. De tablet geeft alleen een tegel-id; de actie komt uit de layout.
-    func handleInput(type: String, id: String, value: Double?) -> (ok: Bool, error: String?) {
-        guard let tile = layouts.layout.tile(id: id), let action = tile.action else {
+    /// Voert een druk of schuifbeweging uit. De tablet geeft alleen een tegel-id (en gebaar); de actie komt uit de layout.
+    func handleInput(type: String, id: String, gesture: String?, value: Double?) -> (ok: Bool, error: String?) {
+        guard let tile = layouts.layout.tile(id: id) else {
             return (false, "Onbekende knop: \(id)")
         }
         do {
             switch type {
             case "press":
                 guard tile.isButton else { return (false, "Dit is geen knop") }
-                try actions.run(action)
+                let g = ["long", "double"].contains(gesture ?? "") ? gesture! : "tap"
+                try actions.press(tile, gesture: g)
             case "slider":
-                guard tile.kind == "slider", let v = value, v.isFinite else { return (false, "Ongeldige schuifwaarde") }
+                guard tile.kind == "slider", let action = tile.action, let v = value, v.isFinite else {
+                    return (false, "Ongeldige schuifwaarde")
+                }
                 try actions.setSlider(action, value: min(max(v, 0), 1))
             default:
                 return (false, "Onbekend bericht")
@@ -167,6 +191,7 @@ final class Server {
                 let body = req.json() ?? [:]
                 let r = handleInput(type: req.path == "/api/press" ? "press" : "slider",
                                     id: body["id"] as? String ?? "",
+                                    gesture: body["gesture"] as? String,
                                     value: (body["value"] as? NSNumber)?.doubleValue)
                 var out: [String: Any] = ["ok": r.ok]
                 if let e = r.error { out["error"] = e }
@@ -383,7 +408,8 @@ private final class Connection {
             sendJSON(["type": "pong"])
         case "press", "slider":
             let id = msg["id"] as? String ?? ""
-            let r = server.handleInput(type: type, id: id, value: (msg["value"] as? NSNumber)?.doubleValue)
+            let r = server.handleInput(type: type, id: id, gesture: msg["gesture"] as? String,
+                                       value: (msg["value"] as? NSNumber)?.doubleValue)
             if type == "press" || !r.ok {
                 var ack: [String: Any] = ["type": "ack", "id": id, "ok": r.ok]
                 if let e = r.error { ack["error"] = e }

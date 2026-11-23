@@ -116,11 +116,14 @@ struct MenuView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button("Layout bewerken") { core.openLayoutFile() }
-            Button("Map") { core.openSupportFolder() }
-            Spacer()
-            Button("Stop") { NSApp.terminate(nil) }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button("Layout bewerken") { core.openLayoutFile() }
+                Button("Map") { core.openSupportFolder() }
+                Spacer()
+                Button("Stop") { NSApp.terminate(nil) }
+            }
+            Button("Standaard-layout terugzetten…") { core.resetLayout() }
         }
         .controlSize(.small)
     }

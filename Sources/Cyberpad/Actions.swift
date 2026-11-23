@@ -5,8 +5,19 @@ import IOKit.pwr_mgt
 /// Voert acties uit. Alles wat de tablet kan laten gebeuren staat in deze ene lijst.
 final class ActionRunner {
     let audio = AudioController()
+    var catalog = ShortcutCatalog.empty
+    /// Fouten die pas later optreden (macro-stappen, Opdrachten) — Core stuurt ze als melding naar de tablets.
+    var onAsyncError: ((String) -> Void)?
+    /// Stand van aan/uit-knoppen per tegel-id.
+    private(set) var toggles: [String: Bool] = [:]
+
     private var keepAwakeID: IOPMAssertionID?
+    /// Lopende Opdrachten vasthouden, anders ruimt Foundation het proces op en komt de afloop nooit binnen.
+    private var runningProcesses: [ObjectIdentifier: Process] = [:]
     private var askedForAccessibility = false
+
+    static let maxMacroSteps = 50
+    static let maxDelayMs = 10_000
 
     enum ActionError: LocalizedError {
         case unknown(String), needsAccessibility, missing(String), failed(String)
@@ -26,13 +37,54 @@ final class ActionRunner {
             "micMuted": audio.micMuted,
             "keepAwake": keepAwakeID != nil,
             "darkMode": NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua,
+            "toggles": toggles,
         ]
         if let v = audio.volume { s["volume"] = (Double(v) * 100).rounded() / 100 }
         if let m = audio.muted { s["muted"] = m }
         return s
     }
 
-    func run(_ a: ActionSpec) throws {
+    /// Welke ingebouwde statuswaarde bij een actietype hoort (voor het oplichten van de knop).
+    static func stateKey(for type: String?) -> String? {
+        switch type {
+        case "audio.mute": return "muted"
+        case "audio.micMute": return "micMuted"
+        case "system.keepAwake": return "keepAwake"
+        case "system.darkMode": return "darkMode"
+        default: return nil
+        }
+    }
+
+    // MARK: Uitvoeren
+
+    /// Een tegel indrukken. Bij een aan/uit-knop wisselt de stand en wordt bij "uit" `offAction` gebruikt.
+    func press(_ tile: Tile, gesture: String) throws {
+        let action: ActionSpec?
+        switch gesture {
+        case "long": action = tile.longPress
+        case "double": action = tile.doubleTap
+        default:
+            if tile.toggle == true {
+                let on = !(toggles[tile.id] ?? false)
+                action = on ? tile.action : (tile.offAction ?? tile.action)
+                guard let action else { throw ActionError.missing("action") }
+                toggles[tile.id] = on
+                do {
+                    try run(action) { [weak self] in self?.toggles[tile.id] = !on } // mislukt later → terugzetten
+                } catch {
+                    toggles[tile.id] = !on
+                    throw error
+                }
+                return
+            }
+            action = tile.action
+        }
+        guard let action else { throw ActionError.missing(gesture == "long" ? "longPress" : gesture == "double" ? "doubleTap" : "action") }
+        try run(action)
+    }
+
+    /// `onLateFailure` wordt aangeroepen als een actie pas na afloop mislukt (Opdrachten, macro-stappen).
+    func run(_ a: ActionSpec, onLateFailure: (() -> Void)? = nil) throws {
         switch a.type {
         // Media
         case "media.playPause": try mediaKey(16)
@@ -55,13 +107,38 @@ final class ActionRunner {
             }
             NSWorkspace.shared.open(url)
 
+        // Toetsen en tekst
+        case "keys.press":
+            guard let k = a.keys else { throw ActionError.missing("keys") }
+            let combo = try Keys.parse(k)
+            try ensureAccessibility()
+            Keys.press(combo)
+        case "text.type":
+            guard let t = a.text, !t.isEmpty else { throw ActionError.missing("text") }
+            try ensureAccessibility()
+            Keys.type(t)
+        case "preset":
+            guard let p = a.preset else { throw ActionError.missing("preset") }
+            try runPreset(p)
+
+        // Opdrachten-app (Shortcuts)
+        case "shortcut.run":
+            guard let name = a.shortcut, !name.isEmpty else { throw ActionError.missing("shortcut") }
+            runShortcut(name, onFail: onLateFailure)
+
+        // Macro's
+        case "macro":
+            try runMacro(a.steps ?? [], onFail: onLateFailure)
+        case "delay":
+            throw ActionError.failed("Een pauze (delay) kan alleen binnen een macro")
+
         // Systeem
         case "system.darkMode": try toggleDarkMode()
         case "system.lock": try keyCombo(12, [.maskCommand, .maskControl])           // ⌃⌘Q
         case "system.screenshot": try keyCombo(20, [.maskCommand, .maskShift])       // ⇧⌘3
         case "system.screenshotArea": try keyCombo(21, [.maskCommand, .maskShift])   // ⇧⌘4
         case "system.keepAwake": toggleKeepAwake()
-        case "system.displayOff": run("/usr/bin/pmset", ["displaysleepnow"])
+        case "system.displayOff": launch("/usr/bin/pmset", ["displaysleepnow"])
 
         default: throw ActionError.unknown(a.type)
         }
@@ -71,6 +148,88 @@ final class ActionRunner {
         switch a.type {
         case "audio.volume": audio.setVolume(Float32(value))
         default: throw ActionError.unknown(a.type)
+        }
+    }
+
+    // MARK: Shortcut-bibliotheek
+
+    private func runPreset(_ id: String) throws {
+        guard let (app, sc) = catalog.find(id) else { throw ActionError.failed("Onbekende sneltoets uit de bibliotheek: \(id)") }
+        let combo = try Keys.parse(sc.keys)
+        try ensureAccessibility()
+
+        guard app.activate, !app.bundleIds.isEmpty else { Keys.press(combo); return }
+        guard let running = NSWorkspace.shared.runningApplications.first(where: { app.bundleIds.contains($0.bundleIdentifier ?? "") }) else {
+            throw ActionError.failed("\(app.name) draait niet")
+        }
+        if running.isActive {
+            Keys.press(combo)
+        } else {
+            running.activate()
+            // Even wachten tot de app vooraan staat, anders gaat de toets naar de vorige app.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { Keys.press(combo) }
+        }
+    }
+
+    // MARK: Macro's
+
+    /// Controleert de hele macro vooraf en voert daarna de stappen na elkaar uit (pauzes zonder te blokkeren).
+    private func runMacro(_ steps: [ActionSpec], onFail: (() -> Void)?) throws {
+        guard !steps.isEmpty else { throw ActionError.missing("steps") }
+        guard steps.count <= Self.maxMacroSteps else { throw ActionError.failed("Een macro mag maximaal \(Self.maxMacroSteps) stappen hebben") }
+        if steps.contains(where: { $0.type == "macro" }) { throw ActionError.failed("Een macro kan geen andere macro bevatten") }
+        for s in steps where s.type == "keys.press" { _ = try Keys.parse(s.keys ?? "") }
+        if steps.contains(where: { ["keys.press", "text.type", "preset"].contains($0.type) }) { try ensureAccessibility() }
+        runSteps(steps[...], onFail: onFail)
+    }
+
+    private func runSteps(_ steps: ArraySlice<ActionSpec>, onFail: (() -> Void)?) {
+        guard let step = steps.first else { return }
+        let rest = steps.dropFirst()
+        if step.type == "delay" {
+            let ms = min(max(step.ms ?? 0, 0), Self.maxDelayMs)
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms)) { [weak self] in self?.runSteps(rest, onFail: onFail) }
+            return
+        }
+        do {
+            try run(step, onLateFailure: onFail)
+        } catch {
+            onFail?()
+            onAsyncError?("Macro gestopt: \(error.localizedDescription)")
+            return
+        }
+        // Korte adempauze tussen stappen zodat apps de toetsen bijhouden.
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40)) { [weak self] in self?.runSteps(rest, onFail: onFail) }
+    }
+
+    // MARK: Opdrachten-app
+
+    private func runShortcut(_ name: String, onFail: (() -> Void)?) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        p.arguments = ["run", name]
+        let err = Pipe()
+        p.standardError = err
+        p.standardOutput = FileHandle.nullDevice
+        p.standardInput = FileHandle.nullDevice // anders wacht `shortcuts` op invoer
+        p.terminationHandler = { [weak self] proc in
+            let status = proc.terminationStatus
+            let msg = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "Error: ", with: "") ?? ""
+            DispatchQueue.main.async {
+                self?.runningProcesses[ObjectIdentifier(proc)] = nil
+                guard status != 0 else { return }
+                onFail?()
+                self?.onAsyncError?("Opdracht “\(name)” mislukt\(msg.isEmpty ? "" : ": \(msg)")")
+            }
+        }
+        do {
+            try p.run()
+            runningProcesses[ObjectIdentifier(p)] = p
+        } catch {
+            onFail?()
+            onAsyncError?("Opdrachten-app niet gevonden")
         }
     }
 
@@ -104,12 +263,7 @@ final class ActionRunner {
 
     private func keyCombo(_ key: CGKeyCode, _ flags: CGEventFlags) throws {
         try ensureAccessibility()
-        let src = CGEventSource(stateID: .hidSystemState)
-        for down in [true, false] {
-            let e = CGEvent(keyboardEventSource: src, virtualKey: key, keyDown: down)
-            e?.flags = flags
-            e?.post(tap: .cghidEventTap)
-        }
+        Keys.press(.init(code: key, flags: flags))
     }
 
     // MARK: Overig
@@ -150,7 +304,7 @@ final class ActionRunner {
         }
     }
 
-    private func run(_ path: String, _ args: [String]) {
+    private func launch(_ path: String, _ args: [String]) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: path)
         p.arguments = args

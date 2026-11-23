@@ -1,7 +1,7 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype uit fase 0–3 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–4 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
 ## Bouwen en starten
 
@@ -45,8 +45,48 @@ Beschikbare acties (`action.type`):
 | `url.open` + `"url"` | http(s)-link openen |
 | `system.darkMode`, `system.keepAwake` | aan/uit-knoppen |
 | `system.lock`, `system.displayOff`, `system.screenshot`, `system.screenshotArea` | systeem |
+| `keys.press` + `"keys"` | willekeurige toetscombinatie, bijv. `"cmd+shift+a"`, `"ctrl+up"`, `"f5"` |
+| `text.type` + `"text"` | tekst typen (max. 2000 tekens) |
+| `preset` + `"preset"` | sneltoets uit de bibliotheek, bijv. `"zoom.mute"` (zie hieronder) |
+| `shortcut.run` + `"shortcut"` | opdracht uit de Opdrachten-app uitvoeren (op naam) |
+| `macro` + `"steps"` | meerdere acties na elkaar; `{"type": "delay", "ms": 500}` voor een pauze |
+
+Toetsnamen: `cmd`, `shift`, `alt`/`option`, `ctrl`, `fn` + een letter, cijfer, leesteken of
+`return`, `tab`, `space`, `delete`, `esc`, `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f20`.
+De toetsen volgen de Amerikaanse indeling (ook US-International).
 
 Tegelsoorten (`kind`): `button` (standaard), `slider`, `clock`. Plaats met `x`, `y` en optioneel `w`, `h`.
+
+### Gebaren en aan/uit-knoppen
+
+```json
+{
+  "id": "copy", "label": "Kopieer", "icon": "📋", "x": 0, "y": 1,
+  "action":    { "type": "keys.press", "keys": "cmd+c" },
+  "longPress": { "type": "keys.press", "keys": "cmd+x" },
+  "doubleTap": { "type": "keys.press", "keys": "cmd+a" }
+}
+```
+
+- `longPress`: ± 0,5 s ingedrukt houden. `doubleTap`: twee keer snel tikken.
+  Alleen knoppen mét een dubbeltik wachten heel even (0,28 s) met de gewone tik.
+- `"toggle": true` maakt er een aan/uit-knop van: Cyberpad onthoudt de stand en de knop licht op.
+  Met `offAction` kies je een andere actie voor "uit". Mislukt de actie, dan springt de knop terug.
+
+### Shortcut-bibliotheek
+
+`catalog/shortcuts.json` bevat standaard-sneltoetsen voor Zoom, Teams, Google Meet, Webex, Slack, Discord, Loom en
+VS Code. Gebruik ze met `{"type": "preset", "preset": "<app>.<id>"}`, bijv. `zoom.mute`, `zoom.video`, `teams.hand`,
+`meet.mute`, `slack.huddleMute`, `discord.deafen`, `vscode.palette`. Waar nodig zet Cyberpad de app eerst vooraan.
+Heb je sneltoetsen in een app aangepast, gebruik dan `keys.press`.
+
+### Opdrachten (Shortcuts) en Focus
+
+macOS heeft geen openbare manier om Focus direct aan te zetten. Maak in de Opdrachten-app twee opdrachten,
+bijv. **Focus aan** (actie "Stel focus in" → aan) en **Focus uit**, en gebruik ze met `shortcut.run`.
+De standaard-layout heeft hier al een aan/uit-knop voor op de pagina **Werk**.
+
+Menu › **Standaard-layout terugzetten…** zet de voorbeeldlayout terug; je huidige layout wordt eerst als back-up bewaard.
 
 ## Beveiliging
 
@@ -66,11 +106,14 @@ Sources/Cyberpad/
   WebSocket.swift     frames (RFC 6455)
   Pairing.swift       koppelcodes, tokens, rate-limit
   Layout.swift        layout-model en bestand
-  Actions.swift       alle acties
+  Actions.swift       alle acties, macro's, aan/uit-knoppen
+  Keys.swift          toetscombinaties en tekst typen
+  Catalog.swift       shortcut-bibliotheek
   Audio.swift         CoreAudio
   HostAlias.swift     cyberpad.local via mDNS
   NetUtil.swift       IP-adressen, lokaal-netwerkcontrole
 pad/                  tablet-pagina (ES5, werkt vanaf iOS 9)
+catalog/              shortcuts.json (sneltoetsen per app)
 ```
 
 Ontwikkelen zonder opnieuw te bouwen: `CYBERPAD_PAD_DIR=$PWD/pad build/Cyberpad.app/Contents/MacOS/Cyberpad`

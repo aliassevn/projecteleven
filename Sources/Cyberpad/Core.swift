@@ -31,7 +31,10 @@ final class Core: ObservableObject {
 
         pairing = PairingManager(dir: supportDir)
         layouts = LayoutStore(dir: supportDir)
-        server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findPadDir())
+        server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findResource("pad", env: "CYBERPAD_PAD_DIR"))
+        actions.catalog = ShortcutCatalog.load(from: Self.findResource("catalog", env: "CYBERPAD_CATALOG_DIR")
+            .appendingPathComponent("shortcuts.json"))
+        actions.onAsyncError = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
 
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
@@ -89,6 +92,18 @@ final class Core: ObservableObject {
 
     func openLayoutFile() { NSWorkspace.shared.open(layouts.url) }
     func openSupportFolder() { NSWorkspace.shared.open(supportDir) }
+
+    /// Standaard-layout terugzetten; de oude wordt eerst als back-up bewaard.
+    func resetLayout() {
+        let alert = NSAlert()
+        alert.messageText = "Standaard-layout terugzetten?"
+        alert.informativeText = "Je huidige layout.json wordt eerst bewaard als back-up in de Cyberpad-map."
+        alert.addButton(withTitle: "Terugzetten")
+        alert.addButton(withTitle: "Annuleer")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        layouts.resetToDefault()
+    }
     func requestAccessibility() {
         actions.requestAccessibility()
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -96,16 +111,16 @@ final class Core: ObservableObject {
         }
     }
 
-    /// Volgorde: omgevingsvariabele (ontwikkelen) → in de app-bundel → ./pad
-    private static func findPadDir() -> URL {
+    /// Volgorde: omgevingsvariabele (ontwikkelen) → in de app-bundel → ./<naam>
+    private static func findResource(_ name: String, env: String) -> URL {
         let fm = FileManager.default
-        if let env = ProcessInfo.processInfo.environment["CYBERPAD_PAD_DIR"] {
-            return URL(fileURLWithPath: env, isDirectory: true)
+        if let dir = ProcessInfo.processInfo.environment[env] {
+            return URL(fileURLWithPath: dir, isDirectory: true)
         }
-        if let res = Bundle.main.resourceURL?.appendingPathComponent("pad", isDirectory: true),
-           fm.fileExists(atPath: res.appendingPathComponent("index.html").path) {
+        if let res = Bundle.main.resourceURL?.appendingPathComponent(name, isDirectory: true),
+           fm.fileExists(atPath: res.path) {
             return res
         }
-        return URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent("pad", isDirectory: true)
+        return URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(name, isDirectory: true)
     }
 }

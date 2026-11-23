@@ -7,13 +7,8 @@
   var KEY_LAYOUT = 'cyberpad.layout';
   var KEY_PAGE = 'cyberpad.page';
 
-  // Welke statuswaarde hoort bij welk aan/uit-type knop.
-  var STATE_KEYS = {
-    'audio.mute': 'muted',
-    'audio.micMute': 'micMuted',
-    'system.keepAwake': 'keepAwake',
-    'system.darkMode': 'darkMode'
-  };
+  var LONG_MS = 500;     // lang indrukken
+  var DOUBLE_MS = 280;   // max. tijd tussen twee tikken
 
   var app = {
     token: store('get', KEY_TOKEN),
@@ -229,9 +224,10 @@
     }
   }
 
-  function send(type, id, value) {
+  function send(type, id, value, gesture) {
     var msg = { type: type, id: id };
-    if (value !== undefined) { msg.value = value; }
+    if (value !== undefined && value !== null) { msg.value = value; }
+    if (gesture) { msg.gesture = gesture; }
     if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) {
       app.ws.send(JSON.stringify(msg));
     } else if (app.mode === 'xhr' && app.connected) {
@@ -295,10 +291,12 @@
       } else {
         if (t.icon) { node.appendChild(el('div', 'icon', t.icon)); }
         node.appendChild(el('div', 'label', t.label));
-        if (t.action && STATE_KEYS[t.action.type]) {
-          node.setAttribute('data-state', STATE_KEYS[t.action.type]);
+        if (t.hasLong || t.hasDouble) {
+          node.appendChild(el('span', 'gestures', (t.hasLong ? '◷' : '') + (t.hasDouble ? '⁑' : '')));
         }
-        bindPress(node, t.id);
+        if (t.stateKey) { node.setAttribute('data-state', t.stateKey); }
+        if (t.toggle) { node.setAttribute('data-toggle', t.id); }
+        bindPress(node, t);
       }
       pad.appendChild(node);
     }
@@ -327,10 +325,12 @@
 
   function updateValues() {
     var nodes = $('pad').childNodes;
+    var toggles = app.values.toggles || {};
     for (var i = 0; i < nodes.length; i++) {
       var key = nodes[i].getAttribute('data-state');
-      if (!key) { continue; }
-      var on = app.values[key] === true;
+      var tog = nodes[i].getAttribute('data-toggle');
+      if (!key && !tog) { continue; }
+      var on = key ? app.values[key] === true : toggles[tog] === true;
       var cls = nodes[i].className.replace(/\s*\bactive\b/g, '');
       nodes[i].className = on ? cls + ' active' : cls;
     }
@@ -351,37 +351,77 @@
     }
   }
 
-  function bindPress(node, id) {
-    var moved = false, sx = 0, sy = 0;
+  // Tik, lang indrukken en dubbeltikken. Een enkele tik wacht alleen even als de knop ook een dubbeltik kent.
+  function bindPress(node, t) {
+    var moved = false, sx = 0, sy = 0, longTimer = null, longFired = false;
+    var lastTap = 0, tapTimer = null;
+
     function down() { node.className += ' pressed'; }
     function up() { node.className = node.className.replace(/\s*\bpressed\b/g, ''); }
+
+    function start(x, y) {
+      moved = false; longFired = false; sx = x; sy = y;
+      down();
+      if (t.hasLong) {
+        clearTimeout(longTimer);
+        longTimer = setTimeout(function () {
+          longFired = true;
+          up();
+          flash(node);
+          fire(t.id, 'long');
+        }, LONG_MS);
+      }
+    }
+
+    function move(x, y) {
+      if (Math.abs(x - sx) > 20 || Math.abs(y - sy) > 20) { moved = true; clearTimeout(longTimer); up(); }
+    }
+
+    function end() {
+      clearTimeout(longTimer);
+      up();
+      if (moved || longFired) { return; }
+      if (!t.hasDouble) { fire(t.id, 'tap'); return; }
+      var now = new Date().getTime();
+      if (now - lastTap < DOUBLE_MS) {
+        clearTimeout(tapTimer);
+        lastTap = 0;
+        flash(node);
+        fire(t.id, 'double');
+      } else {
+        lastTap = now;
+        tapTimer = setTimeout(function () { lastTap = 0; fire(t.id, 'tap'); }, DOUBLE_MS);
+      }
+    }
+
+    function cancel() { clearTimeout(longTimer); up(); }
+
     if (hasTouch) {
       node.addEventListener('touchstart', function (e) {
         e.preventDefault();
-        moved = false;
-        sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-        down();
+        start(e.touches[0].clientX, e.touches[0].clientY);
       }, false);
       node.addEventListener('touchmove', function (e) {
-        var t = e.touches[0];
-        if (Math.abs(t.clientX - sx) > 20 || Math.abs(t.clientY - sy) > 20) { moved = true; up(); }
+        move(e.touches[0].clientX, e.touches[0].clientY);
       }, false);
-      node.addEventListener('touchend', function (e) {
-        e.preventDefault();
-        up();
-        if (!moved) { fire(id); }
-      }, false);
-      node.addEventListener('touchcancel', up, false);
+      node.addEventListener('touchend', function (e) { e.preventDefault(); end(); }, false);
+      node.addEventListener('touchcancel', cancel, false);
     } else {
-      node.addEventListener('mousedown', down, false);
-      node.addEventListener('mouseup', function () { up(); fire(id); }, false);
-      node.addEventListener('mouseleave', up, false);
+      var isDown = false;
+      node.addEventListener('mousedown', function (e) { isDown = true; start(e.clientX, e.clientY); }, false);
+      node.addEventListener('mouseup', function () { if (isDown) { isDown = false; end(); } }, false);
+      node.addEventListener('mouseleave', function () { if (isDown) { isDown = false; moved = true; cancel(); } }, false);
     }
   }
 
-  function fire(id) {
-    if (navigator.vibrate) { try { navigator.vibrate(10); } catch (e) { /* */ } }
-    send('press', id);
+  function flash(node) {
+    node.className += ' flash';
+    setTimeout(function () { node.className = node.className.replace(/\s*\bflash\b/g, ''); }, 250);
+  }
+
+  function fire(id, gesture) {
+    if (navigator.vibrate) { try { navigator.vibrate(gesture === 'tap' ? 10 : 25); } catch (e) { /* */ } }
+    send('press', id, null, gesture === 'tap' ? null : gesture);
   }
 
   function buildSlider(node, t) {

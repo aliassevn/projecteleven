@@ -17,6 +17,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Cyberpad"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp -R pad "$APP/Contents/Resources/pad"
+cp -R catalog "$APP/Contents/Resources/catalog"
 codesign --force --sign - "$APP"
 
 echo "Klaar: $APP"
