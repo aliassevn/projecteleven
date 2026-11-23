@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cyberpad">
+<meta name="theme-color" content="#05060a">
+<title>Cyberpad</title>
+<link rel="stylesheet" href="pad.css">
+</head>
+<body>
+  <div id="status" class="status">
+    <span class="brand">CYBERPAD</span>
+    <span id="status-text" class="status-text">VERBINDEN…</span>
+    <span id="status-dot" class="dot"></span>
+  </div>
+
+  <div id="pad" class="pad"></div>
+  <div id="tabs" class="tabs"></div>
+
+  <div id="pair" class="pair hidden">
+    <div class="pair-box">
+      <div class="pair-title">// KOPPELEN</div>
+      <p class="pair-help">Voer de 6-cijferige code in die in de menubalk van je Mac staat.</p>
+      <input id="pair-code" class="pair-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="000000">
+      <button id="pair-btn" class="pair-btn">KOPPEL</button>
+      <p id="pair-msg" class="pair-msg"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div class="scanlines"></div>
+
+  <script src="pad.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.DS_Store
+.build/
+build/
+dustyPad.app/
+*.xcodeproj/xcuserdata/
