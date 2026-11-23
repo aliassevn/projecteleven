@@ -73,6 +73,9 @@
     return null;
   }
   function curPage() { return E.layout.pages[E.page]; }
+  // Raster van de huidige pagina (eigen raster, anders dat van de layout).
+  function cols() { return curPage().columns || E.layout.columns; }
+  function rowsN() { return curPage().rows || E.layout.rows; }
   function findTile(id) {
     var ts = curPage().tiles;
     for (var i = 0; i < ts.length; i++) { if (ts[i].id === id) { return ts[i]; } }
@@ -179,6 +182,7 @@
     for (var p = 0; p < out.pages.length; p++) {
       var pg = out.pages[p];
       if (pg.apps && !pg.apps.length) { delete pg.apps; }
+      if (!pg.columns || !pg.rows) { delete pg.columns; delete pg.rows; }
       for (var t = 0; t < pg.tiles.length; t++) {
         var tl = pg.tiles[t];
         var keys = ['action', 'longPress', 'doubleTap', 'offAction'];
@@ -246,9 +250,9 @@
 
   function computeGeo() {
     var g = $('grid'), L = E.layout;
-    var gap = g.clientWidth < 700 ? 8 : 12;
-    var cw = (g.clientWidth - gap * (L.columns - 1)) / L.columns;
-    var ch = (g.clientHeight - gap * (L.rows - 1)) / L.rows;
+    var gap = g.clientWidth < 700 || cols() >= 8 ? 6 : 12;
+    var cw = (g.clientWidth - gap * (cols() - 1)) / cols();
+    var ch = (g.clientHeight - gap * (rowsN() - 1)) / rowsN();
     geo = { cw: cw, ch: ch, gap: gap };
   }
   function place(node, x, y, w, h) {
@@ -269,7 +273,7 @@
   }
   function fits(page, id, x, y, w, h) {
     var L = E.layout;
-    if (x < 0 || y < 0 || w < 1 || h < 1 || x + w > L.columns || y + h > L.rows) { return false; }
+    if (x < 0 || y < 0 || w < 1 || h < 1 || x + w > cols() || y + h > rowsN()) { return false; }
     var occ = occupied(page, id);
     for (var dy = 0; dy < h; dy++) { for (var dx = 0; dx < w; dx++) { if (occ[(y + dy) + ':' + (x + dx)]) { return false; } } }
     return true;
@@ -310,10 +314,11 @@
   function drawGrid() {
     var g = $('grid'), L = E.layout, page = curPage();
     g.innerHTML = '';
+    g.className = 'grid' + (cols() >= 8 ? ' dense' : '');
     computeGeo();
     var occ = occupied(page, null);
-    for (var y = 0; y < L.rows; y++) {
-      for (var x = 0; x < L.columns; x++) {
+    for (var y = 0; y < rowsN(); y++) {
+      for (var x = 0; x < cols(); x++) {
         if (occ[y + ':' + x]) { continue; }
         (function (sx, sy) {
           var s = el('div', 'slot');
@@ -355,7 +360,7 @@
     var page = curPage(), L = E.layout, seen = {}, bad = {};
     for (var i = 0; i < page.tiles.length; i++) {
       var t = page.tiles[i], w = t.w || 1, h = t.h || 1;
-      if (t.x < 0 || t.y < 0 || t.x + w > L.columns || t.y + h > L.rows) { bad[t.id] = true; }
+      if (t.x < 0 || t.y < 0 || t.x + w > cols() || t.y + h > rowsN()) { bad[t.id] = true; }
       for (var dy = 0; dy < h; dy++) {
         for (var dx = 0; dx < w; dx++) {
           var k = (t.y + dy) + ':' + (t.x + dx);
@@ -411,7 +416,7 @@
       node.className = node.className.replace(/\s*\bdragging\b/g, '') + ' dragging';
       var c = cellAt(p.x, p.y), w = t.w || 1, h = t.h || 1;
       if (mode === 'move') {
-        cand = { x: Math.max(0, Math.min(E.layout.columns - w, c.x - start.offX)), y: Math.max(0, Math.min(E.layout.rows - h, c.y - start.offY)), w: w, h: h };
+        cand = { x: Math.max(0, Math.min(cols() - w, c.x - start.offX)), y: Math.max(0, Math.min(rowsN() - h, c.y - start.offY)), w: w, h: h };
       } else {
         cand = { x: t.x, y: t.y, w: Math.max(1, c.x - t.x + 1), h: Math.max(1, c.y - t.y + 1) };
       }
@@ -1049,8 +1054,8 @@
 
   function duplicateTile(t) {
     var page = curPage(), L = E.layout, w = t.w || 1, h = t.h || 1;
-    for (var y = 0; y <= L.rows - h; y++) {
-      for (var x = 0; x <= L.columns - w; x++) {
+    for (var y = 0; y <= rowsN() - h; y++) {
+      for (var x = 0; x <= cols() - w; x++) {
         if (fits(page, null, x, y, w, h)) {
           snapshot();
           var c = clone(t);
@@ -1092,8 +1097,39 @@
     sec.appendChild(tools);
     side.appendChild(sec);
 
+    // Raster van deze pagina: standaard, compact (2× zoveel vakken = halve tegels) of eigen maat.
+    var pgr = el('div', 'sec');
+    pgr.appendChild(el('div', 'sec-title', '// RASTER VAN DEZE PAGINA'));
+    var modeRow = el('div', 'row');
+    var msel = el('select');
+    var std = L.columns + '×' + L.rows;
+    msel.appendChild(optionEl('std', 'Standaard (' + std + ', zoals de layout)'));
+    msel.appendChild(optionEl('compact', 'Compact (' + Math.min(12, L.columns * 2) + '×' + Math.min(8, L.rows * 2) + ': tegels half zo groot)'));
+    msel.appendChild(optionEl('own', 'Eigen maat'));
+    var mode = !pg.columns ? 'std' : (pg.columns === Math.min(12, L.columns * 2) && pg.rows === Math.min(8, L.rows * 2) ? 'compact' : 'own');
+    msel.value = mode;
+    on(msel, 'change', function () {
+      snapshot();
+      if (msel.value === 'std') { delete pg.columns; delete pg.rows; }
+      else if (msel.value === 'compact') { scalePage(pg, Math.min(12, L.columns * 2), Math.min(8, L.rows * 2)); }
+      else { pg.columns = pg.columns || L.columns; pg.rows = pg.rows || L.rows; }
+      afterChange(true);
+    });
+    modeRow.appendChild(msel);
+    pgr.appendChild(modeRow);
+    if (mode === 'own') {
+      var own = el('div', 'pair');
+      own.appendChild(field({ key: 'pcols', label: 'Kolommen (1–12)', type: 'number' }, function () { return pg.columns; },
+        function (v) { if (v >= 1 && v <= 12) { pg.columns = Math.round(v); drawGrid(); } }));
+      own.appendChild(field({ key: 'prows', label: 'Rijen (1–8)', type: 'number' }, function () { return pg.rows; },
+        function (v) { if (v >= 1 && v <= 8) { pg.rows = Math.round(v); drawGrid(); } }));
+      pgr.appendChild(own);
+    }
+    pgr.appendChild(el('div', 'hint', 'Compact: kies dit om meer, kleinere tegels op één pagina te zetten. Bestaande tegels worden mee vergroot, zodat ze even groot blijven.'));
+    side.appendChild(pgr);
+
     var g = el('div', 'sec');
-    g.appendChild(el('div', 'sec-title', '// RASTER (ALLE PAGINA\'S)'));
+    g.appendChild(el('div', 'sec-title', '// STANDAARDRASTER (ALLE ANDERE PAGINA\'S)'));
     var pair = el('div', 'pair');
     pair.appendChild(field({ key: 'columns', label: 'Kolommen (1–12)', type: 'number' }, function () { return L.columns; },
       function (v) { if (v >= 1 && v <= 12) { L.columns = Math.round(v); drawGrid(); } }));
@@ -1109,6 +1145,18 @@
       for (var i = 0; i < E.problems.length; i++) { ps.appendChild(el('div', 'hint', '⚠ ' + E.problems[i])); }
       side.appendChild(ps);
     }
+  }
+
+  // Pagina naar een ander raster: posities en maten mee schalen, zodat alles even groot blijft.
+  function scalePage(pg, c, r) {
+    var oc = pg.columns || E.layout.columns, or = pg.rows || E.layout.rows;
+    var fx = c / oc, fy = r / or;
+    for (var i = 0; i < pg.tiles.length; i++) {
+      var t = pg.tiles[i];
+      t.x = Math.round(t.x * fx); t.y = Math.round(t.y * fy);
+      t.w = Math.max(1, Math.round((t.w || 1) * fx)); t.h = Math.max(1, Math.round((t.h || 1) * fy));
+    }
+    pg.columns = c; pg.rows = r;
   }
 
   function movePage(dir) {

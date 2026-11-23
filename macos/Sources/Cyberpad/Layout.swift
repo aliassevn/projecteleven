@@ -123,19 +123,21 @@ struct WidgetConfig: Codable, Equatable {
     var natural: Bool?
     // dial: stap per tik van de draaiknop (0…1 voor volume/helderheid, standaard 0,03)
     var step: Double?
+    // agenda: hoeveel afspraken (1–5, standaard 1)
+    var count: Int?
 
     init(city: String? = nil, lat: Double? = nil, lon: Double? = nil, seconds: Int? = nil, work: Int? = nil,
          rest: Int? = nil, zones: [String]? = nil, folder: String? = nil, command: String? = nil, cwd: String? = nil,
          dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil,
          entity: String? = nil, topic: String? = nil, unit: String? = nil, field: String? = nil,
          plugin: String? = nil, widget: String? = nil, params: [String: JSONValue]? = nil,
-         speed: Double? = nil, natural: Bool? = nil, step: Double? = nil) {
+         speed: Double? = nil, natural: Bool? = nil, step: Double? = nil, count: Int? = nil) {
         self.city = city; self.lat = lat; self.lon = lon; self.seconds = seconds; self.work = work; self.rest = rest
         self.zones = zones; self.folder = folder; self.command = command; self.cwd = cwd; self.dangerous = dangerous
         self.timeout = timeout; self.show = show; self.player = player
         self.entity = entity; self.topic = topic; self.unit = unit; self.field = field
         self.plugin = plugin; self.widget = widget; self.params = params
-        self.speed = speed; self.natural = natural; self.step = step
+        self.speed = speed; self.natural = natural; self.step = step; self.count = count
     }
 }
 
@@ -185,9 +187,12 @@ struct Page: Codable, Equatable {
     /// Contextpagina: als een van deze apps vooraan komt, springt de tablet naar deze pagina.
     /// Bundle-id (com.adobe.Photoshop) of app-naam (Photoshop).
     var apps: [String]?
+    /// Eigen raster voor deze pagina (bijv. 10×6 = compact: tegels half zo groot). Leeg = raster van de layout.
+    var columns: Int?
+    var rows: Int?
 
-    init(id: String, name: String, tiles: [Tile], apps: [String]? = nil) {
-        self.id = id; self.name = name; self.tiles = tiles; self.apps = apps
+    init(id: String, name: String, tiles: [Tile], apps: [String]? = nil, columns: Int? = nil, rows: Int? = nil) {
+        self.id = id; self.name = name; self.tiles = tiles; self.apps = apps; self.columns = columns; self.rows = rows
     }
 }
 
@@ -248,19 +253,40 @@ struct Layout: Codable, Equatable {
     static let `default` = Layout(
         version: 1, columns: 5, rows: 3, theme: "cyberdeck",
         pages: [
+            // Dashboard in een compact raster (10×6): tegels half zo groot, zodat er veel op past.
             Page(id: "main", name: "Main", tiles: [
+                Tile(id: "m-nowplaying", label: "Spotify", kind: "nowplaying", config: .init(player: "spotify"), x: 0, y: 0, w: 4, h: 2),
+                Tile(id: "m-weather", label: "Weer", kind: "weather", config: .init(city: "Amsterdam"), x: 4, y: 0, w: 3, h: 2),
+                Tile(id: "m-world", label: "Wereldklok", kind: "worldclock",
+                     config: .init(zones: ["America/New_York", "Asia/Tokyo"]), x: 7, y: 0, w: 3, h: 2),
+                Tile(id: "m-agenda", label: "Agenda", kind: "agenda", config: .init(count: 3), x: 0, y: 2, w: 4, h: 3),
+                Tile(id: "m-stats", label: "Systeem", kind: "stats", x: 4, y: 2, w: 3, h: 2),
+                Tile(id: "m-timer", label: "Timer", kind: "timer", config: .init(seconds: 300), x: 7, y: 2, w: 3, h: 2),
+                Tile(id: "m-pomodoro", label: "Pomodoro", kind: "pomodoro", config: .init(work: 25, rest: 5), x: 4, y: 4, w: 3, h: 2),
+                Tile(id: "m-play", label: "Play", icon: "⏯", action: .init(type: "media.playPause"), x: 7, y: 4),
+                Tile(id: "m-mute", label: "Geluid uit", icon: "🔇", action: .init(type: "audio.mute"), x: 8, y: 4),
+                Tile(id: "m-mic", label: "Mic uit", icon: "🎙", action: .init(type: "audio.micMute"), x: 9, y: 4),
+                Tile(id: "m-prev", label: "Vorige", icon: "⏮", action: .init(type: "media.previous"), x: 7, y: 5),
+                Tile(id: "m-next", label: "Volgende", icon: "⏭", action: .init(type: "media.next"), x: 8, y: 5),
+                Tile(id: "m-awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 9, y: 5),
+                Tile(id: "m-volume", label: "Volume", kind: "slider", action: .init(type: "audio.volume"), x: 0, y: 5, w: 4),
+            ], columns: 10, rows: 6),
+            Page(id: "buttons", name: "Knoppen", tiles: [
                 Tile(id: "prev", label: "Vorige", icon: "⏮", action: .init(type: "media.previous"), x: 0, y: 0),
                 Tile(id: "play", label: "Play / pauze", icon: "⏯", action: .init(type: "media.playPause"), x: 1, y: 0),
                 Tile(id: "next", label: "Volgende", icon: "⏭", action: .init(type: "media.next"), x: 2, y: 0),
                 Tile(id: "mute", label: "Geluid uit", icon: "🔇", action: .init(type: "audio.mute"), x: 3, y: 0),
                 Tile(id: "mic", label: "Mic uit", icon: "🎙", action: .init(type: "audio.micMute"), x: 4, y: 0),
-                Tile(id: "volume", label: "Volume", kind: "slider", action: .init(type: "audio.volume"), x: 0, y: 1, w: 3),
-                Tile(id: "voldown", label: "Vol −", icon: "🔉", action: .init(type: "audio.volumeDown"), x: 3, y: 1),
-                Tile(id: "volup", label: "Vol +", icon: "🔊", action: .init(type: "audio.volumeUp"), x: 4, y: 1),
-                Tile(id: "safari", label: "Safari", icon: "🧭", action: .init(type: "app.open", app: "com.apple.Safari"), x: 0, y: 2),
-                Tile(id: "agenda", label: "Volgende afspraak", kind: "agenda", x: 1, y: 2, w: 2),
-                Tile(id: "dark", label: "Dark mode", icon: "🌗", action: .init(type: "system.darkMode"), x: 3, y: 2),
-                Tile(id: "awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 4, y: 2),
+                Tile(id: "voldown", label: "Vol −", icon: "🔉", action: .init(type: "audio.volumeDown"), x: 0, y: 1),
+                Tile(id: "volup", label: "Vol +", icon: "🔊", action: .init(type: "audio.volumeUp"), x: 1, y: 1),
+                Tile(id: "safari", label: "Safari", icon: "app:com.apple.Safari", action: .init(type: "app.open", app: "com.apple.Safari"), x: 2, y: 1),
+                Tile(id: "dark", label: "Dark mode", icon: "🌗", action: .init(type: "system.darkMode"), x: 3, y: 1),
+                Tile(id: "awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 4, y: 1),
+                Tile(id: "lock2", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 2),
+                Tile(id: "shot2", label: "Screenshot", icon: "📸", action: .init(type: "system.screenshot"), x: 1, y: 2),
+                Tile(id: "spotlight2", label: "Spotlight", icon: "🔎", action: .init(type: "keys.press", keys: "cmd+space"), x: 2, y: 2),
+                Tile(id: "mission3", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 3, y: 2),
+                Tile(id: "finder2", label: "Finder", icon: "app:com.apple.finder", action: .init(type: "app.open", app: "com.apple.finder"), x: 4, y: 2),
             ]),
             Page(id: "work", name: "Werk", tiles: [
                 Tile(id: "zoom-mic", label: "Zoom mic", icon: "🎤", action: .init(type: "preset", preset: "zoom.mute"), x: 0, y: 0),
@@ -373,9 +399,9 @@ struct Layout: Codable, Equatable {
             ]),
         ],
         profiles: [
-            Profile(id: "werk", name: "Werkdag", pages: ["main", "work", "touch", "widgets", "plugins", "system"],
+            Profile(id: "werk", name: "Werkdag", pages: ["main", "buttons", "work", "home", "touch", "widgets", "plugins", "system"],
                     when: [TimeRule(days: [1, 2, 3, 4, 5], from: "08:00", to: "18:00")]),
-            Profile(id: "thuis", name: "Thuis", pages: ["main", "home", "touch", "widgets", "plugins", "system"], default: true),
+            Profile(id: "thuis", name: "Thuis", pages: ["main", "buttons", "home", "touch", "widgets", "plugins", "system"], default: true),
 
         ]
     )
@@ -485,6 +511,10 @@ extension Layout {
         if pages.isEmpty { out.append("Er moet minstens één pagina zijn") }
         var pageIDs = Set<String>(), tileIDs = Set<String>()
         for p in pages {
+            let columns = p.columns ?? self.columns, rows = p.rows ?? self.rows
+            if !(1...Self.maxColumns).contains(columns) || !(1...Self.maxRows).contains(rows) {
+                out.append("Raster van \(p.name) moet tussen 1×1 en \(Self.maxColumns)×\(Self.maxRows) liggen")
+            }
             if p.id.isEmpty || !pageIDs.insert(p.id).inserted { out.append("Pagina-id “\(p.id)” is leeg of dubbel") }
             if p.name.trimmingCharacters(in: .whitespaces).isEmpty { out.append("Pagina “\(p.id)” heeft geen naam") }
             var taken = Set<Int>()

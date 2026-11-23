@@ -127,6 +127,7 @@ final class Server {
             "version": l.version, "columns": l.columns, "rows": l.rows, "theme": l.theme,
             "pages": pages.map { p -> [String: Any] in
                 var pd: [String: Any] = ["id": p.id, "name": p.name, "tiles": p.tiles.map(Self.padTile)]
+                if let c = p.columns, let r = p.rows { pd["columns"] = c; pd["rows"] = r }
                 if p.apps?.isEmpty == false { pd["context"] = true }
                 return pd
             },
@@ -146,6 +147,7 @@ final class Server {
         if let v = t.w { d["w"] = v }
         if let v = t.h { d["h"] = v }
         if t.kind == "terminal", t.config?.dangerous == true { d["dangerous"] = true }
+        if t.kind == "agenda" { d["count"] = min(max(t.config?.count ?? 1, 1), 5) }
         if t.longPress != nil { d["hasLong"] = true }
         if t.doubleTap != nil { d["hasDouble"] = true }
         if let key = integrationStateKey(t) {

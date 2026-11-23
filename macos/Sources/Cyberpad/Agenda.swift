@@ -17,6 +17,8 @@ final class AgendaProvider {
     private var store = EKEventStore()
     private(set) var access: Access = .notDetermined
     private(set) var next: Item?
+    /// De eerstvolgende afspraken (max. 5, komende 7 dagen) voor een agendategel met een lijst.
+    private(set) var upcoming: [Item] = []
     private var lastRefresh = Date.distantPast
     var onChange: (() -> Void)?
 
@@ -82,26 +84,34 @@ final class AgendaProvider {
     func refresh(force: Bool = false) {
         guard force || Date().timeIntervalSince(lastRefresh) > 30 else { return }
         lastRefresh = Date()
-        if fake { access = .granted; if next != fakeItem { next = fakeItem; onChange?() }; return }
+        if fake {
+            access = .granted
+            let more = [fakeItem,
+                        Item(id: "fake2", title: "Lunch met het team", start: Date().addingTimeInterval(7200), end: Date().addingTimeInterval(10800)),
+                        Item(id: "fake3", title: "Demo Cyberpad", start: Date().addingTimeInterval(90000), end: Date().addingTimeInterval(93600),
+                             link: URL(string: "https://example.com/"), linkApp: "teams")]
+            if next != fakeItem || upcoming != more { next = fakeItem; upcoming = more; onChange?() }
+            return
+        }
         access = Self.currentAccess()
         guard access == .granted else {
-            if next != nil { next = nil; onChange?() }
+            if next != nil || !upcoming.isEmpty { next = nil; upcoming = []; onChange?() }
             return
         }
 
         let now = Date()
         let pred = store.predicateForEvents(withStart: now.addingTimeInterval(-6 * 3600),
-                                            end: now.addingTimeInterval(24 * 3600), calendars: nil)
+                                            end: now.addingTimeInterval(7 * 24 * 3600), calendars: nil)
         let events = store.events(matching: pred)
             .filter { !$0.isAllDay && $0.endDate > now && $0.status != .canceled && !Self.declinedByMe($0) }
             .sorted { $0.startDate < $1.startDate }
 
-        let item = events.first.map { e -> Item in
+        let items = events.prefix(5).map { e -> Item in
             let link = Self.meetingLink(e)
             return Item(id: e.eventIdentifier ?? UUID().uuidString, title: e.title ?? "(zonder titel)",
                         start: e.startDate, end: e.endDate, link: link?.url, linkApp: link?.app)
         }
-        if item != next { next = item; onChange?() }
+        if items.first != next || items != upcoming { next = items.first; upcoming = Array(items); onChange?() }
     }
 
     func json() -> [String: Any] {
@@ -114,6 +124,13 @@ final class AgendaProvider {
             "hasLink": n.link != nil,
         ]
         if let a = n.linkApp { d["app"] = a }
+        // Alleen titels en tijden; links blijven op de Mac.
+        d["items"] = upcoming.map { i -> [String: Any] in
+            var x: [String: Any] = ["title": i.title, "start": Int(i.start.timeIntervalSince1970 * 1000),
+                                    "end": Int(i.end.timeIntervalSince1970 * 1000), "hasLink": i.link != nil]
+            if let a = i.linkApp { x["app"] = a }
+            return x
+        }
         return d
     }
 

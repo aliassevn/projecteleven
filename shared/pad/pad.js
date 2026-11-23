@@ -409,8 +409,9 @@
     if (!(app.page >= 0 && app.page < L.pages.length)) { app.page = 0; }
     renderTabs();
     var page = L.pages[app.page];
-    var cols = L.columns || 5, rows = L.rows || 3;
-    var gap = window.innerWidth < 600 ? 8 : 14;
+    var cols = page.columns || L.columns || 5, rows = page.rows || L.rows || 3;
+    // Compacte pagina's (veel kolommen) krijgen kleinere tussenruimte.
+    var gap = window.innerWidth < 600 || cols >= 8 ? 8 : 14;
     var W = pad.clientWidth, H = pad.clientHeight;
     // Nog geen afmetingen (verborgen, net gedraaid of uit slaap): straks opnieuw.
     if (!W || !H) { clearTimeout(app.renderRetry); app.renderRetry = setTimeout(render, 300); return; }
@@ -425,6 +426,10 @@
       node.style.top = (t.y * (ch + gap)) + 'px';
       node.style.width = (w * cw + (w - 1) * gap) + 'px';
       node.style.height = (h * ch + (h - 1) * gap) + 'px';
+      // Kleine tegels (compacte pagina): kleinere letters en iconen.
+      var pw = w * cw + (w - 1) * gap, ph = h * ch + (h - 1) * gap;
+      if (pw < 130 || ph < 110) { node.className += ' tiny'; }
+      node.cpWidth = pw;
       node.setAttribute('data-id', t.id);
       node.appendChild(el('span', 'corner'));
       if (t.color) {
@@ -449,7 +454,9 @@
         node.cpTile = t;
         WIDGETS[t.kind].build(node, t);
       } else if (t.kind === 'agenda') {
-        node.appendChild(el('div', 'agenda-head', 'VOLGENDE'));
+        node.cpCount = t.count || 1;
+        if (node.cpCount > 1) { node.className += ' agenda-list'; }
+        node.appendChild(el('div', 'agenda-head', node.cpCount > 1 ? 'AGENDA' : 'VOLGENDE'));
         node.appendChild(el('div', 'agenda-title', '…'));
         node.appendChild(el('div', 'agenda-time', ''));
         node.appendChild(el('div', 'agenda-join', 'DEELNEMEN ›'));
@@ -572,8 +579,8 @@
       }
       join = a.hasLink === true;
     } else if (a.status === 'none') {
-      title = 'Geen afspraken meer';
-      time = 'VANDAAG EN MORGEN';
+      title = 'Geen afspraken';
+      time = 'DE KOMENDE 7 DAGEN';
     } else if (a.status === 'denied') {
       title = 'Geen toegang tot Agenda';
       time = 'STA TOEGANG TOE OP DE MAC';
@@ -583,10 +590,39 @@
     }
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
+      if (n.cpCount > 1 && a.status === 'ok' && a.items && a.items.length) { agendaList(n, a.items.slice(0, n.cpCount)); continue; }
+      var lst = n.querySelector('.agenda-items');
+      if (lst) { lst.parentNode.removeChild(lst); }
       n.querySelector('.agenda-title').textContent = title;
       n.querySelector('.agenda-time').textContent = time;
       n.querySelector('.agenda-join').style.display = join ? '' : 'none';
       n.className = n.className.replace(/\s*\b(soon|now|has-link)\b/g, '') + cls + (join ? ' has-link' : '');
+    }
+  }
+
+  // Agendategel met meerdere afspraken: eerste groot (met aftelling), de rest als regels eronder.
+  function agendaList(n, items) {
+    var now = new Date().getTime(), first = items[0], time, cls = '';
+    if (now < first.start) {
+      var mins = Math.ceil((first.start - now) / 60000);
+      time = dayLabel(first.start) + hm(first.start) + '–' + hm(first.end) + (mins < 24 * 60 ? ' · OVER ' + dur(mins).toUpperCase() : '');
+      if (mins <= 5) { cls = ' soon'; }
+    } else {
+      time = 'NU · NOG ' + dur(Math.max(1, Math.ceil((first.end - now) / 60000))).toUpperCase();
+      cls = ' now';
+    }
+    n.querySelector('.agenda-title').textContent = first.title;
+    n.querySelector('.agenda-time').textContent = time;
+    n.querySelector('.agenda-join').style.display = first.hasLink ? '' : 'none';
+    n.className = n.className.replace(/\s*\b(soon|now|has-link)\b/g, '') + cls + (first.hasLink ? ' has-link' : '');
+    var lst = n.querySelector('.agenda-items');
+    if (!lst) { lst = el('div', 'agenda-items'); n.insertBefore(lst, n.querySelector('.agenda-join')); }
+    lst.innerHTML = '';
+    for (var i = 1; i < items.length; i++) {
+      var row = el('div', 'agenda-row');
+      row.appendChild(el('span', 'agenda-row-time', dayLabel(items[i].start) + hm(items[i].start)));
+      row.appendChild(el('span', 'agenda-row-title', items[i].title));
+      lst.appendChild(row);
     }
   }
 
@@ -974,7 +1010,7 @@
         } else {
           bar.addEventListener('click', function (e) { seek(e.clientX); }, false);
         }
-        if ((t.w || 1) >= 3) {
+        if ((node.cpWidth || 0) >= 330) {
           var ctrl = el('div', 'np-ctrl');
           var mk = function (label, action) {
             var b = el('span', 'np-btn np-' + action, label);
@@ -1782,12 +1818,19 @@
     if (fsSupported() && !isStandalone()) {
       $('fs-toggle').className = 'fs-toggle';
       bindTap($('fs-toggle'), toggleFullscreen);
-      var fsChange = function () { setCls($('fs-toggle'), 'on', !!fsElement()); setTimeout(render, 200); };
+      var fsChange = function () {
+        var onNow = !!fsElement();
+        // Zelf afgesloten (✕ of knop): niet meer vanzelf terug, tot de pagina opnieuw geladen wordt.
+        if (!onNow && app.fsWasOn) { app.fsAutoDone = true; }
+        app.fsWasOn = onNow;
+        setCls($('fs-toggle'), 'on', onNow);
+        setTimeout(render, 200);
+      };
       document.addEventListener('fullscreenchange', fsChange, false);
       document.addEventListener('webkitfullscreenchange', fsChange, false);
       // "Altijd schermvullend": bij de eerste tik (een tik is vereist door de browser).
       document.addEventListener(hasTouch ? 'touchend' : 'click', function () {
-        if (app.settings.fullscreen && !fsElement()) { enterFullscreen(); }
+        if (app.settings.fullscreen && !fsElement() && !app.fsAutoDone) { app.fsAutoDone = true; enterFullscreen(); }
       }, true);
     }
     bindTap($('settings-close'), function () { $('settings').className = 'settings hidden'; });

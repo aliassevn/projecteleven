@@ -41,6 +41,9 @@ Menu › **Layout bewerken…** opent de editor in een eigen venster:
 - **Tegels:** tik op een leeg vak (+) om er een toe te voegen, sleep om te verplaatsen, sleep het roze hoekje om
   te vergroten. Rechts kies je label, icoon (emoji), soort, instellingen en wat tik, lang indrukken en dubbeltik
   doen. Macro's bouw je stap voor stap, met pauzes.
+- **Raster per pagina:** *Standaard* (bijv. 5×3), *Compact* (2× zoveel vakken: tegels half zo groot, zodat er
+  meer op een pagina past) of een eigen maat. Bij omschakelen schalen bestaande tegels mee. Kleine tegels krijgen op
+  de tablet vanzelf kleinere letters en iconen.
 - **Pagina's:** tabs bovenaan; *+ Pagina* voegt er een toe. Per pagina: naam, volgorde en de apps waarvoor hij
   een contextpagina is. Het raster (kolommen en rijen) geldt voor alle pagina's.
 - **Profielen:** welke pagina's per profiel, tijdregels en het standaardprofiel.
@@ -62,6 +65,7 @@ volledige layout met acties te zien.
 
 **Schermvullend op de iPad:** tik op **⛶** in de statusbalk, of zet ⚙ › *Altijd schermvullend* aan; dan gaat het
 vanzelf bij de eerste tik (Safari staat schermvullend alleen toe na een tik). Werkt op iPadOS 12 en nieuwer.
+Met ✕ (of ⛶) ga je eruit; daarna blijft Cyberpad uit schermvullend tot je de pagina opnieuw opent.
 Op een iPhone of een oudere iPad: Safari › Deel › *Zet op beginscherm*.
 
 ## Layout aanpassen (zonder editor)
@@ -288,7 +292,8 @@ knoppen; het roze label in de statusbalk haalt het paneel terug.
 
 ### Agenda
 
-Een tegel met `"kind": "agenda"` toont je volgende afspraak met aftelling. Staat er een Zoom-, Teams-, Meet-, Webex-,
+Een tegel met `"kind": "agenda"` toont je volgende afspraak met aftelling; met `"config": {"count": 3}` ook de
+afspraken daarna (max. 5, komende 7 dagen). Staat er een Zoom-, Teams-, Meet-, Webex-,
 FaceTime- of Whereby-link in de afspraak, dan opent **Deelnemen** die link. Cyberpad vraagt bij de eerste start om
 toegang tot Agenda als er een agendategel in je layout staat; anders via *Toestaan…* in het menu.
 Titels en tijden van afspraken gaan alleen naar gekoppelde tablets.

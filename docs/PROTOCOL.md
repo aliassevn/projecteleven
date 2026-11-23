@@ -111,6 +111,8 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 - Elke tablet krijgt zijn **eigen** layout: alleen de pagina's uit zijn profiel, in die volgorde.
   Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
 - `context: true`: pagina hoort bij een of meer apps (zie `state.context`).
+- `columns` / `rows` op een pagina: eigen raster voor die pagina (bijv. 10×6 compact); anders dat van de layout.
+- Een `agenda`-tegel heeft `count` (1–5): zoveel afspraken uit `state.agenda.items` tonen.
 - `kind`: `button`, `slider`, `clock`, `agenda`, `weather`, `nowplaying`, `timer`, `pomodoro`, `worldclock`,
   `photos`, `stats`, `terminal`, `ha`, `mqtt`, `plugin`, `touchpad`, `dial`.
 - `stateKey`: welke statuswaarde de knop laat oplichten (of de schuif vult):
@@ -130,7 +132,8 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
   "meeting": null | { "app": "zoom", "name": "Zoom", "muted": true, "video": false,
                       "statusSource": "menu" | "estimated", "since": 1763900000000, "actions": ["mute", …] },
   "agenda": { "status": "ok" | "none" | "noAccess" | "denied", "title": "…", "start": ms, "end": ms,
-              "hasLink": true, "app": "zoom" },
+              "hasLink": true, "app": "zoom",
+              "items": [{ "title": "…", "start": ms, "end": ms, "hasLink": false }] },
   "widgets": { "<tegel>": { … } },
   "ha": { "<entiteit>": { "status": "ok", "state": "on", "on": true, "name": "…", "level": 0.6, … } },
   "mqtt": { "<topic>": "<laatste bericht>" },

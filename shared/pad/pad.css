@@ -568,3 +568,17 @@ html:not(.fx-upper) .tile .label, html:not(.fx-upper) .tab { text-transform: non
 /* Eigen kleur per tegel: streep bovenaan + rand (oplichten bij "aan" gaat voor). */
 .tile .tile-color { position: absolute; left: 0; right: 0; top: 0; height: 3px; }
 .tile.active { border-color: {{accent2}} !important; }
+
+/* ---------- compacte pagina's en agendalijst (deel 1) ---------- */
+.tile.tiny .icon { font-size: 22px; margin-bottom: 4px; }
+.tile.tiny .icon-img { width: 28px; height: 28px; margin-bottom: 4px; }
+.tile.tiny .label { font-size: 9px; letter-spacing: 1px; padding: 0 3px; }
+.tile.tiny .gestures { font-size: 8px; }
+.tile.tiny .corner { border-width: 0 8px 8px 0; }
+.tile.tiny.kind-slider .slider-value { font-size: 16px; }
+.kind-agenda.agenda-list { -webkit-box-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start;
+  -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start; padding: 14px 16px; text-align: left; }
+.agenda-items { margin-top: 12px; width: 100%; border-top: 1px solid {{accent 0.2}}; padding-top: 8px; }
+.agenda-row { font-size: 12px; line-height: 1.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{text 0.8}}; }
+.agenda-row-time { display: inline-block; min-width: 52px; margin-right: 12px; color: {{accent 0.85}}; letter-spacing: 1px; }
+.agenda-list .agenda-join { margin-top: 10px; }

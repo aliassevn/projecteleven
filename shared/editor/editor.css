@@ -122,3 +122,8 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
   font-size: 30px; line-height: 44px; text-align: center; }
 .etile .ici { width: 34px; height: 34px; margin-bottom: 6px; background: center / contain no-repeat; }
 .etile .cstrip { position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+
+.grid.dense .etile .ic { font-size: 18px; margin-bottom: 3px; }
+.grid.dense .etile .ici { width: 24px; height: 24px; margin-bottom: 3px; }
+.grid.dense .etile .lb { font-size: 9px; letter-spacing: 1px; }
+.grid.dense .etile .kd { font-size: 8px; letter-spacing: 1px; }
