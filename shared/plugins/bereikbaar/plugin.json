@@ -1,0 +1,24 @@
+{
+  "id": "bereikbaar",
+  "name": "Bereikbaar?",
+  "version": "1.0.0",
+  "description": "Widget die meet of een server bereikbaar is (TCP-verbinding) en hoe snel.",
+  "author": "Project Eleven",
+  "icon": "📡",
+  "run": {
+    "macos": ["/usr/bin/python3", "plugin.py"],
+    "windows": ["py", "-3", "plugin.py"],
+    "default": ["python3", "plugin.py"]
+  },
+  "widgets": [
+    {
+      "id": "server",
+      "name": "Server",
+      "params": [
+        { "id": "host", "name": "Adres", "type": "string", "default": "1.1.1.1" },
+        { "id": "port", "name": "Poort", "type": "number", "default": 443 }
+      ],
+      "interval": 15
+    }
+  ]
+}

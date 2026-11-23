@@ -184,6 +184,11 @@ Network.framework (server, Bonjour), Security (Keychain).
 
 ---
 
+### Fase 16 — Windows 11-versie (3–4 weken)
+Zelfde tablet-pagina, protocol, layout-formaat en plugins (`shared/`, `docs/PROTOCOL.md`, `docs/PLUGINS.md`);
+een eigen programma voor Windows in C#/.NET 8 met Kestrel, `SendInput`, Core Audio en DNS-SD.
+Uitgewerkt in [windows/README.md](windows/README.md).
+
 ## 4. Prioriteiten
 
 | Prioriteit | Fases | Resultaat |
@@ -192,6 +197,7 @@ Network.framework (server, Bonjour), Security (Keychain).
 | **2 — Pro-gelijk** | 4, 6, 11, 12 | Vergelijkbaar met dustyPad Pro |
 | **3 — Onderscheidend** ⭐ | 5, 7, 6 (terminal) | Vergaderknop, smart home, terminal-widget |
 | **4 — Afwerking** | 8–10, 13–15 | Plugins, context, offline, diagnose, distributie |
+| **5 — Windows** | 16 | Zelfde tablet en plugins op Windows 11 |
 
 ## 5. Inschatting
 Ongeveer **8–10 weken** parttime voor de volledige versie met alle extra's.

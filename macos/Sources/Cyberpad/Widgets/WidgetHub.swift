@@ -10,6 +10,7 @@ final class WidgetHub {
     let terminal = TerminalService()
 
     weak var integrations: Integrations?
+    weak var plugins: PluginManager?
     private var tiles: [Tile] = []
     private var tickCount = 0
     /// Wordt aangeroepen als er iets nieuws is (weer binnen, terminaluitvoer…), zodat de server de status uitstuurt.
@@ -37,6 +38,7 @@ final class WidgetHub {
         tickCount += 1
         timers.tick(tiles)
         guard active else { return }
+        plugins?.pollWidgets()
         if tickCount % 2 == 0 {
             if has("stats") { stats.sample() }
             if let np = tiles.first(where: { $0.kind == "nowplaying" }) { nowPlaying.refresh(prefer: np.config?.player) }
@@ -60,6 +62,7 @@ final class WidgetHub {
             case "worldclock": out[t.id] = ["zones": Self.zones(t.config)]
             case "ha": out[t.id] = integrations?.ha.entityJSON(t.config?.entity) ?? [:]
             case "mqtt": out[t.id] = integrations?.mqttJSON(t.config) ?? [:]
+            case "plugin": out[t.id] = plugins?.widgetJSON(t) ?? [:]
             default: break
             }
         }
@@ -82,6 +85,11 @@ final class WidgetHub {
             case "up": try i.ha.stepClimate(e, by: 1)
             case "down": try i.ha.stepClimate(e, by: -1)
             default: throw ActionRunner.ActionError.failed("Onbekende actie")
+            }
+        case "plugin":
+            guard let pm = plugins else { throw ActionRunner.ActionError.failed("Plugins niet beschikbaar") }
+            do { try pm.widgetAction(tile, action: action, value: value) } catch let e as PluginError {
+                throw ActionRunner.ActionError.failed(e.localizedDescription)
             }
         case "weather":
             guard action == "refresh" else { throw ActionRunner.ActionError.failed("Onbekende actie") }

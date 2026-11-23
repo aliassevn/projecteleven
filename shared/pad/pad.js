@@ -1102,6 +1102,75 @@
         setText(node, 'ha-sub', d.status === 'stale' ? 'LAATST BEKEND' : (d.topic || '').toUpperCase());
         setCls(node, 'long', !isNum && d.value.length > 8);
       }
+    },
+
+    // Plugin-widget: de plugin levert alleen gegevens (titel, waarde, regels, knoppen); de tablet tekent ze zelf.
+    plugin: {
+      build: function (node, t) {
+        var head = el('div', 'pl-head');
+        head.appendChild(el('span', 'pl-icon', ''));
+        head.appendChild(el('span', 'pl-title', t.label));
+        node.appendChild(head);
+        var main = el('div', 'ha-main');
+        main.appendChild(el('span', 'ha-value', '…'));
+        main.appendChild(el('span', 'ha-unit', ''));
+        node.appendChild(main);
+        node.appendChild(el('div', 'ha-sub', ''));
+        var bar = el('div', 'pl-bar');
+        bar.appendChild(el('div', 'pl-fill'));
+        node.appendChild(bar);
+        node.appendChild(el('div', 'pl-lines'));
+        node.appendChild(el('div', 'pl-btns'));
+        node.cpButtons = '';
+      },
+      update: function (node, t, d) {
+        setCls(node, 'stale', d.status !== 'ok');
+        setCls(node, 'active', d.active === true);
+        setText(node, 'pl-icon', d.icon || '');
+        setText(node, 'pl-title', (d.title || t.label).toUpperCase());
+        if (d.status !== 'ok') {
+          setText(node, 'ha-value', d.status === 'waiting' ? '…' : '—');
+          setText(node, 'ha-unit', '');
+          setText(node, 'ha-sub', d.error || '');
+          q(node, 'pl-bar').style.display = 'none';
+          q(node, 'pl-lines').innerHTML = '';
+          q(node, 'pl-btns').innerHTML = ''; node.cpButtons = '';
+          return;
+        }
+        setText(node, 'ha-value', d.value !== undefined ? String(d.value) : '');
+        setText(node, 'ha-unit', d.unit || '');
+        setText(node, 'ha-sub', d.sub || '');
+        setCls(node, 'long', d.value !== undefined && String(d.value).length > 10);
+        var bar = q(node, 'pl-bar');
+        if (typeof d.progress === 'number') {
+          bar.style.display = 'block';
+          q(node, 'pl-fill').style.width = Math.round(d.progress * 100) + '%';
+        } else { bar.style.display = 'none'; }
+        var lines = q(node, 'pl-lines');
+        var ls = d.lines || [];
+        lines.innerHTML = '';
+        for (var i = 0; i < ls.length; i++) {
+          var row = el('div', 'st-row');
+          row.appendChild(el('span', 'st-key', ls[i].label));
+          row.appendChild(el('span', 'st-val', ls[i].value));
+          lines.appendChild(row);
+        }
+        // Knoppen alleen opnieuw opbouwen als ze veranderd zijn (anders gaat een lopende tik verloren).
+        var bs = d.buttons || [], sig = '';
+        for (var j = 0; j < bs.length; j++) { sig += bs[j].id + '=' + bs[j].label + ';'; }
+        if (sig !== node.cpButtons) {
+          node.cpButtons = sig;
+          var box = q(node, 'pl-btns');
+          box.innerHTML = '';
+          for (var k = 0; k < bs.length; k++) {
+            (function (b) {
+              var btn = el('div', 'pl-btn', b.label);
+              bindTap(btn, function () { flash(btn); sendWidget(t.id, b.id); });
+              box.appendChild(btn);
+            })(bs[k]);
+          }
+        }
+      }
     }
   };
 

@@ -14,6 +14,7 @@ final class Core: ObservableObject {
     let agenda = AgendaProvider()
     let widgets = WidgetHub()
     let integrations: Integrations
+    let plugins: PluginManager
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -38,6 +39,7 @@ final class Core: ObservableObject {
 
         pairing = PairingManager(dir: supportDir)
         integrations = Integrations(dir: supportDir)
+        plugins = PluginManager(supportDir: supportDir, builtInDir: Self.findResource("plugins", env: "CYBERPAD_PLUGINS_DIR"))
         layouts = LayoutStore(dir: supportDir)
         server = Server(pairing: pairing, layouts: layouts, actions: actions, padDir: Self.findResource("pad", env: "CYBERPAD_PAD_DIR"))
         meeting = MeetingMonitor(actions: actions)
@@ -54,6 +56,13 @@ final class Core: ObservableObject {
         integrations.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         integrations.onError = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
         integrations.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
+        actions.plugins = plugins
+        widgets.plugins = plugins
+        plugins.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
+        plugins.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
+        plugins.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
+        plugins.scan()
+        plugins.update(layouts.layout)
         widgets.update(layouts.layout)
         widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
@@ -69,6 +78,7 @@ final class Core: ObservableObject {
         layouts.onChange = { [weak self] l in
             self?.widgets.update(l)
             self?.integrations.update(l)
+            self?.plugins.update(l)
             self?.server.broadcastLayout()
             self?.layoutError = self?.layouts.lastError
         }
@@ -111,7 +121,7 @@ final class Core: ObservableObject {
             if meetingInfo != meeting.current { meetingInfo = meeting.current }
         }
         agenda.refresh()
-        if tickCount % 3 == 0 { integrations.reloadIfChanged() }
+        if tickCount % 3 == 0 { integrations.reloadIfChanged(); plugins.rescanIfChanged() }
         widgets.tick(active: server.hasActiveClients)
         let s = server.fullState() as NSDictionary
         if s != lastState {
@@ -141,6 +151,24 @@ final class Core: ObservableObject {
     func openLayoutFile() { NSWorkspace.shared.open(layouts.url) }
     func openSupportFolder() { NSWorkspace.shared.open(supportDir) }
     func openIntegrations() { IntegrationsWindow.shared.show() }
+    func openPluginFolder() { NSWorkspace.shared.open(plugins.userDir) }
+
+    /// Een plugin draait met jouw rechten; daarom eerst een duidelijke vraag.
+    func approvePlugin(_ id: String) {
+        guard let p = plugins.plugins[id] else { return }
+        let alert = NSAlert()
+        alert.messageText = "Plugin “\(p.manifest.name)” aanzetten?"
+        var info = "Een plugin is een programma dat met jouw rechten op deze Mac draait. Zet hem alleen aan als je de maker vertrouwt."
+        if let a = p.manifest.author { info += "\n\nMaker: \(a)" }
+        info += "\nMap: \(p.dir.path)\nOpdracht: \((p.manifest.command ?? []).joined(separator: " "))"
+        info += "\n\nVerandert er later iets aan de bestanden, dan staat de plugin weer uit tot je hem opnieuw toestaat."
+        alert.informativeText = info
+        alert.addButton(withTitle: "Aanzetten")
+        alert.addButton(withTitle: "Annuleer")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        plugins.approve(id)
+    }
 
     /// Standaard-layout terugzetten; de oude wordt eerst als back-up bewaard.
     func resetLayout() {
@@ -160,8 +188,8 @@ final class Core: ObservableObject {
         }
     }
 
-    /// Volgorde: omgevingsvariabele (ontwikkelen) → in de app-bundel → ./<naam>
-    private static func findResource(_ name: String, env: String) -> URL {
+    /// Volgorde: omgevingsvariabele (ontwikkelen) → in de app-bundel → shared/<naam> in de repo
+    static func findResource(_ name: String, env: String) -> URL {
         let fm = FileManager.default
         if let dir = ProcessInfo.processInfo.environment[env] {
             return URL(fileURLWithPath: dir, isDirectory: true)
@@ -170,6 +198,9 @@ final class Core: ObservableObject {
            fm.fileExists(atPath: res.path) {
             return res
         }
-        return URL(fileURLWithPath: fm.currentDirectoryPath).appendingPathComponent(name, isDirectory: true)
+        // Ontwikkelen vanuit de repo: shared/<naam> (vanuit de hoofdmap of vanuit macos/).
+        let cwd = URL(fileURLWithPath: fm.currentDirectoryPath)
+        let candidates = [cwd.appendingPathComponent("shared/\(name)"), cwd.appendingPathComponent("../shared/\(name)")]
+        return (candidates.first { fm.fileExists(atPath: $0.path) } ?? cwd.appendingPathComponent(name)).standardizedFileURL
     }
 }

@@ -5,7 +5,12 @@ import CoreImage.CIFilterBuiltins
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // geen Dock-icoon, ook niet bij `swift run`
+        signal(SIGPIPE, SIG_IGN) // een gestopte plugin mag Cyberpad niet laten crashen
         Core.shared.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        Core.shared.plugins.stopAll()
     }
 }
 
@@ -36,6 +41,7 @@ struct MenuView: View {
             devicesSection
             Divider()
             statusSection
+            if !core.plugins.plugins.isEmpty || !core.plugins.problems.isEmpty { Divider(); pluginsSection }
             if !core.hasAccessibility || core.layoutError != nil { Divider(); warnings }
             Divider()
             footer
@@ -155,6 +161,43 @@ struct MenuView: View {
         }
     }
 
+    private var pluginsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Plugins").font(.caption).foregroundStyle(.secondary)
+            ForEach(core.plugins.sorted, id: \.manifest.id) { p in
+                HStack(spacing: 6) {
+                    Text(p.manifest.icon ?? "🧩")
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(p.manifest.name + (p.manifest.version.map { " \($0)" } ?? ""))
+                        Text(p.status.text).font(.caption2)
+                            .foregroundStyle(statusColor(p.status))
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                    if core.plugins.isApproved(p.manifest.id) && p.status != .changed {
+                        Button("Uitzetten") { core.plugins.revoke(p.manifest.id) }.controlSize(.small)
+                    } else {
+                        Button(p.status == .changed ? "Opnieuw toestaan…" : "Aanzetten…") { core.approvePlugin(p.manifest.id) }
+                            .controlSize(.small)
+                    }
+                }
+                .font(.callout)
+            }
+            ForEach(core.plugins.problems, id: \.self) { e in
+                Text(e).font(.caption2).foregroundStyle(.orange)
+            }
+        }
+    }
+
+    private func statusColor(_ s: PluginManager.Status) -> Color {
+        switch s {
+        case .running: return .green
+        case .changed: return .orange
+        case .failed: return .red
+        default: return .secondary
+        }
+    }
+
     private var warnings: some View {
         VStack(alignment: .leading, spacing: 6) {
             if !core.hasAccessibility {
@@ -171,6 +214,7 @@ struct MenuView: View {
                 Button("Layout bewerken") { core.openLayoutFile() }
                 Button("Koppelingen…") { core.openIntegrations() }
                 Button("Map") { core.openSupportFolder() }
+                Button("Plugins") { core.openPluginFolder() }
                 Spacer()
                 Button("Stop") { NSApp.terminate(nil) }
             }

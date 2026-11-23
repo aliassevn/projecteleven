@@ -63,17 +63,23 @@ struct ActionSpec: Codable, Equatable {
     var topic: String?
     var payload: String?
     var retain: Bool?
+    // Plugin: {"type": "plugin", "plugin": "hallo", "action": "greet", "params": {...}}
+    var plugin: String?
+    var action: String?
+    var params: [String: JSONValue]?
 
     init(type: String, app: String? = nil, url: String? = nil, keys: String? = nil, text: String? = nil,
          shortcut: String? = nil, preset: String? = nil, steps: [ActionSpec]? = nil, ms: Int? = nil,
          entity: String? = nil, service: String? = nil, data: [String: JSONValue]? = nil,
          webhook: String? = nil, method: String? = nil, headers: [String: String]? = nil, body: String? = nil,
-         topic: String? = nil, payload: String? = nil, retain: Bool? = nil) {
+         topic: String? = nil, payload: String? = nil, retain: Bool? = nil,
+         plugin: String? = nil, action: String? = nil, params: [String: JSONValue]? = nil) {
         self.type = type; self.app = app; self.url = url; self.keys = keys; self.text = text
         self.shortcut = shortcut; self.preset = preset; self.steps = steps; self.ms = ms
         self.entity = entity; self.service = service; self.data = data
         self.webhook = webhook; self.method = method; self.headers = headers; self.body = body
         self.topic = topic; self.payload = payload; self.retain = retain
+        self.plugin = plugin; self.action = action; self.params = params
     }
 }
 
@@ -108,15 +114,21 @@ struct WidgetConfig: Codable, Equatable {
     var unit: String?
     /// mqtt: veld uit een JSON-bericht, bijv. "temperature" of "sensor.temp"
     var field: String?
+    // plugin-widget: welke plugin en welke widget daarvan, met instellingen
+    var plugin: String?
+    var widget: String?
+    var params: [String: JSONValue]?
 
     init(city: String? = nil, lat: Double? = nil, lon: Double? = nil, seconds: Int? = nil, work: Int? = nil,
          rest: Int? = nil, zones: [String]? = nil, folder: String? = nil, command: String? = nil, cwd: String? = nil,
          dangerous: Bool? = nil, timeout: Int? = nil, show: [String]? = nil, player: String? = nil,
-         entity: String? = nil, topic: String? = nil, unit: String? = nil, field: String? = nil) {
+         entity: String? = nil, topic: String? = nil, unit: String? = nil, field: String? = nil,
+         plugin: String? = nil, widget: String? = nil, params: [String: JSONValue]? = nil) {
         self.city = city; self.lat = lat; self.lon = lon; self.seconds = seconds; self.work = work; self.rest = rest
         self.zones = zones; self.folder = folder; self.command = command; self.cwd = cwd; self.dangerous = dangerous
         self.timeout = timeout; self.show = show; self.player = player
         self.entity = entity; self.topic = topic; self.unit = unit; self.field = field
+        self.plugin = plugin; self.widget = widget; self.params = params
     }
 }
 
@@ -153,7 +165,7 @@ struct Tile: Codable, Equatable {
 
     var isButton: Bool { kind == nil || kind == "button" }
 
-    static let widgetKinds: Set<String> = ["weather", "nowplaying", "timer", "pomodoro", "worldclock", "photos", "stats", "terminal", "ha", "mqtt"]
+    static let widgetKinds: Set<String> = ["weather", "nowplaying", "timer", "pomodoro", "worldclock", "photos", "stats", "terminal", "ha", "mqtt", "plugin"]
     var isWidget: Bool { Self.widgetKinds.contains(kind ?? "") }
 }
 
@@ -260,6 +272,19 @@ struct Layout: Codable, Equatable {
                      action: .init(type: "ha.toggle", entity: "switch.koffiezetapparaat"), x: 0, y: 2),
                 Tile(id: "hook-n8n", label: "n8n-flow", icon: "🪝",
                      action: .init(type: "webhook.call", webhook: "n8n"), x: 1, y: 2),
+            ]),
+            // Voorbeeldplugins uit shared/plugins; ze werken pas na Aanzetten in de menubalk.
+            Page(id: "plugins", name: "Plugins", tiles: [
+                Tile(id: "pl-hallo", label: "Zeg hallo", icon: "👋",
+                     action: .init(type: "plugin", plugin: "hallo", action: "groet", params: ["naam": .string("Cyberpad")]), x: 0, y: 0),
+                Tile(id: "pl-teller", label: "Teller", kind: "plugin",
+                     config: .init(plugin: "hallo", widget: "teller"), x: 1, y: 0, w: 2),
+                Tile(id: "pl-cloudflare", label: "Cloudflare", kind: "plugin",
+                     config: .init(plugin: "bereikbaar", widget: "server", params: ["host": .string("1.1.1.1"), "port": .number(443)]),
+                     x: 3, y: 0, w: 2),
+                Tile(id: "pl-router", label: "Router", kind: "plugin",
+                     config: .init(plugin: "bereikbaar", widget: "server", params: ["host": .string("192.168.1.1"), "port": .number(80)]),
+                     x: 0, y: 1, w: 2),
             ]),
             Page(id: "system", name: "Systeem", tiles: [
                 Tile(id: "lock", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 0),

@@ -1,16 +1,19 @@
 # Cyberpad (prototype)
 
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
-Dit is het prototype met fase 0–7 van [STAPPENPLAN.md](STAPPENPLAN.md).
+Dit is het prototype met fase 0–8 van [STAPPENPLAN.md](STAPPENPLAN.md).
+
+Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
+Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
 
 ## Bouwen en starten
 
 ```bash
-scripts/build.sh
+macos/scripts/build.sh
 ```
 
 ```bash
-open build/Cyberpad.app
+open macos/build/Cyberpad.app
 ```
 
 Er verschijnt een rasterpictogram in de menubalk. Klik erop voor het adres, de QR-code en de koppelcode.
@@ -57,6 +60,7 @@ Beschikbare acties (`action.type`):
 | `ha.level` + `"entity"` | voor een `slider`: helderheid, rolluik, volume, ventilator of getal |
 | `webhook.call` + `"webhook"` of `"url"` | HTTP-verzoek (`method`, `headers`, `body`) |
 | `mqtt.publish` + `"topic"` (+ `"payload"`, `"retain"`) | MQTT-bericht versturen |
+| `plugin` + `"plugin"`, `"action"` (+ `"params"`) | actie van een plugin |
 
 Toetsnamen: `cmd`, `shift`, `alt`/`option`, `ctrl`, `fn` + een letter, cijfer, leesteken of
 `return`, `tab`, `space`, `delete`, `esc`, `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`, `f1`–`f20`.
@@ -168,6 +172,22 @@ of time-out na 10 s), dan verschijnt er een melding op de tablet en springt een 
 Bij wegvallen van Home Assistant of de broker probeert Cyberpad steeds opnieuw (2 s tot 1 min). De tegels worden
 grijs met de reden erbij. Een geweigerd token of wachtwoord wordt niet opnieuw geprobeerd tot je het aanpast.
 
+### Plugins
+
+Plugins voegen acties en widgets toe zonder dat Cyberpad zelf verandert; zie [docs/PLUGINS.md](docs/PLUGINS.md).
+Ze staan in `~/Library/Application Support/Cyberpad/Plugins/` (knop **Plugins** in het menu opent die map).
+Twee voorbeelden worden meegeleverd: *Hallo wereld* en *Bereikbaar?*; de pagina *Plugins* in de standaard-layout
+gebruikt ze.
+
+- Elke plugin staat eerst **uit**. Je zet hem aan in de menubalk › Plugins › *Aanzetten…*.
+- Verandert er iets aan de bestanden van een plugin, dan staat hij weer uit tot je hem opnieuw toestaat.
+- Een plugin is een apart programma: crasht hij, dan blijft Cyberpad gewoon draaien.
+
+```json
+{ "id": "hoi", "label": "Zeg hallo", "x": 0, "y": 0,
+  "action": { "type": "plugin", "plugin": "hallo", "action": "groet", "params": { "naam": "Sven" } } }
+```
+
 ### Vergaderingen
 
 Zodra je in een vergadering zit, verschijnt op de tablet vanzelf een **vergaderpaneel** met microfoon, camera,
@@ -203,29 +223,41 @@ Menu › **Standaard-layout terugzetten…** zet de voorbeeldlayout terug; je hu
 ## Opbouw
 
 ```
-Sources/Cyberpad/
-  CyberpadApp.swift   menubalk-venster
-  Core.swift          koppelt alles aan elkaar
-  Server.swift        HTTP + WebSocket op poort 7420 (+ XHR-terugval)
-  WebSocket.swift     frames (RFC 6455)
-  Pairing.swift       koppelcodes, tokens, rate-limit
-  Layout.swift        layout-model en bestand
-  Actions.swift       alle acties, macro's, aan/uit-knoppen
-  Keys.swift          toetscombinaties en tekst typen
-  MeetingMonitor.swift vergaderingen herkennen en bedienen
-  Agenda.swift        volgende afspraak en vergaderlink
-  Widgets/            weer, nu speelt, timers, systeemstats, foto's, terminal
-  Integrations/       Home Assistant (WebSocket), MQTT 3.1.1, webhooks, sleutelhanger, venster Koppelingen
-  Catalog.swift       shortcut-bibliotheek
-  Audio.swift         CoreAudio
-  HostAlias.swift     cyberpad.local via mDNS
-  NetUtil.swift       IP-adressen, lokaal-netwerkcontrole
-pad/                  tablet-pagina (ES5, werkt vanaf iOS 9)
-catalog/              shortcuts.json (sneltoetsen per app)
+macos/                    Mac-versie (Swift)
+  Package.swift
+  Resources/Info.plist
+  scripts/build.sh        bouwt macos/build/Cyberpad.app
+  Sources/Cyberpad/
+    CyberpadApp.swift     menubalk-venster
+    Core.swift            koppelt alles aan elkaar
+    Server.swift          HTTP + WebSocket op poort 7420 (+ XHR-terugval)
+    WebSocket.swift       frames (RFC 6455)
+    Pairing.swift         koppelcodes, tokens, rate-limit
+    Layout.swift          layout-model en bestand
+    Actions.swift         alle acties, macro's, aan/uit-knoppen
+    Keys.swift            toetscombinaties en tekst typen
+    MeetingMonitor.swift  vergaderingen herkennen en bedienen
+    Agenda.swift          volgende afspraak en vergaderlink
+    Widgets/              weer, nu speelt, timers, systeemstats, foto's, terminal
+    Integrations/         Home Assistant, MQTT, webhooks, sleutelhanger, venster Koppelingen
+    Plugins/              plugins zoeken, toestaan, starten en berichten
+    Catalog.swift         shortcut-bibliotheek
+    Audio.swift           CoreAudio
+    HostAlias.swift       cyberpad.local via mDNS
+    NetUtil.swift         IP-adressen, lokaal-netwerkcontrole
+shared/                   gedeeld door macOS en Windows
+  pad/                    tablet-pagina (ES5, werkt vanaf iOS 9)
+  catalog/                shortcuts.json (sneltoetsen per app)
+  plugins/                meegeleverde voorbeeldplugins
+docs/
+  PROTOCOL.md             tablet ↔ computer: routes, berichten, status
+  PLUGINS.md              plugins schrijven
+windows/                  Windows 11-versie (gepland)
 ```
 
-Ontwikkelen zonder opnieuw te bouwen: `CYBERPAD_PAD_DIR=$PWD/pad build/Cyberpad.app/Contents/MacOS/Cyberpad`
-laadt de tablet-pagina direct uit `pad/`. `CYBERPAD_DEBUG=1` schrijft de koppelcode naar de console.
+Ontwikkelen zonder opnieuw te bouwen:
+`CYBERPAD_PAD_DIR=$PWD/shared/pad macos/build/Cyberpad.app/Contents/MacOS/Cyberpad` laadt de tablet-pagina direct
+uit `shared/pad/` (`CYBERPAD_PLUGINS_DIR` doet hetzelfde voor de meegeleverde plugins). `CYBERPAD_DEBUG=1` schrijft de koppelcode naar de console.
 
 Koppelingen testen zonder sleutelhanger (alleen samen met `CYBERPAD_DEBUG=1`):
 `CYBERPAD_INTEGRATIONS=/pad/naar/test.json` gebruikt een ander instellingenbestand, en

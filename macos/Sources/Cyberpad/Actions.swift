@@ -8,6 +8,11 @@ final class ActionRunner {
     var catalog = ShortcutCatalog.empty
     /// Home Assistant, MQTT en webhooks (fase 7).
     weak var integrations: Integrations?
+    /// Plugins (fase 8).
+    weak var plugins: PluginManager?
+    /// De tegel en het gebaar van de lopende druk (voor plugins).
+    private var currentTile: Tile?
+    private var currentGesture = "tap"
     /// Fouten die pas later optreden (macro-stappen, Opdrachten) — Core stuurt ze als melding naar de tablets.
     var onAsyncError: ((String) -> Void)?
     /// Stand van aan/uit-knoppen per tegel-id.
@@ -64,6 +69,9 @@ final class ActionRunner {
 
     /// Een tegel indrukken. Bij een aan/uit-knop wisselt de stand en wordt bij "uit" `offAction` gebruikt.
     func press(_ tile: Tile, gesture: String) throws {
+        currentTile = tile
+        currentGesture = gesture
+        defer { currentTile = nil; currentGesture = "tap" }
         let action: ActionSpec?
         switch gesture {
         case "long": action = tile.longPress
@@ -163,6 +171,15 @@ final class ActionRunner {
             guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
             guard let topic = a.topic else { throw ActionError.missing("topic") }
             try i.mqtt.publish(topic: topic, payload: a.payload ?? "", retain: a.retain ?? false)
+
+        // Plugins
+        case "plugin":
+            guard let pm = plugins else { throw ActionError.failed("Plugins niet beschikbaar") }
+            do {
+                try pm.invoke(a, tile: currentTile, gesture: currentGesture, onFail: onLateFailure)
+            } catch let e as PluginError {
+                throw ActionError.failed(e.localizedDescription)
+            }
 
         default: throw ActionError.unknown(a.type)
         }

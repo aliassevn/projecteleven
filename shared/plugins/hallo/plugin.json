@@ -1,0 +1,30 @@
+{
+  "id": "hallo",
+  "name": "Hallo wereld",
+  "version": "1.0.0",
+  "description": "Voorbeeldplugin: een actie die een melding geeft en een teller-widget met knoppen.",
+  "author": "Project Eleven",
+  "icon": "👋",
+  "run": {
+    "macos": ["/usr/bin/python3", "plugin.py"],
+    "windows": ["py", "-3", "plugin.py"],
+    "default": ["python3", "plugin.py"]
+  },
+  "actions": [
+    {
+      "id": "groet",
+      "name": "Groet",
+      "description": "Toont een melding op de tablet.",
+      "params": [{ "id": "naam", "name": "Naam", "type": "string", "default": "wereld" }]
+    }
+  ],
+  "widgets": [
+    {
+      "id": "teller",
+      "name": "Teller",
+      "description": "Telt op met +1; onthoudt de stand in de datamap van de plugin.",
+      "params": [{ "id": "stap", "name": "Stapgrootte", "type": "number", "default": 1 }],
+      "interval": 30
+    }
+  ]
+}
