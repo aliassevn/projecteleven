@@ -346,17 +346,16 @@ final class Server {
 
     private func handleEditor(_ req: HTTPRequest, on c: Connection) {
         guard let editor else { c.respond(404, text: "Not found"); return }
-        // Tablet vraagt toestemming (gewoon apparaat-token).
+        // Oude editor-pagina's vroegen eerst toestemming; elke gekoppelde tablet mag nu meteen.
         if req.path == "/api/editor/request" || req.path == "/api/editor/status" {
-            guard let device = pairing.authenticate(token: req.headers["x-cyberpad-token"]) else {
+            guard pairing.authenticate(token: req.headers["x-cyberpad-token"]) != nil else {
                 c.respond(401, json: ["error": "unauthorized"]); return
             }
-            let st = req.method == "POST" && req.path == "/api/editor/request" ? editor.request(device) : editor.status(device.id)
-            c.respond(200, json: ["status": st])
+            c.respond(200, json: ["status": "granted"])
             return
         }
         guard editor.authorize(req, loopback: c.isLoopback) != nil else {
-            c.respond(403, json: ["error": "Geen toestemming om te bewerken"]); return
+            c.respond(403, json: ["error": "Niet gekoppeld of editor verlopen"]); return
         }
         switch (req.method, req.path) {
         case ("GET", "/api/editor/layout"):

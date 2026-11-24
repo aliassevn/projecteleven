@@ -69,9 +69,9 @@ Menu › **Layout bewerken…** opent de editor in een eigen venster:
 - **Iconen en kleur per tegel:** emoji, het icoon van een app op je Mac, of een eigen afbeelding (PNG/JPEG/HEIC,
   max. 700 KB). Een tegel kan ook een eigen kleur krijgen (streep bovenaan en rand).
 
-**Op de tablet:** ⚙ › *Layout bewerken*. De Mac vraagt dan in een venstertje of die tablet mag bewerken;
-na *Toestaan* kan dat 30 minuten (langer zolang je bezig bent). Zonder toestemming krijgt een tablet nooit de
-volledige layout met acties te zien.
+**Op de tablet:** ⚙ › *Layout bewerken*. Elke gekoppelde tablet kan meteen bewerken, zonder extra toestemming
+op de Mac. Een tablet die niet gekoppeld is (of die je hebt ingetrokken) krijgt de volledige layout met acties
+nooit te zien.
 
 **Schermvullend op de iPad:** tik op **⛶** in de statusbalk, of zet ⚙ › *Altijd schermvullend* aan; dan gaat het
 vanzelf bij de eerste tik (Safari staat schermvullend alleen toe na een tik). Werkt op iPadOS 12 en nieuwer.

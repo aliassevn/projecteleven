@@ -1,4 +1,4 @@
-/* Cyberpad layout-editor. Draait op de Mac (eigen venster) en op de tablet (na toestemming op de Mac).
+/* Cyberpad layout-editor. Draait op de Mac (eigen venster) en op elke gekoppelde tablet.
  * Bewust ES5, net als de tablet-pagina. Werkt op een kopie van de layout; pas bij Opslaan gaat hij naar de Mac,
  * die controleert, een back-up maakt en alle tablets direct bijwerkt. */
 (function () {
@@ -1635,7 +1635,7 @@
       } else if (st === 409) {
         message('De layout is intussen elders gewijzigd (bijv. in een ander venster of in layout.json).\nExporteer je werk eventueel eerst, en laad dan opnieuw.', true, true);
       } else if (st === 403) {
-        message('Geen toestemming meer om te bewerken. Vraag het opnieuw aan via de knoppenpagina.', true, true);
+        message('Niet opgeslagen: deze tablet is niet meer gekoppeld. Exporteer je werk eventueel en koppel opnieuw.', true, true);
       } else {
         E.problems = (res && res.errors) || ['Opslaan mislukt (' + st + ')'];
         updateButtons();
@@ -1715,29 +1715,14 @@
     });
   }
 
-  var pollTimer = null;
   function gate(reason) {
     $('gate').className = 'gate';
-    var txt = $('gate-text'), btn = $('gate-btn');
-    btn.className = 'btn primary hidden';
+    var txt = $('gate-text');
+    $('gate-btn').className = 'btn primary hidden';
     if (reason !== 'permission') { txt.textContent = reason; return; }
-    if (E.auth.mode === 'mac') { txt.textContent = 'Deze editor is verlopen. Sluit het venster en open hem opnieuw via de menubalk.'; return; }
-    txt.textContent = 'Om vanaf deze tablet de layout te bewerken, moet je dat eerst op de Mac goedkeuren.';
-    btn.className = 'btn primary';
-    tap(btn, function () {
-      btn.className = 'btn primary hidden';
-      req('POST', '/api/editor/request', {}, function (st, d) {
-        if (st === 401) { txt.textContent = 'Deze tablet is niet (meer) gekoppeld. Ga terug en koppel opnieuw.'; return; }
-        txt.textContent = 'Kijk op je Mac: klik daar op Toestaan. Deze pagina gaat vanzelf verder.';
-        clearInterval(pollTimer);
-        pollTimer = setInterval(function () {
-          req('GET', '/api/editor/status', null, function (st2, d2) {
-            if (d2 && d2.status === 'granted') { clearInterval(pollTimer); txt.textContent = 'Toegestaan. Laden…'; loadAll(); }
-            else if (d2 && d2.status === 'denied') { clearInterval(pollTimer); txt.textContent = 'Geweigerd op de Mac.'; btn.className = 'btn primary'; }
-          });
-        }, 1500);
-      });
-    });
+    txt.textContent = E.auth.mode === 'mac'
+      ? 'Deze editor is verlopen. Sluit het venster en open hem opnieuw via de menubalk.'
+      : 'Deze tablet is niet (meer) gekoppeld. Ga terug naar de knoppen en koppel opnieuw.';
   }
 
   function init() {

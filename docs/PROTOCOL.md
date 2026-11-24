@@ -74,7 +74,7 @@ tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzel
 | Toegang | Hoe |
 |---|---|
 | Op de computer zelf | header `X-Cyberpad-Editor: <token>`; het token staat alleen in het editorvenster (via `#mac=` in de URL) en werkt alleen vanaf 127.0.0.1 / ::1 |
-| Vanaf een tablet | `POST /api/editor/request` (apparaat-token) → op de computer verschijnt *Toestaan / Weigeren*; `GET /api/editor/status` → `granted`, `pending` of `denied`; toestemming geldt 30 min, verlengd bij gebruik |
+| Vanaf een tablet | gewoon het apparaat-token (`X-Cyberpad-Token`): elke gekoppelde tablet mag bewerken. `POST /api/editor/request` en `GET /api/editor/status` bestaan nog voor oudere editor-pagina's en antwoorden altijd `granted` |
 
 | Route (met editor-toegang) | Doet |
 |---|---|

@@ -17,7 +17,6 @@ final class Core: ObservableObject {
     let plugins: PluginManager
     let context: ContextEngine
     let editor = EditorService()
-    private let approvals = EditorApprovalPanel()
     private let alias = HostAlias()
 
     @Published private(set) var ips: [String] = []
@@ -79,10 +78,6 @@ final class Core: ObservableObject {
         server.editorDir = Self.findResource("editor", env: "CYBERPAD_EDITOR_DIR")
         server.themes = ThemeStore(dir: Self.findResource("themes", env: "CYBERPAD_THEMES_DIR"), padDir: server.padDir)
         server.icons = IconService(supportDir: supportDir)
-        editor.onRequest = { [weak self] device in
-            guard let self else { return }
-            self.approvals.show(device, approve: { self.editor.approve(device.id) }, deny: { self.editor.deny(device.id) })
-        }
         widgets.update(layouts.layout)
         widgets.onChange = { [weak self] in self?.server.scheduleStateBroadcast() }
         widgets.onToast = { [weak self] msg in self?.server.broadcast(["type": "toast", "text": msg]) }
@@ -95,7 +90,6 @@ final class Core: ObservableObject {
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onRevoke = { [weak self] id in
-            self?.editor.revokeAll(for: id)
             self?.server.disconnect(deviceID: id)
         }
         layouts.onChange = { [weak self] l in
