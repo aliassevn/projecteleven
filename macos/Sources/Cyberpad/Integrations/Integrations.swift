@@ -107,7 +107,7 @@ final class Integrations: ObservableObject {
                 cfg = try JSONDecoder().decode(IntegrationConfig.self, from: Data(contentsOf: url))
                 configError = nil
             } catch {
-                configError = "integrations.json kon niet worden gelezen: \(error.localizedDescription)"
+                configError = L("integrations.json kon niet worden gelezen: {0}", error.localizedDescription)
                 NSLog("Cyberpad: %@", configError!)
                 return
             }
@@ -141,7 +141,7 @@ final class Integrations: ObservableObject {
     func save(_ cfg: IntegrationConfig, secrets: [String: String], clear: Set<String>) -> String? {
         for account in clear { Keychain.set(account, nil) }
         for (account, value) in secrets where !value.isEmpty {
-            guard Keychain.set(account, value) else { return "Kon \(account) niet in de sleutelhanger bewaren" }
+            guard Keychain.set(account, value) else { return L("Kon {0} niet in de sleutelhanger bewaren", account) }
         }
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -149,7 +149,7 @@ final class Integrations: ObservableObject {
             try enc.encode(cfg).write(to: url, options: .atomic)
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         } catch {
-            return "Kon integrations.json niet opslaan: \(error.localizedDescription)"
+            return L("Kon integrations.json niet opslaan: {0}", error.localizedDescription)
         }
         // Geheimen kunnen veranderd zijn terwijl het bestand gelijk bleef: altijd opnieuw verbinden.
         ha.configure(url: nil, token: nil)
@@ -172,7 +172,7 @@ final class Integrations: ObservableObject {
 
     /// Waarde voor een mqtt-widget, eventueel één veld uit een JSON-bericht.
     func mqttJSON(_ cfg: WidgetConfig?) -> [String: Any] {
-        guard let topic = cfg?.topic else { return ["status": "error", "error": "Geen topic ingesteld"] }
+        guard let topic = cfg?.topic else { return ["status": "error", "error": L("Geen topic ingesteld")] }
         var d: [String: Any] = ["topic": topic]
         if let u = cfg?.unit { d["unit"] = u }
         guard mqtt.status == .connected || mqtt.values[topic] != nil else {
@@ -183,7 +183,7 @@ final class Integrations: ObservableObject {
         guard let raw = mqtt.values[topic] else { d["status"] = "waiting"; return d }
         var value = raw
         if let field = cfg?.field {
-            guard let v = Self.extract(field, from: raw) else { d["status"] = "error"; d["error"] = "Veld \(field) niet gevonden"; return d }
+            guard let v = Self.extract(field, from: raw) else { d["status"] = "error"; d["error"] = L("Veld {0} niet gevonden", field); return d }
             value = v
         }
         d["status"] = mqtt.status == .connected ? "ok" : "stale"
@@ -227,9 +227,9 @@ enum LinkStatus: Equatable {
 
     var text: String {
         switch self {
-        case .off: return "Niet ingesteld (menubalk › Koppelingen…)"
-        case .connecting: return "Verbinden…"
-        case .connected: return "Verbonden"
+        case .off: return L("Niet ingesteld (menubalk › Koppelingen…)")
+        case .connecting: return L("Verbinden…")
+        case .connected: return L("Verbonden")
         case .error(let m): return m
         }
     }

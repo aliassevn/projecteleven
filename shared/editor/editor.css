@@ -150,6 +150,8 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
 .more-item { display: block; padding: 12px 14px; color: #c8fff6; text-decoration: none; cursor: pointer; font-size: 12px;
   letter-spacing: 1px; border-bottom: 1px solid rgba(0,255,224,0.12); white-space: nowrap; }
 .more-item:hover, .more-item:active { background: rgba(0,255,224,0.1); }
+.more-lang { display: block; border-top: 1px solid rgba(0,255,224,0.3); }
+.more-item.on { color: #00ffe0; font-weight: bold; }
 @media (max-width: 1200px) {
   .brand { letter-spacing: 1px; margin-right: 8px; }
   .brand .dim { display: none; }

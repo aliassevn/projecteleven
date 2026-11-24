@@ -71,8 +71,8 @@ final class MQTTClient {
             guard let self, gen == self.generation else { return }
             switch st {
             case .ready: self.sendConnect()
-            case .failed(let e): self.failed("Geen verbinding met MQTT-broker: \(e.localizedDescription)")
-            case .waiting(let e): self.failed("MQTT-broker niet bereikbaar: \(e.localizedDescription)")
+            case .failed(let e): self.failed(L("Geen verbinding met MQTT-broker: {0}", e.localizedDescription))
+            case .waiting(let e): self.failed(L("MQTT-broker niet bereikbaar: {0}", e.localizedDescription))
             default: break
             }
         }
@@ -80,7 +80,7 @@ final class MQTTClient {
         receive(gen)
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             guard let self, gen == self.generation, self.status == .connecting else { return }
-            self.failed("MQTT-broker antwoordt niet")
+            self.failed(L("MQTT-broker antwoordt niet"))
         }
     }
 
@@ -112,7 +112,7 @@ final class MQTTClient {
         let gen = generation
         c.send(content: d, completion: .contentProcessed { [weak self] err in
             guard let self, let err, gen == self.generation else { return }
-            self.failed("Versturen naar MQTT mislukt: \(err.localizedDescription)")
+            self.failed(L("Versturen naar MQTT mislukt: {0}", err.localizedDescription))
         })
     }
 
@@ -125,7 +125,7 @@ final class MQTTClient {
                 guard gen == self.generation else { return }
             }
             if let err { self.failed("MQTT-verbinding verbroken: \(err.localizedDescription)"); return }
-            if done { self.failed("MQTT-broker sloot de verbinding"); return }
+            if done { self.failed(L("MQTT-broker sloot de verbinding")); return }
             self.receive(gen)
         }
     }
@@ -187,7 +187,7 @@ final class MQTTClient {
                 if b & 0x80 == 0 { complete = true; break }
             }
             guard complete else {
-                if i > 4 { failed("Ongeldig MQTT-pakket") }
+                if i > 4 { failed(L("Ongeldig MQTT-pakket")) }
                 return
             }
             guard len <= Self.maxPacket else { failed("MQTT-pakket te groot"); return }
@@ -202,7 +202,7 @@ final class MQTTClient {
     private func handle(_ header: UInt8, _ body: Data) {
         switch header >> 4 {
         case 2: // CONNACK
-            guard body.count >= 2 else { failed("Ongeldig antwoord van de broker"); return }
+            guard body.count >= 2 else { failed(L("Ongeldig antwoord van de broker")); return }
             let rc = body[1]
             if rc == 0 {
                 status = .connected
@@ -211,11 +211,11 @@ final class MQTTClient {
                 subscribeMissing()
                 startPing()
             } else {
-                let reasons: [UInt8: String] = [1: "protocolversie niet ondersteund", 2: "client-id geweigerd",
-                                                3: "broker niet beschikbaar", 4: "onjuiste gebruikersnaam of wachtwoord",
-                                                5: "geen toestemming"]
+                let reasons: [UInt8: String] = [1: L("protocolversie niet ondersteund"), 2: L("client-id geweigerd"),
+                                                3: L("broker niet beschikbaar"), 4: L("onjuiste gebruikersnaam of wachtwoord"),
+                                                5: L("geen toestemming")]
                 // Bij een fout wachtwoord niet blijven proberen.
-                failed("Broker weigert: \(reasons[rc] ?? "code \(rc)")", retry: rc != 4 && rc != 5)
+                failed(L("Broker weigert: {0}", reasons[rc] ?? "code \(rc)"), retry: rc != 4 && rc != 5)
             }
         case 3: // PUBLISH
             let qos = (header >> 1) & 0x3
@@ -234,7 +234,7 @@ final class MQTTClient {
             let v = String(payload.prefix(1024))
             if values[topic] != v { values[topic] = v; onChange?() }
         case 9: // SUBACK
-            if body.count >= 3, body[2] == 0x80 { onError?("MQTT-broker weigert een abonnement") }
+            if body.count >= 3, body[2] == 0x80 { onError?(L("MQTT-broker weigert een abonnement")) }
         case 13: // PINGRESP
             awaitingPing = false
         default:
@@ -261,7 +261,7 @@ final class MQTTClient {
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(Self.keepAlive - 5), repeats: true) { [weak self] _ in
             guard let self else { return }
-            if self.awaitingPing { self.failed("MQTT-broker antwoordt niet meer"); return }
+            if self.awaitingPing { self.failed(L("MQTT-broker antwoordt niet meer")); return }
             self.awaitingPing = true
             self.write(Self.packet(0xC0, Data()))
         }
@@ -270,9 +270,9 @@ final class MQTTClient {
     // MARK: Publiceren
 
     func publish(topic: String, payload: String, retain: Bool) throws {
-        guard Self.validTopic(topic) else { throw ActionRunner.ActionError.failed("Ongeldig MQTT-topic: \(topic)") }
+        guard Self.validTopic(topic) else { throw ActionRunner.ActionError.failed(L("Ongeldig MQTT-topic: {0}", topic)) }
         guard status == .connected else {
-            throw ActionRunner.ActionError.failed(status == .off ? "MQTT is niet gekoppeld (menubalk › Koppelingen…)" : status.text)
+            throw ActionRunner.ActionError.failed(status == .off ? L("MQTT is niet gekoppeld (menubalk › Koppelingen…)") : status.text)
         }
         var body = Self.str(topic)
         body.append(Data(payload.utf8))

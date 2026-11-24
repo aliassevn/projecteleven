@@ -47,10 +47,10 @@ struct PluginManifest: Codable, Equatable {
     }
 
     func validate() throws {
-        guard Self.validID(id) else { throw PluginError.invalid("id “\(id)” mag alleen a-z, 0-9 en - bevatten") }
-        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { throw PluginError.invalid("naam ontbreekt") }
-        guard command != nil else { throw PluginError.invalid("geen opdracht in `run` voor macOS") }
-        for a in actions ?? [] where !Self.validID(a.id) { throw PluginError.invalid("ongeldige actie-id “\(a.id)”") }
+        guard Self.validID(id) else { throw PluginError.invalid(L("id “{0}” mag alleen a-z, 0-9 en - bevatten", id)) }
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { throw PluginError.invalid(L("naam ontbreekt")) }
+        guard command != nil else { throw PluginError.invalid(L("geen opdracht in `run` voor macOS")) }
+        for a in actions ?? [] where !Self.validID(a.id) { throw PluginError.invalid(L("ongeldige actie-id “{0}”", a.id)) }
         for w in widgets ?? [] where !Self.validID(w.id) { throw PluginError.invalid("ongeldige widget-id “\(w.id)”") }
     }
 }
@@ -73,7 +73,7 @@ enum PluginHash {
     static func of(_ dir: URL) throws -> String {
         let fm = FileManager.default
         guard let en = fm.enumerator(at: dir, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
-                                     options: [.skipsHiddenFiles]) else { throw PluginError.failed("Map niet leesbaar") }
+                                     options: [.skipsHiddenFiles]) else { throw PluginError.failed(L("Map niet leesbaar")) }
         var files: [(String, URL)] = []
         let base = dir.standardizedFileURL.path
         for case let url as URL in en {
@@ -84,7 +84,7 @@ enum PluginHash {
             if v.isSymbolicLink == true { files.append((String(url.standardizedFileURL.path.dropFirst(base.count)), url)); continue }
             guard v.isRegularFile == true else { continue }
             files.append((String(url.standardizedFileURL.path.dropFirst(base.count)), url))
-            if files.count > maxFiles { throw PluginError.failed("Te veel bestanden in de plugin (max. \(maxFiles))") }
+            if files.count > maxFiles { throw PluginError.failed(L("Te veel bestanden in de plugin (max. {0})", maxFiles)) }
         }
         var h = SHA256()
         var total = 0
@@ -95,7 +95,7 @@ enum PluginHash {
             } else {
                 let d = try Data(contentsOf: url)
                 total += d.count
-                if total > maxBytes { throw PluginError.failed("Plugin is te groot (max. 20 MB)") }
+                if total > maxBytes { throw PluginError.failed(L("Plugin is te groot (max. 20 MB)")) }
                 h.update(data: d)
             }
             h.update(data: Data([0]))

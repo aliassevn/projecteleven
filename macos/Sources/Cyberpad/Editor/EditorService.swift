@@ -29,7 +29,7 @@ final class EditorService: ObservableObject {
         [
             "platform": PluginManifest.platform,
             "presets": presets.apps.flatMap { app in
-                app.shortcuts.map { ["id": "\(app.id).\($0.id)", "app": app.name, "name": $0.label, "keys": $0.keys] }
+                app.shortcuts.map { ["id": "\(app.id).\($0.id)", "app": app.name, "name": L($0.label), "keys": $0.keys] }
             },
             "plugins": plugins.sorted.map { p -> [String: Any] in
                 let m = p.manifest

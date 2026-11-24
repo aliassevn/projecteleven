@@ -65,7 +65,7 @@ final class Server {
         l.stateUpdateHandler = { [weak self] state in
             switch state {
             case .failed(let e):
-                self?.lastError = "Server gestopt: \(e.localizedDescription)"
+                self?.lastError = L("Server gestopt: {0}", e.localizedDescription)
                 NSLog("Cyberpad: %@", self?.lastError ?? "")
             case .ready:
                 self?.lastError = nil
@@ -124,15 +124,15 @@ final class Server {
         let profile = context?.profile(deviceProfile: devProfile)
         let pages = context?.pages(for: profile) ?? l.pages
         var d: [String: Any] = [
-            "version": l.version, "columns": l.columns, "rows": l.rows, "theme": l.theme,
+            "version": l.version, "columns": l.columns, "rows": l.rows, "theme": l.theme, "lang": Localizer.shared.lang,
             "pages": pages.map { p -> [String: Any] in
-                var pd: [String: Any] = ["id": p.id, "name": p.name, "tiles": p.tiles.map(Self.padTile)]
+                var pd: [String: Any] = ["id": p.id, "name": Localizer.shared.displayName(p.name), "tiles": p.tiles.map(Self.padTile)]
                 if let c = p.columns, let r = p.rows { pd["columns"] = c; pd["rows"] = r }
                 if p.apps?.isEmpty == false { pd["context"] = true }
                 return pd
             },
         ]
-        if let profile { d["profile"] = ["id": profile.id, "name": profile.name, "fixed": devProfile != nil] }
+        if let profile { d["profile"] = ["id": profile.id, "name": Localizer.shared.displayName(profile.name), "fixed": devProfile != nil] }
         if let t = themes?.resolve(l) {
             d["themeClasses"] = ThemeStore.classes(t)
             d["themeKey"] = ThemeStore.key(t)
@@ -141,7 +141,7 @@ final class Server {
     }
 
     private static func padTile(_ t: Tile) -> [String: Any] {
-        var d: [String: Any] = ["id": t.id, "label": t.label, "kind": t.kind ?? "button", "x": t.x, "y": t.y]
+        var d: [String: Any] = ["id": t.id, "label": Localizer.shared.displayName(t.label), "kind": t.kind ?? "button", "x": t.x, "y": t.y]
         if let v = t.icon { d["icon"] = v }
         if let c = t.color, ThemeOverrides.validColor(c) { d["color"] = c }
         if let v = t.w { d["w"] = v }
@@ -181,13 +181,13 @@ final class Server {
 
     /// Bediening van een widget-tegel (timer, muziek, terminal…). De tegel bepaalt wat mag.
     func handleWidget(id: String, action: String, value: Double?) -> (ok: Bool, error: String?) {
-        guard let tile = layouts.layout.tile(id: id), tile.isWidget, let widgets else { return (false, "Onbekende widget: \(id)") }
+        guard let tile = layouts.layout.tile(id: id), tile.isWidget, let widgets else { return (false, L("Onbekende widget: {0}", id)) }
         do { try widgets.handle(tile, action: action, value: value); return (true, nil) } catch { return (false, error.localizedDescription) }
     }
 
     /// Aanraakpad: alleen voor een tegel met `"kind": "touchpad"` uit de layout.
     func handlePointer(id: String, _ msg: [String: Any]) -> (ok: Bool, error: String?) {
-        guard let tile = layouts.layout.tile(id: id), tile.kind == "touchpad" else { return (false, "Geen aanraakpad: \(id)") }
+        guard let tile = layouts.layout.tile(id: id), tile.kind == "touchpad" else { return (false, L("Geen aanraakpad: {0}", id)) }
         do { try actions.ensureAccessibility() } catch { return (false, error.localizedDescription) }
         func num(_ k: String) -> Double { (msg[k] as? NSNumber)?.doubleValue ?? 0 }
         let p = actions.pointer
@@ -197,19 +197,19 @@ final class Server {
         case "click": p.click(right: msg["button"] as? String == "right")
         case "down": p.button(down: true)
         case "up": p.button(down: false)
-        default: return (false, "Onbekende muisactie")
+        default: return (false, L("Onbekende muisactie"))
         }
         return (true, nil)
     }
 
     func handleDial(id: String, steps: Int) -> (ok: Bool, error: String?) {
-        guard let tile = layouts.layout.tile(id: id), tile.kind == "dial" else { return (false, "Geen draaiknop: \(id)") }
+        guard let tile = layouts.layout.tile(id: id), tile.kind == "dial" else { return (false, L("Geen draaiknop: {0}", id)) }
         do { try actions.dial(tile, steps: steps); return (true, nil) } catch { return (false, error.localizedDescription) }
     }
 
     /// Knop in het vergaderpaneel. Alleen vaste acties; welke toetsen dat zijn bepaalt de catalogus op de Mac.
     func handleMeeting(action: String) -> (ok: Bool, error: String?) {
-        guard MeetingMonitor.actionOrder.contains(action), let meeting else { return (false, "Onbekende vergaderactie") }
+        guard MeetingMonitor.actionOrder.contains(action), let meeting else { return (false, L("Onbekende vergaderactie")) }
         do { try meeting.perform(action); return (true, nil) } catch { return (false, error.localizedDescription) }
     }
 
@@ -218,22 +218,22 @@ final class Server {
     /// Voert een druk of schuifbeweging uit. De tablet geeft alleen een tegel-id (en gebaar); de actie komt uit de layout.
     func handleInput(type: String, id: String, gesture: String?, value: Double?) -> (ok: Bool, error: String?) {
         guard let tile = layouts.layout.tile(id: id) else {
-            return (false, "Onbekende knop: \(id)")
+            return (false, L("Onbekende knop: {0}", id))
         }
         do {
             switch type {
             case "press":
                 if tile.kind == "agenda" { try agenda?.joinNext(); return (true, nil) }
-                guard tile.isButton else { return (false, "Dit is geen knop") }
+                guard tile.isButton else { return (false, L("Dit is geen knop")) }
                 let g = ["long", "double"].contains(gesture ?? "") ? gesture! : "tap"
                 try actions.press(tile, gesture: g)
             case "slider":
                 guard tile.kind == "slider", let action = tile.action, let v = value, v.isFinite else {
-                    return (false, "Ongeldige schuifwaarde")
+                    return (false, L("Ongeldige schuifwaarde"))
                 }
                 try actions.setSlider(action, value: min(max(v, 0), 1))
             default:
-                return (false, "Onbekend bericht")
+                return (false, L("Onbekend bericht"))
             }
             return (true, nil)
         } catch {
@@ -255,6 +255,23 @@ final class Server {
         // De tablet-stijl: sjabloon met de kleuren van het gekozen thema ingevuld.
         if req.method == "GET", req.path == "/pad.css", let themes, let css = themes.css(for: layouts.layout) {
             c.respond(200, body: css, contentType: "text/css; charset=utf-8")
+            return
+        }
+
+        // Woordenboek voor de gekozen taal (alleen vaste teksten, dus zonder token).
+        if req.method == "GET", req.path == "/i18n.js" {
+            c.respond(200, body: Data(Localizer.shared.script().utf8), contentType: "application/javascript; charset=utf-8")
+            return
+        }
+        // Taal wisselen vanaf een gekoppelde tablet of de editor.
+        if req.method == "POST", req.path == "/api/lang" {
+            let ok = pairing.authenticate(token: req.headers["x-cyberpad-token"]) != nil
+                || editor?.authorize(req, loopback: c.isLoopback) != nil
+            guard ok else { c.respond(401, json: ["error": "unauthorized"]); return }
+            let code = (req.json() ?? [:])["lang"] as? String ?? ""
+            guard Localizer.isValid(code) else { c.respond(400, json: ["error": "unknown language"]); return }
+            DispatchQueue.main.async { Localizer.shared.set(code) }
+            c.respond(200, json: ["ok": true, "lang": code])
             return
         }
 
@@ -290,7 +307,7 @@ final class Server {
                     c.respond(404, text: "Not found"); return
                 }
                 widgets.photos.image(for: tile.config, index: Int(req.query["i"] ?? "0") ?? 0) { data in
-                    if let data { c.respond(200, body: data, contentType: "image/jpeg") } else { c.respond(404, text: "Geen foto") }
+                    if let data { c.respond(200, body: data, contentType: "image/jpeg") } else { c.respond(404, text: L("Geen foto")) }
                 }
             case "/api/widget":
                 let body = req.json() ?? [:]
@@ -355,55 +372,55 @@ final class Server {
             return
         }
         guard editor.authorize(req, loopback: c.isLoopback) != nil else {
-            c.respond(403, json: ["error": "Niet gekoppeld of editor verlopen"]); return
+            c.respond(403, json: ["error": L("Niet gekoppeld of editor verlopen")]); return
         }
         switch (req.method, req.path) {
         case ("GET", "/api/editor/layout"):
             // De volledige layout, mét acties: alleen voor de editor.
             let enc = JSONEncoder()
             guard let data = try? enc.encode(layouts.layout), let obj = try? JSONSerialization.jsonObject(with: data) else {
-                c.respond(500, json: ["error": "Layout niet leesbaar"]); return
+                c.respond(500, json: ["error": L("Layout niet leesbaar")]); return
             }
             c.respond(200, json: ["layout": obj, "revision": layouts.revision])
         case ("PUT", "/api/editor/layout"):
             guard let body = req.json(), let obj = body["layout"],
                   let data = try? JSONSerialization.data(withJSONObject: obj) else {
-                c.respond(400, json: ["error": "Geen layout meegestuurd"]); return
+                c.respond(400, json: ["error": L("Geen layout meegestuurd")]); return
             }
             let l: Layout
             do { l = try JSONDecoder().decode(Layout.self, from: data) } catch {
-                c.respond(422, json: ["ok": false, "errors": ["Layout klopt niet: \(error.localizedDescription)"]]); return
+                c.respond(422, json: ["ok": false, "errors": [L("Layout klopt niet: {0}", error.localizedDescription)]]); return
             }
             switch layouts.saveFromEditor(l, baseRevision: body["baseRevision"] as? String) {
             case .ok(let rev): c.respond(200, json: ["ok": true, "revision": rev])
-            case .conflict: c.respond(409, json: ["ok": false, "errors": ["De layout is intussen elders gewijzigd. Laad opnieuw."]])
+            case .conflict: c.respond(409, json: ["ok": false, "errors": [L("De layout is intussen elders gewijzigd. Laad opnieuw.")]])
             case .invalid(let errs): c.respond(422, json: ["ok": false, "errors": errs])
             }
         case ("POST", "/api/editor/validate"):
             guard let obj = req.json()?["layout"], let data = try? JSONSerialization.data(withJSONObject: obj) else {
-                c.respond(400, json: ["error": "Geen layout"]); return
+                c.respond(400, json: ["error": L("Geen layout")]); return
             }
             do {
                 let l = try JSONDecoder().decode(Layout.self, from: data)
                 c.respond(200, json: ["errors": l.problems()])
             } catch {
-                c.respond(200, json: ["errors": ["Layout klopt niet: \(error.localizedDescription)"]])
+                c.respond(200, json: ["errors": [L("Layout klopt niet: {0}", error.localizedDescription)]])
             }
         case ("GET", "/api/editor/themes"):
-            guard let themes else { c.respond(404, json: ["error": "Geen thema's"]); return }
+            guard let themes else { c.respond(404, json: ["error": L("Geen thema's")]); return }
             themes.reload()
             let data = (try? JSONEncoder().encode(themes.themes)) ?? Data("[]".utf8)
             c.respond(200, body: data, contentType: "application/json")
         case ("POST", "/api/editor/icon"):
             guard let icons, let b64 = req.json()?["data"] as? String,
                   let raw = Data(base64Encoded: b64.replacingOccurrences(of: "^data:[^,]*,", with: "", options: .regularExpression)) else {
-                c.respond(400, json: ["error": "Geen afbeelding meegestuurd"]); return
+                c.respond(400, json: ["error": L("Geen afbeelding meegestuurd")]); return
             }
             do { c.respond(200, json: ["icon": try icons.store(raw)]) } catch {
                 c.respond(422, json: ["error": error.localizedDescription])
             }
         case ("GET", "/api/editor/catalog"):
-            guard let plugins else { c.respond(500, json: ["error": "Plugins niet beschikbaar"]); return }
+            guard let plugins else { c.respond(500, json: ["error": L("Plugins niet beschikbaar")]); return }
             var cat = editor.catalog(presets: actions.catalog, plugins: plugins)
             cat["devices"] = pairing.devices.compactMap { d -> [String: Any]? in
                 guard let v = d.viewport else { return nil }
@@ -411,7 +428,7 @@ final class Server {
             }
             c.respond(200, json: cat)
         default:
-            c.respond(404, json: ["error": "Onbekend"])
+            c.respond(404, json: ["error": L("Onbekend")])
         }
     }
 
@@ -422,7 +439,7 @@ final class Server {
             c.respond(401, json: ["error": "unauthorized"]); return
         }
         let size = Int(req.query["size"] ?? "") ?? IconService.size
-        guard let src = req.query["src"], let data = icons?.png(src, size: size) else { c.respond(404, text: "Geen icoon"); return }
+        guard let src = req.query["src"], let data = icons?.png(src, size: size) else { c.respond(404, text: L("Geen icoon")); return }
         c.respond(200, body: data, contentType: "image/png")
     }
 

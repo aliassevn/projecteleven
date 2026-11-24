@@ -250,135 +250,136 @@ struct Layout: Codable, Equatable {
         return nil
     }
 
-    static let `default` = Layout(
+    /// Standaard-layout in de huidige taal (nieuwe installatie of "Standaard-layout terugzetten").
+    static var `default`: Layout { Layout(
         version: 1, columns: 5, rows: 3, theme: "cyberdeck",
         pages: [
             // Dashboard in een compact raster (10×6): tegels half zo groot, zodat er veel op past.
             Page(id: "main", name: "Main", tiles: [
                 Tile(id: "m-nowplaying", label: "Spotify", kind: "nowplaying", config: .init(player: "spotify"), x: 0, y: 0, w: 4, h: 2),
-                Tile(id: "m-weather", label: "Weer", kind: "weather", config: .init(city: "Amsterdam"), x: 4, y: 0, w: 3, h: 2),
-                Tile(id: "m-world", label: "Wereldklok", kind: "worldclock",
+                Tile(id: "m-weather", label: L("Weer"), kind: "weather", config: .init(city: "Amsterdam"), x: 4, y: 0, w: 3, h: 2),
+                Tile(id: "m-world", label: L("Wereldklok"), kind: "worldclock",
                      config: .init(zones: ["America/New_York", "Asia/Tokyo"]), x: 7, y: 0, w: 3, h: 2),
-                Tile(id: "m-agenda", label: "Agenda", kind: "agenda", config: .init(count: 3), x: 0, y: 2, w: 4, h: 3),
-                Tile(id: "m-stats", label: "Systeem", kind: "stats", x: 4, y: 2, w: 3, h: 2),
+                Tile(id: "m-agenda", label: L("Agenda"), kind: "agenda", config: .init(count: 3), x: 0, y: 2, w: 4, h: 3),
+                Tile(id: "m-stats", label: L("Systeem"), kind: "stats", x: 4, y: 2, w: 3, h: 2),
                 Tile(id: "m-timer", label: "Timer", kind: "timer", config: .init(seconds: 300), x: 7, y: 2, w: 3, h: 2),
                 Tile(id: "m-pomodoro", label: "Pomodoro", kind: "pomodoro", config: .init(work: 25, rest: 5), x: 4, y: 4, w: 3, h: 2),
-                Tile(id: "m-play", label: "Play", icon: "⏯", action: .init(type: "media.playPause"), x: 7, y: 4),
-                Tile(id: "m-mute", label: "Geluid uit", icon: "🔇", action: .init(type: "audio.mute"), x: 8, y: 4),
-                Tile(id: "m-mic", label: "Mic uit", icon: "🎙", action: .init(type: "audio.micMute"), x: 9, y: 4),
-                Tile(id: "m-prev", label: "Vorige", icon: "⏮", action: .init(type: "media.previous"), x: 7, y: 5),
-                Tile(id: "m-next", label: "Volgende", icon: "⏭", action: .init(type: "media.next"), x: 8, y: 5),
-                Tile(id: "m-awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 9, y: 5),
-                Tile(id: "m-volume", label: "Volume", kind: "slider", action: .init(type: "audio.volume"), x: 0, y: 5, w: 4),
+                Tile(id: "m-play", label: L("Play"), icon: "⏯", action: .init(type: "media.playPause"), x: 7, y: 4),
+                Tile(id: "m-mute", label: L("Geluid uit"), icon: "🔇", action: .init(type: "audio.mute"), x: 8, y: 4),
+                Tile(id: "m-mic", label: L("Mic uit"), icon: "🎙", action: .init(type: "audio.micMute"), x: 9, y: 4),
+                Tile(id: "m-prev", label: L("Vorige"), icon: "⏮", action: .init(type: "media.previous"), x: 7, y: 5),
+                Tile(id: "m-next", label: L("Volgende"), icon: "⏭", action: .init(type: "media.next"), x: 8, y: 5),
+                Tile(id: "m-awake", label: L("Wakker"), icon: "☕️", action: .init(type: "system.keepAwake"), x: 9, y: 5),
+                Tile(id: "m-volume", label: L("Volume"), kind: "slider", action: .init(type: "audio.volume"), x: 0, y: 5, w: 4),
             ], columns: 10, rows: 6),
-            Page(id: "buttons", name: "Knoppen", tiles: [
-                Tile(id: "prev", label: "Vorige", icon: "⏮", action: .init(type: "media.previous"), x: 0, y: 0),
-                Tile(id: "play", label: "Play / pauze", icon: "⏯", action: .init(type: "media.playPause"), x: 1, y: 0),
-                Tile(id: "next", label: "Volgende", icon: "⏭", action: .init(type: "media.next"), x: 2, y: 0),
-                Tile(id: "mute", label: "Geluid uit", icon: "🔇", action: .init(type: "audio.mute"), x: 3, y: 0),
-                Tile(id: "mic", label: "Mic uit", icon: "🎙", action: .init(type: "audio.micMute"), x: 4, y: 0),
-                Tile(id: "voldown", label: "Vol −", icon: "🔉", action: .init(type: "audio.volumeDown"), x: 0, y: 1),
-                Tile(id: "volup", label: "Vol +", icon: "🔊", action: .init(type: "audio.volumeUp"), x: 1, y: 1),
+            Page(id: "buttons", name: L("Knoppen"), tiles: [
+                Tile(id: "prev", label: L("Vorige"), icon: "⏮", action: .init(type: "media.previous"), x: 0, y: 0),
+                Tile(id: "play", label: L("Play / pauze"), icon: "⏯", action: .init(type: "media.playPause"), x: 1, y: 0),
+                Tile(id: "next", label: L("Volgende"), icon: "⏭", action: .init(type: "media.next"), x: 2, y: 0),
+                Tile(id: "mute", label: L("Geluid uit"), icon: "🔇", action: .init(type: "audio.mute"), x: 3, y: 0),
+                Tile(id: "mic", label: L("Mic uit"), icon: "🎙", action: .init(type: "audio.micMute"), x: 4, y: 0),
+                Tile(id: "voldown", label: L("Vol −"), icon: "🔉", action: .init(type: "audio.volumeDown"), x: 0, y: 1),
+                Tile(id: "volup", label: L("Vol +"), icon: "🔊", action: .init(type: "audio.volumeUp"), x: 1, y: 1),
                 Tile(id: "safari", label: "Safari", icon: "app:com.apple.Safari", action: .init(type: "app.open", app: "com.apple.Safari"), x: 2, y: 1),
-                Tile(id: "dark", label: "Dark mode", icon: "🌗", action: .init(type: "system.darkMode"), x: 3, y: 1),
-                Tile(id: "awake", label: "Wakker", icon: "☕️", action: .init(type: "system.keepAwake"), x: 4, y: 1),
-                Tile(id: "lock2", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 2),
+                Tile(id: "dark", label: L("Dark mode"), icon: "🌗", action: .init(type: "system.darkMode"), x: 3, y: 1),
+                Tile(id: "awake", label: L("Wakker"), icon: "☕️", action: .init(type: "system.keepAwake"), x: 4, y: 1),
+                Tile(id: "lock2", label: L("Vergrendel"), icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 2),
                 Tile(id: "shot2", label: "Screenshot", icon: "📸", action: .init(type: "system.screenshot"), x: 1, y: 2),
                 Tile(id: "spotlight2", label: "Spotlight", icon: "🔎", action: .init(type: "keys.press", keys: "cmd+space"), x: 2, y: 2),
                 Tile(id: "mission3", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 3, y: 2),
                 Tile(id: "finder2", label: "Finder", icon: "app:com.apple.finder", action: .init(type: "app.open", app: "com.apple.finder"), x: 4, y: 2),
             ]),
-            Page(id: "work", name: "Werk", tiles: [
+            Page(id: "work", name: L("Werk"), tiles: [
                 Tile(id: "zoom-mic", label: "Zoom mic", icon: "🎤", action: .init(type: "preset", preset: "zoom.mute"), x: 0, y: 0),
-                Tile(id: "zoom-cam", label: "Zoom camera", icon: "📹", action: .init(type: "preset", preset: "zoom.video"), x: 1, y: 0),
+                Tile(id: "zoom-cam", label: L("Zoom camera"), icon: "📹", action: .init(type: "preset", preset: "zoom.video"), x: 1, y: 0),
                 Tile(id: "teams-mic", label: "Teams mic", icon: "🎤", action: .init(type: "preset", preset: "teams.mute"), x: 2, y: 0),
                 Tile(id: "meet-mic", label: "Meet mic", icon: "🎤", action: .init(type: "preset", preset: "meet.mute"), x: 3, y: 0),
                 Tile(id: "slack-mic", label: "Slack huddle", icon: "🎧", action: .init(type: "preset", preset: "slack.huddleMute"), x: 4, y: 0),
-                Tile(id: "copy", label: "Kopieer · lang: knip", icon: "📋",
+                Tile(id: "copy", label: L("Kopieer · lang: knip"), icon: "📋",
                      action: .init(type: "keys.press", keys: "cmd+c"),
                      longPress: .init(type: "keys.press", keys: "cmd+x"), x: 0, y: 1),
-                Tile(id: "paste", label: "Plak · 2×: zonder opmaak", icon: "📥",
+                Tile(id: "paste", label: L("Plak · 2×: zonder opmaak"), icon: "📥",
                      action: .init(type: "keys.press", keys: "cmd+v"),
                      doubleTap: .init(type: "keys.press", keys: "cmd+alt+shift+v"), x: 1, y: 1),
                 Tile(id: "spotlight", label: "Spotlight", icon: "🔎", action: .init(type: "keys.press", keys: "cmd+space"), x: 2, y: 1),
-                Tile(id: "greeting", label: "Groet typen", icon: "✍️",
-                     action: .init(type: "text.type", text: "Met vriendelijke groet,"), x: 3, y: 1),
-                Tile(id: "note", label: "Nieuwe notitie", icon: "🗒",
+                Tile(id: "greeting", label: L("Groet typen"), icon: "✍️",
+                     action: .init(type: "text.type", text: L("Met vriendelijke groet,")), x: 3, y: 1),
+                Tile(id: "note", label: L("Nieuwe notitie"), icon: "🗒",
                      action: .init(type: "macro", steps: [
                         .init(type: "app.open", app: "com.apple.Notes"),
                         .init(type: "delay", ms: 800),
                         .init(type: "keys.press", keys: "cmd+n"),
                         .init(type: "delay", ms: 300),
-                        .init(type: "text.type", text: "Notitie van Cyberpad"),
+                        .init(type: "text.type", text: L("Notitie van Cyberpad")),
                      ]), x: 4, y: 1),
-                Tile(id: "focus", label: "Focus (Opdracht)", icon: "🌙",
+                Tile(id: "focus", label: L("Focus (Opdracht)"), icon: "🌙",
                      action: .init(type: "shortcut.run", shortcut: "Focus aan"),
                      toggle: true,
                      offAction: .init(type: "shortcut.run", shortcut: "Focus uit"), x: 0, y: 2, w: 2),
-                Tile(id: "shortcuts", label: "Opdrachten", icon: "⚡️", action: .init(type: "app.open", app: "com.apple.shortcuts"), x: 2, y: 2),
+                Tile(id: "shortcuts", label: L("Opdrachten"), icon: "⚡️", action: .init(type: "app.open", app: "com.apple.shortcuts"), x: 2, y: 2),
                 Tile(id: "mission", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 3, y: 2),
-                Tile(id: "expose", label: "App-vensters", icon: "🗂", action: .init(type: "keys.press", keys: "ctrl+down"), x: 4, y: 2),
+                Tile(id: "expose", label: L("App-vensters"), icon: "🗂", action: .init(type: "keys.press", keys: "ctrl+down"), x: 4, y: 2),
             ], apps: ["us.zoom.xos", "com.microsoft.teams2", "com.tinyspeck.slackmacgap", "com.microsoft.VSCode"]),
             Page(id: "widgets", name: "Widgets", tiles: [
-                Tile(id: "nowplaying", label: "Nu speelt", kind: "nowplaying", x: 0, y: 0, w: 3),
-                Tile(id: "weather", label: "Weer", kind: "weather", config: .init(city: "Amsterdam"), x: 3, y: 0, w: 2),
-                Tile(id: "stats", label: "Systeem", kind: "stats", x: 0, y: 1, w: 2),
+                Tile(id: "nowplaying", label: L("Nu speelt"), kind: "nowplaying", x: 0, y: 0, w: 3),
+                Tile(id: "weather", label: L("Weer"), kind: "weather", config: .init(city: "Amsterdam"), x: 3, y: 0, w: 2),
+                Tile(id: "stats", label: L("Systeem"), kind: "stats", x: 0, y: 1, w: 2),
                 Tile(id: "timer", label: "Timer", kind: "timer", config: .init(seconds: 300), x: 2, y: 1),
                 Tile(id: "pomodoro", label: "Pomodoro", kind: "pomodoro", config: .init(work: 25, rest: 5), x: 3, y: 1),
-                Tile(id: "world", label: "Wereldklok", kind: "worldclock",
+                Tile(id: "world", label: L("Wereldklok"), kind: "worldclock",
                      config: .init(zones: ["America/New_York", "Asia/Tokyo"]), x: 4, y: 1),
                 Tile(id: "ping", label: "Ping", kind: "terminal",
                      config: .init(command: "ping -c 5 1.1.1.1", timeout: 30), x: 0, y: 2, w: 3),
-                Tile(id: "photos", label: "Foto's", kind: "photos", config: .init(seconds: 10), x: 3, y: 2, w: 2),
+                Tile(id: "photos", label: L("Foto's"), kind: "photos", config: .init(seconds: 10), x: 3, y: 2, w: 2),
             ]),
             // Voorbeelden; pas de entiteiten en topics aan je eigen huis aan (zie README).
-            Page(id: "home", name: "Huis", tiles: [
-                Tile(id: "ha-lamp", label: "Woonkamer", icon: "💡",
+            Page(id: "home", name: L("Huis"), tiles: [
+                Tile(id: "ha-lamp", label: L("Woonkamer"), icon: "💡",
                      action: .init(type: "ha.toggle", entity: "light.woonkamer"), x: 0, y: 0),
-                Tile(id: "ha-dim", label: "Helderheid", kind: "slider",
+                Tile(id: "ha-dim", label: L("Helderheid"), kind: "slider",
                      action: .init(type: "ha.level", entity: "light.woonkamer"), x: 1, y: 0, w: 2),
-                Tile(id: "ha-film", label: "Scène film", icon: "🎬",
+                Tile(id: "ha-film", label: L("Scène film"), icon: "🎬",
                      action: .init(type: "ha.toggle", entity: "scene.film"), x: 3, y: 0),
-                Tile(id: "ha-alloff", label: "Alle lampen uit", icon: "🌚",
+                Tile(id: "ha-alloff", label: L("Alle lampen uit"), icon: "🌚",
                      action: .init(type: "ha.service", entity: "all", service: "light.turn_off"), x: 4, y: 0),
-                Tile(id: "ha-thermo", label: "Thermostaat", kind: "ha",
+                Tile(id: "ha-thermo", label: L("Thermostaat"), kind: "ha",
                      config: .init(entity: "climate.woonkamer"), x: 0, y: 1, w: 2),
-                Tile(id: "ha-outside", label: "Buiten", kind: "ha",
+                Tile(id: "ha-outside", label: L("Buiten"), kind: "ha",
                      config: .init(entity: "sensor.buiten_temperatuur"), x: 2, y: 1),
-                Tile(id: "mqtt-attic", label: "Zolder", kind: "mqtt",
+                Tile(id: "mqtt-attic", label: L("Zolder"), kind: "mqtt",
                      config: .init(topic: "huis/zolder/temperatuur", unit: "°C"), x: 3, y: 1),
-                Tile(id: "mqtt-fan", label: "Ventilator", icon: "🌀",
+                Tile(id: "mqtt-fan", label: L("Ventilator"), icon: "🌀",
                      action: .init(type: "mqtt.publish", topic: "huis/ventilator/set", payload: "ON"),
                      toggle: true,
                      offAction: .init(type: "mqtt.publish", topic: "huis/ventilator/set", payload: "OFF"),
                      config: .init(topic: "huis/ventilator/state"), x: 4, y: 1),
-                Tile(id: "ha-coffee", label: "Koffie", icon: "☕️",
+                Tile(id: "ha-coffee", label: L("Koffie"), icon: "☕️",
                      action: .init(type: "ha.toggle", entity: "switch.koffiezetapparaat"), x: 0, y: 2),
                 Tile(id: "hook-n8n", label: "n8n-flow", icon: "🪝",
                      action: .init(type: "webhook.call", webhook: "n8n"), x: 1, y: 2),
             ]),
             // Tablet als trackpad en draaiknoppen (fase 10). Muis en scrollen vereisen Toegankelijkheid.
-            Page(id: "touch", name: "Bediening", tiles: [
-                Tile(id: "touchpad", label: "Aanraakpad", kind: "touchpad", config: .init(speed: 1.5, natural: true),
+            Page(id: "touch", name: L("Bediening"), tiles: [
+                Tile(id: "touchpad", label: L("Aanraakpad"), kind: "touchpad", config: .init(speed: 1.5, natural: true),
                      x: 0, y: 0, w: 3, h: 3),
-                Tile(id: "dial-volume", label: "Volume", kind: "dial", action: .init(type: "audio.volume"),
+                Tile(id: "dial-volume", label: L("Volume"), kind: "dial", action: .init(type: "audio.volume"),
                      config: .init(step: 0.03), x: 3, y: 0),
-                Tile(id: "dial-scroll", label: "Scrollen", kind: "dial", action: .init(type: "pointer.scroll"), x: 4, y: 0),
-                Tile(id: "dial-spaces", label: "Bureaubladen", kind: "dial",
+                Tile(id: "dial-scroll", label: L("Scrollen"), kind: "dial", action: .init(type: "pointer.scroll"), x: 4, y: 0),
+                Tile(id: "dial-spaces", label: L("Bureaubladen"), kind: "dial",
                      action: .init(type: "keys.press", keys: "ctrl+right"),
                      offAction: .init(type: "keys.press", keys: "ctrl+left"), x: 3, y: 1),
-                Tile(id: "dial-zoom", label: "Zoomen", kind: "dial",
+                Tile(id: "dial-zoom", label: L("Zoomen"), kind: "dial",
                      action: .init(type: "keys.press", keys: "cmd+="),
                      offAction: .init(type: "keys.press", keys: "cmd+-"), x: 4, y: 1),
-                Tile(id: "dial-light", label: "Woonkamer", kind: "dial",
+                Tile(id: "dial-light", label: L("Woonkamer"), kind: "dial",
                      action: .init(type: "ha.level", entity: "light.woonkamer"), config: .init(step: 0.05), x: 3, y: 2),
                 Tile(id: "mission2", label: "Mission Control", icon: "🪟", action: .init(type: "keys.press", keys: "ctrl+up"), x: 4, y: 2),
             ]),
             // Voorbeeldplugins uit shared/plugins; ze werken pas na Aanzetten in de menubalk.
             Page(id: "plugins", name: "Plugins", tiles: [
-                Tile(id: "pl-hallo", label: "Zeg hallo", icon: "👋",
+                Tile(id: "pl-hallo", label: L("Zeg hallo"), icon: "👋",
                      action: .init(type: "plugin", plugin: "hallo", action: "groet", params: ["naam": .string("Cyberpad")]), x: 0, y: 0),
-                Tile(id: "pl-teller", label: "Teller", kind: "plugin",
+                Tile(id: "pl-teller", label: L("Teller"), kind: "plugin",
                      config: .init(plugin: "hallo", widget: "teller"), x: 1, y: 0, w: 2),
                 Tile(id: "pl-cloudflare", label: "Cloudflare", kind: "plugin",
                      config: .init(plugin: "bereikbaar", widget: "server", params: ["host": .string("1.1.1.1"), "port": .number(443)]),
@@ -387,24 +388,24 @@ struct Layout: Codable, Equatable {
                      config: .init(plugin: "bereikbaar", widget: "server", params: ["host": .string("192.168.1.1"), "port": .number(80)]),
                      x: 0, y: 1, w: 2),
             ]),
-            Page(id: "system", name: "Systeem", tiles: [
-                Tile(id: "lock", label: "Vergrendel", icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 0),
-                Tile(id: "display", label: "Scherm uit", icon: "🌑", action: .init(type: "system.displayOff"), x: 1, y: 0),
+            Page(id: "system", name: L("Systeem"), tiles: [
+                Tile(id: "lock", label: L("Vergrendel"), icon: "🔒", action: .init(type: "system.lock"), x: 0, y: 0),
+                Tile(id: "display", label: L("Scherm uit"), icon: "🌑", action: .init(type: "system.displayOff"), x: 1, y: 0),
                 Tile(id: "shot", label: "Screenshot", icon: "📸", action: .init(type: "system.screenshot"), x: 2, y: 0),
-                Tile(id: "shotarea", label: "Selectie", icon: "✂️", action: .init(type: "system.screenshotArea"), x: 3, y: 0),
+                Tile(id: "shotarea", label: L("Selectie"), icon: "✂️", action: .init(type: "system.screenshotArea"), x: 3, y: 0),
                 Tile(id: "finder", label: "Finder", icon: "🗂", action: .init(type: "app.open", app: "com.apple.finder"), x: 4, y: 0),
                 Tile(id: "github", label: "GitHub", icon: "🌐", action: .init(type: "url.open", url: "https://github.com"), x: 0, y: 1),
-                Tile(id: "mic-level", label: "Mic-volume", kind: "slider", action: .init(type: "audio.micVolume"), x: 0, y: 2),
-                Tile(id: "clock2", label: "Tijd", kind: "clock", x: 1, y: 1, w: 4, h: 2),
+                Tile(id: "mic-level", label: L("Mic-volume"), kind: "slider", action: .init(type: "audio.micVolume"), x: 0, y: 2),
+                Tile(id: "clock2", label: L("Tijd"), kind: "clock", x: 1, y: 1, w: 4, h: 2),
             ]),
         ],
         profiles: [
-            Profile(id: "werk", name: "Werkdag", pages: ["main", "buttons", "work", "home", "touch", "widgets", "plugins", "system"],
+            Profile(id: "werk", name: L("Werkdag"), pages: ["main", "buttons", "work", "home", "touch", "widgets", "plugins", "system"],
                     when: [TimeRule(days: [1, 2, 3, 4, 5], from: "08:00", to: "18:00")]),
-            Profile(id: "thuis", name: "Thuis", pages: ["main", "buttons", "home", "touch", "widgets", "plugins", "system"], default: true),
+            Profile(id: "thuis", name: L("Thuis"), pages: ["main", "buttons", "home", "touch", "widgets", "plugins", "system"], default: true),
 
         ]
-    )
+    ) }
 }
 
 /// Laadt `layout.json` uit Application Support en houdt het bestand in de gaten, zodat bewerken direct doorkomt.
@@ -490,7 +491,7 @@ final class LayoutStore {
             lastError = nil
             if l != layout { layout = l; onChange?(l) }
         } catch {
-            lastError = "layout.json kon niet worden gelezen: \(error.localizedDescription)"
+            lastError = L("layout.json kon niet worden gelezen: {0}", error.localizedDescription)
             NSLog("Cyberpad: %@", lastError!)
         }
     }
@@ -506,36 +507,36 @@ extension Layout {
     /// Fouten die opslaan tegenhouden. Leeg = in orde.
     func problems() -> [String] {
         var out: [String] = []
-        if !(1...Self.maxColumns).contains(columns) { out.append("Kolommen moet tussen 1 en \(Self.maxColumns) liggen") }
-        if !(1...Self.maxRows).contains(rows) { out.append("Rijen moet tussen 1 en \(Self.maxRows) liggen") }
-        if pages.isEmpty { out.append("Er moet minstens één pagina zijn") }
+        if !(1...Self.maxColumns).contains(columns) { out.append(L("Kolommen moet tussen 1 en {0} liggen", Self.maxColumns)) }
+        if !(1...Self.maxRows).contains(rows) { out.append(L("Rijen moet tussen 1 en {0} liggen", Self.maxRows)) }
+        if pages.isEmpty { out.append(L("Er moet minstens één pagina zijn")) }
         var pageIDs = Set<String>(), tileIDs = Set<String>()
         for p in pages {
             let columns = p.columns ?? self.columns, rows = p.rows ?? self.rows
             if !(1...Self.maxColumns).contains(columns) || !(1...Self.maxRows).contains(rows) {
-                out.append("Raster van \(p.name) moet tussen 1×1 en \(Self.maxColumns)×\(Self.maxRows) liggen")
+                out.append(L("Raster van {0} moet tussen 1×1 en {1}×{2} liggen", p.name, Self.maxColumns, Self.maxRows))
             }
-            if p.id.isEmpty || !pageIDs.insert(p.id).inserted { out.append("Pagina-id “\(p.id)” is leeg of dubbel") }
-            if p.name.trimmingCharacters(in: .whitespaces).isEmpty { out.append("Pagina “\(p.id)” heeft geen naam") }
+            if p.id.isEmpty || !pageIDs.insert(p.id).inserted { out.append(L("Pagina-id “{0}” is leeg of dubbel", p.id)) }
+            if p.name.trimmingCharacters(in: .whitespaces).isEmpty { out.append(L("Pagina “{0}” heeft geen naam", p.id)) }
             var taken = Set<Int>()
             for t in p.tiles {
-                if t.id.isEmpty || !tileIDs.insert(t.id).inserted { out.append("Tegel-id “\(t.id)” is leeg of dubbel") }
+                if t.id.isEmpty || !tileIDs.insert(t.id).inserted { out.append(L("Tegel-id “{0}” is leeg of dubbel", t.id)) }
                 let w = t.w ?? 1, h = t.h ?? 1
                 if t.x < 0 || t.y < 0 || w < 1 || h < 1 || t.x + w > columns || t.y + h > rows {
-                    out.append("“\(t.label)” op \(p.name) valt buiten het raster")
+                    out.append(L("“{0}” op {1} valt buiten het raster", t.label, p.name))
                     continue
                 }
                 for dy in 0..<h {
                     for dx in 0..<w where !taken.insert((t.y + dy) * 100 + t.x + dx).inserted {
-                        out.append("“\(t.label)” op \(p.name) overlapt een andere tegel")
+                        out.append(L("“{0}” op {1} overlapt een andere tegel", t.label, p.name))
                     }
                 }
             }
         }
         var profileIDs = Set<String>()
         for pr in profiles ?? [] {
-            if pr.id.isEmpty || !profileIDs.insert(pr.id).inserted { out.append("Profiel-id “\(pr.id)” is leeg of dubbel") }
-            for pid in pr.pages where !pageIDs.contains(pid) { out.append("Profiel “\(pr.name)” noemt een onbekende pagina “\(pid)”") }
+            if pr.id.isEmpty || !profileIDs.insert(pr.id).inserted { out.append(L("Profiel-id “{0}” is leeg of dubbel", pr.id)) }
+            for pid in pr.pages where !pageIDs.contains(pid) { out.append(L("Profiel “{0}” noemt een onbekende pagina “{1}”", pr.name, pid)) }
             for r in pr.when ?? [] {
                 if r.from != nil && TimeRule.minutes(r.from) == nil || r.to != nil && TimeRule.minutes(r.to) == nil {
                     out.append("Profiel “\(pr.name)”: tijd moet als UU:MM")
@@ -546,8 +547,8 @@ extension Layout {
         out += themeOverrides?.problems() ?? []
         for p in pages {
             for t in p.tiles {
-                if let c = t.color, !ThemeOverrides.validColor(c) { out.append("Kleur van “\(t.label)” moet als #rrggbb") }
-                if let i = t.icon, i.count > 300 { out.append("Icoon van “\(t.label)” is te lang") }
+                if let c = t.color, !ThemeOverrides.validColor(c) { out.append(L("Kleur van “{0}” moet als #rrggbb", t.label)) }
+                if let i = t.icon, i.count > 300 { out.append(L("Icoon van “{0}” is te lang", t.label)) }
             }
         }
         // Dubbele meldingen (bijv. een overlap over meerdere vakken) één keer tonen.

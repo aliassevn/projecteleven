@@ -51,21 +51,21 @@ final class IconService {
 
     /// Eigen afbeelding opslaan: verkleind tot max. 256 px, altijd als PNG. Geeft "img:<naam>" terug.
     func store(_ raw: Data) throws -> String {
-        guard raw.count <= Self.maxUpload else { throw ActionRunner.ActionError.failed("Afbeelding te groot (max. 700 KB)") }
+        guard raw.count <= Self.maxUpload else { throw ActionRunner.ActionError.failed(L("Afbeelding te groot (max. 700 KB)")) }
         guard let src = CGImageSourceCreateWithData(raw as CFData, nil),
               let img = CGImageSourceCreateThumbnailAtIndex(src, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
                 kCGImageSourceThumbnailMaxPixelSize: Self.size,
               ] as CFDictionary) else {
-            throw ActionRunner.ActionError.failed("Dit is geen afbeelding die Cyberpad kan lezen")
+            throw ActionRunner.ActionError.failed(L("Dit is geen afbeelding die Cyberpad kan lezen"))
         }
         let out = NSMutableData()
         guard let dest = CGImageDestinationCreateWithData(out, UTType.png.identifier as CFString, 1, nil) else {
-            throw ActionRunner.ActionError.failed("Kon de afbeelding niet omzetten")
+            throw ActionRunner.ActionError.failed(L("Kon de afbeelding niet omzetten"))
         }
         CGImageDestinationAddImage(dest, img, nil)
-        guard CGImageDestinationFinalize(dest) else { throw ActionRunner.ActionError.failed("Kon de afbeelding niet omzetten") }
+        guard CGImageDestinationFinalize(dest) else { throw ActionRunner.ActionError.failed(L("Kon de afbeelding niet omzetten")) }
         let png = out as Data
         let name = SHA256.hash(data: png).prefix(8).map { String(format: "%02x", $0) }.joined() + ".png"
         try png.write(to: dir.appendingPathComponent(name), options: .atomic)

@@ -13,6 +13,10 @@ Versie: 1 (fase 0–12).
 - Vindbaar als `cyberpad.local` (mDNS A-record) en als Bonjour/DNS-SD-dienst `_http._tcp`.
 - De tablet-pagina wordt door dezelfde server geserveerd (`GET /` → `index.html`, `/pad.js`, `/pad.css`,
   `/manifest.json`, `/icons/…`).
+- `GET /i18n.js` (zonder token): zet `window.CP_LANG` (`en`, `nl` of `es`) en `window.CP_I18N` (woordenboek
+  Nederlands → gekozen taal) voor de tablet en de editor. Zie [TALEN.md](TALEN.md).
+- `POST /api/lang` met `{"lang": "es"}` (apparaat-token of editor-token): wisselt de taal voor alles. Daarna krijgen
+  alle tablets een nieuwe `layout` met `"lang"`; wijkt die af van `CP_LANG`, dan laadt de tablet opnieuw.
   Paden met `..` of die met een punt beginnen worden geweigerd.
 
 ## Koppelen
@@ -95,7 +99,7 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 
 ```json
 {
-  "version": 1, "columns": 5, "rows": 3, "theme": "cyberdeck",
+  "version": 1, "columns": 5, "rows": 3, "theme": "cyberdeck", "lang": "en",
   "profile": { "id": "werk", "name": "Werkdag", "fixed": false },
   "themeClasses": "fx-glitch fx-upper", "themeKey": "55f9c631698d",
   "pages": [{ "id": "main", "name": "Main", "context": false, "tiles": [

@@ -128,9 +128,9 @@ final class MeetingMonitor {
     // MARK: Bedienen
 
     func perform(_ action: String) throws {
-        guard let m = current else { throw ActionRunner.ActionError.failed("Er loopt geen vergadering") }
+        guard let m = current else { throw ActionRunner.ActionError.failed(L("Er loopt geen vergadering")) }
         guard m.actions.contains(action), let (app, sc) = catalog.find("\(m.app).\(action)") else {
-            throw ActionRunner.ActionError.failed("Niet beschikbaar voor \(m.name)")
+            throw ActionRunner.ActionError.failed(L("Niet beschikbaar voor {0}", m.name))
         }
         let combo = try Keys.parse(sc.keys)
         if fakeApp == nil { try actions.ensureAccessibility() }
@@ -141,7 +141,7 @@ final class MeetingMonitor {
             // Juiste browservenster vooraan zetten, anders gaat ⌘D naar een andere app (in Finder = dupliceren!).
             guard let win = meetWindow(pid: m.pid),
                   let browser = NSRunningApplication(processIdentifier: m.pid) else {
-                throw ActionRunner.ActionError.failed("Meet-venster niet gevonden")
+                throw ActionRunner.ActionError.failed(L("Meet-venster niet gevonden"))
             }
             browser.activate()
             AXUIElementPerformAction(win, kAXRaiseAction as CFString)

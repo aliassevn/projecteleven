@@ -130,7 +130,7 @@ final class ContextEngine: ObservableObject {
         guard host == "profile" || host == "profiel" else { return "Onbekende Cyberpad-link: \(url.absoluteString)" }
         let id = url.pathComponents.dropFirst().first
             ?? URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value
-        guard setOverride(id) else { return "Onbekend profiel: \(id ?? "")" }
+        guard setOverride(id) else { return L("Onbekend profiel: {0}", id ?? "") }
         return nil
     }
 }

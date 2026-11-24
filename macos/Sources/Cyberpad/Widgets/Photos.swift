@@ -29,9 +29,9 @@ final class PhotoService {
                                                                 options: [.skipsHiddenFiles])
                 .filter { Self.extensions.contains($0.pathExtension.lowercased()) }
                 .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-            if files.isEmpty { problem = "Zet foto's in \(Self.display(dir))" }
+            if files.isEmpty { problem = L("Zet foto's in {0}", Self.display(dir)) }
         } catch {
-            problem = "Map \(Self.display(dir)) bestaat niet"
+            problem = L("Map {0} bestaat niet", Self.display(dir))
         }
         listings[dir.path] = (Date(), files, problem)
         return (files, problem)

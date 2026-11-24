@@ -48,7 +48,7 @@ final class TimerService {
 
     /// toggle (start/pauze), reset, add (+1 minuut)
     func handle(_ tile: Tile, action: String) throws {
-        guard var s = timers[tile.id] else { throw ActionRunner.ActionError.failed("Timer niet gevonden") }
+        guard var s = timers[tile.id] else { throw ActionRunner.ActionError.failed(L("Timer niet gevonden")) }
         switch action {
         case "toggle":
             if let e = s.endsAt {
@@ -64,7 +64,7 @@ final class TimerService {
             if let e = s.endsAt { s.endsAt = e.addingTimeInterval(60) } else { s.remaining += 60 }
             s.duration += 60
         default:
-            throw ActionRunner.ActionError.failed("Onbekende timeractie")
+            throw ActionRunner.ActionError.failed(L("Onbekende timeractie"))
         }
         timers[tile.id] = s
     }
@@ -83,11 +83,11 @@ final class TimerService {
                 s.duration = Self.duration(tile, phase: next)
                 s.remaining = s.duration
                 s.endsAt = Date().addingTimeInterval(s.duration)
-                onFinish?(next == "rest" ? "🍅 \(label): tijd voor pauze" : "🍅 \(label): weer aan de slag (ronde \(s.round))")
+                onFinish?(next == "rest" ? L("🍅 {0}: tijd voor pauze", label) : L("🍅 {0}: weer aan de slag (ronde {1})", label, s.round))
             } else {
                 s.endsAt = nil
                 s.remaining = 0
-                onFinish?("⏰ \(label) is afgelopen")
+                onFinish?(L("⏰ {0} is afgelopen", label))
             }
             timers[id] = s
         }

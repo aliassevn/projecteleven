@@ -13,6 +13,7 @@ Hier komt de Windows-versie. Nog niets gebouwd; dit is het plan.
 | Plugins | `shared/plugins/`, `docs/PLUGINS.md` | ✓ zelfde `plugin.json` en berichten; `run.windows` |
 | Layout-editor | `shared/editor/` | ✓ in een WebView2-venster; alleen de editor-API (`docs/PROTOCOL.md`) en een export-brug |
 | Thema's | `shared/themes/`, `docs/THEMES.md` | ✓ sjabloon invullen (een paar regels code); app-iconen via de Windows Shell |
+| Talen | `shared/i18n/`, `docs/TALEN.md` | ✓ zelfde woordenboeken; `/i18n.js` en `/api/lang` nabouwen |
 
 ## Voorgestelde techniek
 

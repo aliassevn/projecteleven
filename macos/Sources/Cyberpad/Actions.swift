@@ -31,9 +31,9 @@ final class ActionRunner {
         case unknown(String), needsAccessibility, missing(String), failed(String)
         var errorDescription: String? {
             switch self {
-            case .unknown(let t): return "Onbekende actie: \(t)"
-            case .needsAccessibility: return "Geef Cyberpad toegang via Systeeminstellingen › Privacy › Toegankelijkheid"
-            case .missing(let w): return "Ontbreekt in layout: \(w)"
+            case .unknown(let t): return L("Onbekende actie: {0}", t)
+            case .needsAccessibility: return L("Geef Cyberpad toegang via Systeeminstellingen › Privacy › Toegankelijkheid")
+            case .missing(let w): return L("Ontbreekt in layout: {0}", w)
             case .failed(let w): return w
             }
         }
@@ -151,7 +151,7 @@ final class ActionRunner {
         case "macro":
             try runMacro(a.steps ?? [], onFail: onLateFailure)
         case "delay":
-            throw ActionError.failed("Een pauze (delay) kan alleen binnen een macro")
+            throw ActionError.failed(L("Een pauze (delay) kan alleen binnen een macro"))
 
         // Systeem
         case "system.darkMode": try toggleDarkMode()
@@ -163,19 +163,19 @@ final class ActionRunner {
 
         // Smart home en koppelingen
         case "ha.toggle", "ha.service":
-            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            guard let i = integrations else { throw ActionError.failed(L("Koppelingen niet beschikbaar")) }
             try i.ha.perform(a, onFail: onLateFailure)
         case "webhook.call":
-            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            guard let i = integrations else { throw ActionError.failed(L("Koppelingen niet beschikbaar")) }
             try i.webhooks.call(a, onFail: onLateFailure)
         case "mqtt.publish":
-            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            guard let i = integrations else { throw ActionError.failed(L("Koppelingen niet beschikbaar")) }
             guard let topic = a.topic else { throw ActionError.missing("topic") }
             try i.mqtt.publish(topic: topic, payload: a.payload ?? "", retain: a.retain ?? false)
 
         // Plugins
         case "plugin":
-            guard let pm = plugins else { throw ActionError.failed("Plugins niet beschikbaar") }
+            guard let pm = plugins else { throw ActionError.failed(L("Plugins niet beschikbaar")) }
             do {
                 try pm.invoke(a, tile: currentTile, gesture: currentGesture, onFail: onLateFailure)
             } catch let e as PluginError {
@@ -209,7 +209,7 @@ final class ActionRunner {
         default:
             let act: ActionSpec
             if n > 0 { act = a } else {
-                guard let off = tile.offAction else { throw ActionError.missing("offAction (tegen de klok in)") }
+                guard let off = tile.offAction else { throw ActionError.missing(L("offAction (tegen de klok in)")) }
                 act = off
             }
             for _ in 0..<min(abs(n), 10) { try run(act) }
@@ -222,7 +222,7 @@ final class ActionRunner {
         case "audio.micVolume": audio.setMicVolume(Float32(value))
         case "ha.level":
             guard let e = a.entity else { throw ActionError.missing("entity") }
-            guard let i = integrations else { throw ActionError.failed("Koppelingen niet beschikbaar") }
+            guard let i = integrations else { throw ActionError.failed(L("Koppelingen niet beschikbaar")) }
             try i.ha.setLevel(e, value)
         default: throw ActionError.unknown(a.type)
         }
@@ -231,13 +231,13 @@ final class ActionRunner {
     // MARK: Shortcut-bibliotheek
 
     private func runPreset(_ id: String) throws {
-        guard let (app, sc) = catalog.find(id) else { throw ActionError.failed("Onbekende sneltoets uit de bibliotheek: \(id)") }
+        guard let (app, sc) = catalog.find(id) else { throw ActionError.failed(L("Onbekende sneltoets uit de bibliotheek: {0}", id)) }
         let combo = try Keys.parse(sc.keys)
         try ensureAccessibility()
 
         guard app.activate, !app.bundleIds.isEmpty else { Keys.press(combo); return }
         guard let running = NSWorkspace.shared.runningApplications.first(where: { app.bundleIds.contains($0.bundleIdentifier ?? "") }) else {
-            throw ActionError.failed("\(app.name) draait niet")
+            throw ActionError.failed(L("{0} draait niet", app.name))
         }
         if running.isActive {
             Keys.press(combo)
@@ -253,8 +253,8 @@ final class ActionRunner {
     /// Controleert de hele macro vooraf en voert daarna de stappen na elkaar uit (pauzes zonder te blokkeren).
     private func runMacro(_ steps: [ActionSpec], onFail: (() -> Void)?) throws {
         guard !steps.isEmpty else { throw ActionError.missing("steps") }
-        guard steps.count <= Self.maxMacroSteps else { throw ActionError.failed("Een macro mag maximaal \(Self.maxMacroSteps) stappen hebben") }
-        if steps.contains(where: { $0.type == "macro" }) { throw ActionError.failed("Een macro kan geen andere macro bevatten") }
+        guard steps.count <= Self.maxMacroSteps else { throw ActionError.failed(L("Een macro mag maximaal {0} stappen hebben", Self.maxMacroSteps)) }
+        if steps.contains(where: { $0.type == "macro" }) { throw ActionError.failed(L("Een macro kan geen andere macro bevatten")) }
         for s in steps where s.type == "keys.press" { _ = try Keys.parse(s.keys ?? "") }
         if steps.contains(where: { ["keys.press", "text.type", "preset"].contains($0.type) }) { try ensureAccessibility() }
         runSteps(steps[...], onFail: onFail)
@@ -272,7 +272,7 @@ final class ActionRunner {
             try run(step, onLateFailure: onFail)
         } catch {
             onFail?()
-            onAsyncError?("Macro gestopt: \(error.localizedDescription)")
+            onAsyncError?(L("Macro gestopt: {0}", error.localizedDescription))
             return
         }
         // Korte adempauze tussen stappen zodat apps de toetsen bijhouden.
@@ -298,7 +298,7 @@ final class ActionRunner {
                 self?.runningProcesses[ObjectIdentifier(proc)] = nil
                 guard status != 0 else { return }
                 onFail?()
-                self?.onAsyncError?("Opdracht “\(name)” mislukt\(msg.isEmpty ? "" : ": \(msg)")")
+                self?.onAsyncError?(msg.isEmpty ? L("Opdracht “{0}” mislukt", name) : L("Opdracht “{0}” mislukt: {1}", name, msg))
             }
         }
         do {
@@ -306,7 +306,7 @@ final class ActionRunner {
             runningProcesses[ObjectIdentifier(p)] = p
         } catch {
             onFail?()
-            onAsyncError?("Opdrachten-app niet gevonden")
+            onAsyncError?(L("Opdrachten-app niet gevonden"))
         }
     }
 
@@ -354,7 +354,7 @@ final class ActionRunner {
             url = dirs.map { URL(fileURLWithPath: $0).appendingPathComponent("\(app).app") }
                 .first { FileManager.default.fileExists(atPath: $0.path) }
         }
-        guard let url else { throw ActionError.failed("App niet gevonden: \(app)") }
+        guard let url else { throw ActionError.failed(L("App niet gevonden: {0}", app)) }
         ws.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 
@@ -363,8 +363,8 @@ final class ActionRunner {
         var err: NSDictionary?
         NSAppleScript(source: src)?.executeAndReturnError(&err)
         if let err {
-            let msg = err[NSAppleScript.errorMessage] as? String ?? "onbekende fout"
-            throw ActionError.failed("Dark mode lukt niet (sta Automatisering › System Events toe): \(msg)")
+            let msg = err[NSAppleScript.errorMessage] as? String ?? L("onbekende fout")
+            throw ActionError.failed(L("Dark mode lukt niet (sta Automatisering › System Events toe): {0}", msg))
         }
     }
 

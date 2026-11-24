@@ -9,15 +9,34 @@
   var KEY_STATE = 'cyberpad.state';       // laatst bekende status (voor offline)
   var KEY_SETTINGS = 'cyberpad.settings'; // instellingen van deze tablet
 
+  // Vertalingen: de Nederlandse tekst is de sleutel (shared/i18n/<taal>.json, via /i18n.js).
+  // {0}, {1}… worden ingevuld met de extra argumenten.
+  var I18N = window.CP_I18N || {};
+  function T(s) {
+    var out = Object.prototype.hasOwnProperty.call(I18N, s) ? I18N[s] : s;
+    for (var i = 1; i < arguments.length; i++) { out = out.split('{' + (i - 1) + '}').join(String(arguments[i])); }
+    return out;
+  }
+  // Vaste teksten in index.html: data-t (tekst), data-t-title, data-t-ph (placeholder).
+  function translateDom(root) {
+    if (window.CP_LANG) { document.documentElement.lang = window.CP_LANG; }
+    var n = (root || document).querySelectorAll('[data-t],[data-t-title],[data-t-ph]');
+    for (var i = 0; i < n.length; i++) {
+      if (n[i].hasAttribute('data-t')) { n[i].textContent = T(n[i].textContent.replace(/^\s+|\s+$/g, '')); }
+      if (n[i].hasAttribute('data-t-title')) { n[i].title = T(n[i].title); }
+      if (n[i].hasAttribute('data-t-ph')) { n[i].placeholder = T(n[i].placeholder); }
+    }
+  }
+
   var LONG_MS = 500;     // lang indrukken
   var DOUBLE_MS = 280;   // max. tijd tussen twee tikken
 
   var MEETING_BUTTONS = {
-    mute:  { icon: '🎤', label: 'Microfoon' },
-    video: { icon: '📹', label: 'Camera' },
-    hand:  { icon: '✋', label: 'Hand opsteken' },
-    share: { icon: '🖥', label: 'Scherm delen' },
-    leave: { icon: '📞', label: 'Ophangen' }
+    mute:  { icon: '🎤', label: T('Microfoon') },
+    video: { icon: '📹', label: T('Camera') },
+    hand:  { icon: '✋', label: T('Hand opsteken') },
+    share: { icon: '🖥', label: T('Scherm delen') },
+    leave: { icon: '📞', label: T('Ophangen') }
   };
 
   var app = {
@@ -105,7 +124,7 @@
     var ua = navigator.userAgent;
     if (/iPad/.test(ua)) { return 'iPad'; }
     if (/iPhone/.test(ua)) { return 'iPhone'; }
-    if (/Android/.test(ua)) { return /Mobile/.test(ua) ? 'Android-telefoon' : 'Android-tablet'; }
+    if (/Android/.test(ua)) { return /Mobile/.test(ua) ? T('Android-telefoon') : T('Android-tablet'); }
     if (/Macintosh/.test(ua) && 'ontouchend' in document) { return 'iPad'; }
     return 'Browser';
   }
@@ -115,16 +134,16 @@
     $('pair').className = 'pair';
     $('pair-msg').textContent = msg || '';
     $('pair-code').value = '';
-    setStatus(false, 'NIET GEKOPPELD');
+    setStatus(false, T('NIET GEKOPPELD'));
   }
 
   function hidePair() { $('pair').className = 'pair hidden'; }
 
   function doPair() {
     var code = $('pair-code').value.replace(/\D/g, '');
-    if (code.length !== 6) { $('pair-msg').textContent = 'De code heeft 6 cijfers.'; return; }
+    if (code.length !== 6) { $('pair-msg').textContent = T('De code heeft 6 cijfers.'); return; }
     $('pair-btn').disabled = true;
-    $('pair-msg').textContent = 'Bezig…';
+    $('pair-msg').textContent = T('Bezig…');
     request('POST', '/api/pair', { code: code, name: deviceName() }, function (err, status, data) {
       $('pair-btn').disabled = false;
       if (status === 200 && data && data.token) {
@@ -133,11 +152,11 @@
         hidePair();
         connect();
       } else if (status === 429 && data) {
-        $('pair-msg').textContent = 'Te veel pogingen. Probeer het over ' + data.seconds + ' seconden opnieuw.';
+        $('pair-msg').textContent = T('Te veel pogingen. Probeer het over {0} seconden opnieuw.', data.seconds);
       } else if (status === 401) {
-        $('pair-msg').textContent = 'Verkeerde code' + (data && data.attemptsLeft ? ' (nog ' + data.attemptsLeft + ' pogingen).' : '.');
+        $('pair-msg').textContent = (data && data.attemptsLeft ? T('Verkeerde code (nog {0} pogingen).', data.attemptsLeft) : T('Verkeerde code.'));
       } else {
-        $('pair-msg').textContent = 'Geen verbinding met de Mac. Staat Cyberpad aan?';
+        $('pair-msg').textContent = T('Geen verbinding met de Mac. Staat Cyberpad aan?');
       }
     });
   }
@@ -163,14 +182,14 @@
   function connect() {
     disconnect();
     if (!app.token) { showPair(); return; }
-    setStatus(false, 'VERBINDEN…');
+    setStatus(false, T('VERBINDEN…'));
     if (window.WebSocket && app.wsFailures < 3) { connectWs(); } else { connectXhr(); }
   }
 
   function scheduleReconnect() {
     clearTimeout(app.retryTimer);
     app.retryAt = new Date().getTime() + app.retryDelay;
-    setStatus(false, 'VERBINDING WEG');
+    setStatus(false, T('VERBINDING WEG'));
     app.retryTimer = setTimeout(connect, app.retryDelay);
     app.retryDelay = Math.min(app.retryDelay * 2, 15000);
     updateOffline();
@@ -198,8 +217,8 @@
     }
     if (!show) { bar.className = 'offline-bar hidden'; return; }
     var left = Math.max(0, Math.ceil((app.retryAt - new Date().getTime()) / 1000));
-    var txt = 'VERBINDING MET DE MAC WEG · ' + (left > 0 ? 'OPNIEUW OVER ' + left + ' S' : 'VERBINDEN…');
-    if (app.lastOnline) { txt += ' · LAATST ' + hm(app.lastOnline); }
+    var txt = T('VERBINDING MET DE MAC WEG') + ' · ' + (left > 0 ? T('OPNIEUW OVER {0} S', left) : T('VERBINDEN…'));
+    if (app.lastOnline) { txt += ' · ' + T('LAATST {0}', hm(app.lastOnline)); }
     setText(bar, 'offline-text', txt);
     bar.className = 'offline-bar';
   }
@@ -252,7 +271,7 @@
 
   function connectXhr() {
     request('GET', '/api/layout', null, function (err, status, data) {
-      if (status === 401) { forget('Deze tablet is ontkoppeld. Koppel opnieuw.'); return; }
+      if (status === 401) { forget(T('Deze tablet is ontkoppeld. Koppel opnieuw.')); return; }
       // Mac helemaal onbereikbaar: volgende keer eerst weer WebSocket proberen.
       if (err || status !== 200 || !data) { app.wsFailures = 0; scheduleReconnect(); return; }
       onConnected('xhr');
@@ -265,7 +284,7 @@
 
   function poll() {
     request('GET', '/api/state', null, function (err, status, data) {
-      if (status === 401) { forget('Deze tablet is ontkoppeld. Koppel opnieuw.'); return; }
+      if (status === 401) { forget(T('Deze tablet is ontkoppeld. Koppel opnieuw.')); return; }
       if (err || status !== 200) { clearInterval(app.pollTimer); scheduleReconnect(); return; }
       if (data && data.state) { setValues(data.state); }
     });
@@ -278,7 +297,7 @@
       case 'state': setValues(m.state); break;
       case 'ack': if (!m.ok && m.error) { toast(m.error); } break;
       case 'toast': toast(m.text); break;
-      case 'unauthorized': forget('Deze tablet is ontkoppeld. Koppel opnieuw.'); break;
+      case 'unauthorized': forget(T('Deze tablet is ontkoppeld. Koppel opnieuw.')); break;
     }
   }
 
@@ -294,7 +313,7 @@
         poll();
       });
     } else {
-      toast('Geen verbinding met de Mac');
+      toast(T('Geen verbinding met de Mac'));
     }
   }
 
@@ -302,6 +321,8 @@
 
   function setLayout(layout) {
     if (!layout || !layout.pages) { return; }
+    // Taal gewisseld op de Mac of een andere tablet: opnieuw laden met het nieuwe woordenboek.
+    if (layout.lang && window.CP_LANG && layout.lang !== window.CP_LANG) { location.reload(); return; }
     app.layout = layout;
     store('set', KEY_LAYOUT, JSON.stringify(layout));
     var idx = pageIndex(app.pageId);
@@ -488,10 +509,10 @@
       } else if (t.kind === 'agenda') {
         node.cpCount = t.count || 1;
         if (node.cpCount > 1) { node.className += ' agenda-list'; }
-        node.appendChild(el('div', 'agenda-head', node.cpCount > 1 ? 'AGENDA' : 'VOLGENDE'));
+        node.appendChild(el('div', 'agenda-head', node.cpCount > 1 ? T('AGENDA') : T('VOLGENDE')));
         node.appendChild(el('div', 'agenda-title', '…'));
         node.appendChild(el('div', 'agenda-time', ''));
-        node.appendChild(el('div', 'agenda-join', 'DEELNEMEN ›'));
+        node.appendChild(el('div', 'agenda-join', T('DEELNEMEN ›')));
         bindPress(node, t);
       } else {
         if (t.icon) { node.appendChild(iconNode(t.icon)); }
@@ -588,9 +609,9 @@
   function hm(ms) { var d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
 
   function dur(min) {
-    if (min < 60) { return min + ' min'; }
+    if (min < 60) { return T('{0} min', min); }
     var h = Math.floor(min / 60), m = min % 60;
-    return h + 'u' + (m ? ' ' + m + 'm' : '');
+    return m ? T('{0}u {1}m', h, m) : T('{0}u', h);
   }
 
   function updateAgenda() {
@@ -603,22 +624,22 @@
       title = a.title;
       if (now < a.start) {
         var mins = Math.ceil((a.start - now) / 60000);
-        time = hm(a.start) + '–' + hm(a.end) + ' · OVER ' + dur(mins).toUpperCase();
+        time = hm(a.start) + '–' + hm(a.end) + ' · ' + T('OVER {0}', dur(mins).toUpperCase());
         if (mins <= 5) { cls = ' soon'; }
       } else {
-        time = 'NU · NOG ' + dur(Math.max(1, Math.ceil((a.end - now) / 60000))).toUpperCase();
+        time = T('NU · NOG {0}', dur(Math.max(1, Math.ceil((a.end - now) / 60000))).toUpperCase());
         cls = ' now';
       }
       join = a.hasLink === true;
     } else if (a.status === 'none') {
-      title = 'Geen afspraken';
-      time = 'DE KOMENDE 7 DAGEN';
+      title = T('Geen afspraken');
+      time = T('DE KOMENDE 7 DAGEN');
     } else if (a.status === 'denied') {
-      title = 'Geen toegang tot Agenda';
-      time = 'STA TOEGANG TOE OP DE MAC';
+      title = T('Geen toegang tot Agenda');
+      time = T('STA TOEGANG TOE OP DE MAC');
     } else {
-      title = 'Agenda niet gekoppeld';
-      time = 'KLIK OP TOESTAAN IN DE MENUBALK';
+      title = T('Agenda niet gekoppeld');
+      time = T('KLIK OP TOESTAAN IN DE MENUBALK');
     }
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
@@ -637,10 +658,10 @@
     var now = new Date().getTime(), first = items[0], time, cls = '';
     if (now < first.start) {
       var mins = Math.ceil((first.start - now) / 60000);
-      time = dayLabel(first.start) + hm(first.start) + '–' + hm(first.end) + (mins < 24 * 60 ? ' · OVER ' + dur(mins).toUpperCase() : '');
+      time = dayLabel(first.start) + hm(first.start) + '–' + hm(first.end) + (mins < 24 * 60 ? ' · ' + T('OVER {0}', dur(mins).toUpperCase()) : '');
       if (mins <= 5) { cls = ' soon'; }
     } else {
-      time = 'NU · NOG ' + dur(Math.max(1, Math.ceil((first.end - now) / 60000))).toUpperCase();
+      time = T('NU · NOG {0}', dur(Math.max(1, Math.ceil((first.end - now) / 60000))).toUpperCase());
       cls = ' now';
     }
     n.querySelector('.agenda-title').textContent = first.title;
@@ -679,14 +700,14 @@
     overlay.className = app.meetingHidden ? 'meeting hidden' : 'meeting';
     pill.className = app.meetingHidden ? 'meeting-pill' : 'meeting-pill hidden';
     pill.textContent = '● ' + m.name.toUpperCase();
-    $('meeting-title').textContent = '// VERGADERING · ' + m.name.toUpperCase();
+    $('meeting-title').textContent = '// ' + T('VERGADERING') + ' · ' + m.name.toUpperCase();
 
     var b = app.meetingButtons;
-    if (b.mute) { setMeetingState(b.mute, m.muted, 'MIC UIT', 'MIC AAN', 'MICROFOON'); }
-    if (b.video) { setMeetingState(b.video, m.video === null ? null : !m.video, 'CAMERA UIT', 'CAMERA AAN', 'CAMERA'); }
+    if (b.mute) { setMeetingState(b.mute, m.muted, T('MIC UIT'), T('MIC AAN'), T('MICROFOON')); }
+    if (b.video) { setMeetingState(b.video, m.video === null ? null : !m.video, T('CAMERA UIT'), T('CAMERA AAN'), T('CAMERA')); }
     $('meeting-note').textContent = m.statusSource === 'app' ? '' :
-      m.statusSource === 'estimated' ? '≈ status bijgehouden door Cyberpad; kan afwijken als je in de app zelf klikt'
-                                     : 'Status onbekend voor ' + m.name;
+      m.statusSource === 'estimated' ? T('≈ status bijgehouden door Cyberpad; kan afwijken als je in de app zelf klikt')
+                                     : T('Status onbekend voor {0}', m.name);
     updateMeetingClock();
   }
 
@@ -723,7 +744,7 @@
       // Ophangen pas na een tweede tik binnen 3 seconden.
       if (!app.leaveArmed) {
         node.className += ' armed';
-        node.querySelector('.label').textContent = 'NOG EEN KEER = OPHANGEN';
+        node.querySelector('.label').textContent = T('NOG EEN KEER = OPHANGEN');
         app.leaveArmed = setTimeout(function () { disarmLeave(node); }, 3000);
         return;
       }
@@ -750,7 +771,7 @@
         poll();
       });
     } else {
-      toast('Geen verbinding met de Mac');
+      toast(T('Geen verbinding met de Mac'));
     }
   }
 
@@ -916,8 +937,8 @@
 
   // ---------- klok ----------
 
-  var DAYS = ['ZO', 'MA', 'DI', 'WO', 'DO', 'VR', 'ZA'];
-  var MONTHS = ['JAN', 'FEB', 'MRT', 'APR', 'MEI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'];
+  var DAYS = T('ZO MA DI WO DO VR ZA').split(' ');
+  var MONTHS = T('JAN FEB MRT APR MEI JUN JUL AUG SEP OKT NOV DEC').split(' ');
 
   function updateClock() {
     var d = new Date();
@@ -945,7 +966,7 @@
         poll();
       });
     } else {
-      toast('Geen verbinding met de Mac');
+      toast(T('Geen verbinding met de Mac'));
     }
   }
 
@@ -994,7 +1015,7 @@
     b.cpMode = mode;
     b.innerHTML = '';
     b.appendChild(svgIcon(mode === 'STOP' ? 'stop' : 'play', 'inline'));
-    b.appendChild(document.createTextNode(' ' + mode));
+    b.appendChild(document.createTextNode(' ' + T(mode)));
   }
 
   var WIDGETS = {
@@ -1020,9 +1041,9 @@
           setText(node, 'w-place', (d.place || t.label).toUpperCase());
         } else if (d.status === 'error') {
           setText(node, 'w-icon', '⚠︎'); setText(node, 'w-temp', '');
-          setText(node, 'w-desc', d.error || 'Weer niet beschikbaar'); setText(node, 'w-range', '');
+          setText(node, 'w-desc', d.error || T('Weer niet beschikbaar')); setText(node, 'w-range', '');
         } else {
-          setText(node, 'w-desc', 'Weer ophalen…');
+          setText(node, 'w-desc', T('Weer ophalen…'));
         }
       }
     },
@@ -1031,7 +1052,7 @@
       ticks: true,
       build: function (node, t) {
         var info = el('div', 'np-info');
-        info.appendChild(el('div', 'np-app', 'NU SPEELT'));
+        info.appendChild(el('div', 'np-app', T('NU SPEELT')));
         info.appendChild(el('div', 'np-title', '…'));
         info.appendChild(el('div', 'np-artist', ''));
         node.appendChild(info);
@@ -1069,16 +1090,16 @@
           var playing = d.state === 'playing';
           var pos = d.position + (playing ? (new Date().getTime() - d.at) / 1000 : 0);
           if (d.duration) { pos = Math.min(pos, d.duration); }
-          setText(node, 'np-app', (d.appName || '').toUpperCase() + (playing ? ' · SPEELT' : ' · GEPAUZEERD'));
+          setText(node, 'np-app', (d.appName || '').toUpperCase() + ' · ' + (playing ? T('SPEELT') : T('GEPAUZEERD')));
           setText(node, 'np-title', d.title);
           setText(node, 'np-artist', d.artist + (d.album ? ' — ' + d.album : ''));
           q(node, 'np-fill').style.width = (d.duration ? Math.round(pos / d.duration * 1000) / 10 : 0) + '%';
           setText(node, 'np-time', mmss(pos) + ' / ' + mmss(d.duration || 0));
           setCls(node, 'playing', playing);
         } else {
-          setText(node, 'np-app', 'NU SPEELT');
-          setText(node, 'np-title', d.status === 'error' ? d.error : 'Er speelt niets');
-          setText(node, 'np-artist', d.status === 'error' ? '' : 'Muziek of Spotify');
+          setText(node, 'np-app', T('NU SPEELT'));
+          setText(node, 'np-title', d.status === 'error' ? d.error : T('Er speelt niets'));
+          setText(node, 'np-artist', d.status === 'error' ? '' : T('Muziek of Spotify'));
           q(node, 'np-fill').style.width = '0%';
           setText(node, 'np-time', '');
           setCls(node, 'playing', false);
@@ -1109,11 +1130,11 @@
         setText(node, 't-time', mmss(left));
         var sub;
         if (d.mode === 'pomodoro') {
-          sub = (d.phase === 'rest' ? 'PAUZE' : 'WERK') + ' · RONDE ' + d.round;
+          sub = (d.phase === 'rest' ? T('PAUZE') : T('WERK')) + ' · ' + T('RONDE {0}', d.round);
         } else {
-          sub = d.running ? 'LOOPT' : left <= 0 ? 'KLAAR' : left < d.duration ? 'GEPAUZEERD' : 'TIK = START';
+          sub = d.running ? T('LOOPT') : left <= 0 ? T('KLAAR') : left < d.duration ? T('GEPAUZEERD') : T('TIK = START');
         }
-        setText(node, 't-sub', sub + (d.running ? '' : '  ·  LANG = RESET'));
+        setText(node, 't-sub', sub + (d.running ? '' : '  ·  ' + T('LANG = RESET')));
         q(node, 't-fill').style.width = Math.round(left / d.duration * 1000) / 10 + '%';
         setCls(node, 'running', d.running);
         setCls(node, 'rest', d.phase === 'rest');
@@ -1182,7 +1203,7 @@
         if (d.battery) { rows.push(['BAT', d.battery.percent + '%' + (d.battery.charging ? ' ⚡' : d.battery.plugged ? ' 🔌' : ''), d.battery.percent]); }
         var acc = d.accessories || [];
         for (var i = 0; i < acc.length; i++) { rows.push([acc[i].name.replace(/^Magic /, '').toUpperCase(), acc[i].percent + '%', acc[i].percent]); }
-        if (!rows.length) { rows.push(['', 'Meten…', null]); }
+        if (!rows.length) { rows.push(['', T('Meten…'), null]); }
 
         var box = q(node, 'st-rows');
         box.innerHTML = '';
@@ -1219,7 +1240,7 @@
             // Gevaarlijke commando's pas na een tweede tik binnen 3 seconden.
             if (!node.cpArmed) {
               setCls(node, 'armed', true);
-              setText(node, 'term-btn', 'NOG EEN KEER = UITVOEREN');
+              setText(node, 'term-btn', T('NOG EEN KEER = UITVOEREN'));
               q(node, 'term-btn').cpMode = null;
               node.cpArmed = setTimeout(function () {
                 node.cpArmed = null; setCls(node, 'armed', false); termBtn(node, 'START');
@@ -1233,8 +1254,8 @@
         });
       },
       update: function (node, t, d) {
-        var labels = { idle: 'KLAAR VOOR START', running: 'BEZIG…', done: 'GELUKT', failed: 'MISLUKT',
-                       stopped: 'GESTOPT', timeout: 'TE LANG — GESTOPT' };
+        var labels = { idle: T('KLAAR VOOR START'), running: T('BEZIG…'), done: T('GELUKT'), failed: T('MISLUKT'),
+                       stopped: T('GESTOPT'), timeout: T('TE LANG — GESTOPT') };
         var st = labels[d.status] || '';
         if (d.exit !== undefined && d.status !== 'running') { st += ' (' + d.exit + ')'; }
         setText(node, 'term-status', d.error || st);
@@ -1281,18 +1302,18 @@
         if (d.status !== 'ok') {
           setText(node, 'ha-value', d.status === 'connecting' ? '…' : '—');
           setText(node, 'ha-unit', '');
-          setText(node, 'ha-sub', d.error || (d.status === 'unavailable' ? 'NIET BEREIKBAAR' : ''));
+          setText(node, 'ha-sub', d.error || (d.status === 'unavailable' ? T('NIET BEREIKBAAR') : ''));
           return;
         }
         setText(node, 'ha-name', (t.label || d.name).toUpperCase());
         if (climate) {
           setText(node, 'ha-value', d.current !== undefined ? fmtNum(d.current) : '—');
           setText(node, 'ha-unit', '°');
-          var sub = d.target !== undefined ? 'DOEL ' + fmtNum(d.target) + '°' : '';
+          var sub = d.target !== undefined ? T('DOEL {0}', fmtNum(d.target) + '°') : '';
           if (d.action) { sub += (sub ? '  ·  ' : '') + (HA_ACTION[d.action] || d.action.toUpperCase()); }
           setText(node, 'ha-sub', sub);
         } else if (HA_TOGGLE[d.domain] && !d.unit) {
-          setText(node, 'ha-value', d.on ? 'AAN' : (HA_STATE[d.state] || 'UIT'));
+          setText(node, 'ha-value', d.on ? T('AAN') : (HA_STATE[d.state] || T('UIT')));
           setText(node, 'ha-unit', '');
           setText(node, 'ha-sub', d.level !== undefined && d.on ? Math.round(d.level * 100) + '%' : d.name.toUpperCase());
         } else {
@@ -1320,14 +1341,14 @@
         if (d.value === undefined) {
           setText(node, 'ha-value', d.status === 'waiting' || d.status === 'connecting' ? '…' : '—');
           setText(node, 'ha-unit', '');
-          setText(node, 'ha-sub', d.error || (d.status === 'waiting' ? 'WACHT OP BERICHT' : ''));
+          setText(node, 'ha-sub', d.error || (d.status === 'waiting' ? T('WACHT OP BERICHT') : ''));
           return;
         }
         var n = parseFloat(d.value);
         var isNum = !isNaN(n) && /^\s*-?[\d.]+\s*$/.test(d.value);
         setText(node, 'ha-value', isNum ? fmtNum(n) : d.value);
         setText(node, 'ha-unit', d.unit || '');
-        setText(node, 'ha-sub', d.status === 'stale' ? 'LAATST BEKEND' : (d.topic || '').toUpperCase());
+        setText(node, 'ha-sub', d.status === 'stale' ? T('LAATST BEKEND') : (d.topic || '').toUpperCase());
         setCls(node, 'long', !isNum && d.value.length > 8);
       }
     },
@@ -1404,10 +1425,10 @@
 
   var HA_TOGGLE = { light: 1, 'switch': 1, fan: 1, input_boolean: 1, cover: 1, media_player: 1, scene: 1, script: 1,
                     button: 1, input_button: 1, lock: 1, automation: 1, humidifier: 1, siren: 1 };
-  var HA_STATE = { off: 'UIT', on: 'AAN', open: 'OPEN', closed: 'DICHT', opening: 'GAAT OPEN', closing: 'GAAT DICHT',
-                   locked: 'OP SLOT', unlocked: 'OPEN', playing: 'SPEELT', paused: 'PAUZE', idle: 'RUST',
-                   home: 'THUIS', not_home: 'WEG', unavailable: 'OFFLINE', unknown: '?' };
-  var HA_ACTION = { heating: 'VERWARMT', cooling: 'KOELT', idle: 'RUST', off: 'UIT', drying: 'DROOGT', fan: 'VENTILEERT' };
+  var HA_STATE = { off: T('UIT'), on: T('AAN'), open: T('OPEN'), closed: T('DICHT'), opening: T('GAAT OPEN'), closing: T('GAAT DICHT'),
+                   locked: T('OP SLOT'), unlocked: T('OPEN'), playing: T('SPEELT'), paused: T('PAUZE'), idle: T('RUST'),
+                   home: T('THUIS'), not_home: T('WEG'), unavailable: T('OFFLINE'), unknown: '?' };
+  var HA_ACTION = { heating: T('VERWARMT'), cooling: T('KOELT'), idle: T('RUST'), off: T('UIT'), drying: T('DROOGT'), fan: T('VENTILEERT') };
 
   function fmtNum(n) {
     var r = Math.round(n * 10) / 10;
@@ -1489,6 +1510,15 @@
   }
   app.settings = loadSettings();
 
+  // Taal geldt voor Cyberpad als geheel (Mac, alle tablets en de editor).
+  function setLanguage(code) {
+    if (code === window.CP_LANG) { return; }
+    request('POST', '/api/lang', { lang: code }, function (err, status) {
+      if (status === 200) { setTimeout(function () { location.reload(); }, 400); }
+      else { toast(T('Geen verbinding met de Mac')); }
+    });
+  }
+
   function saveSettings() {
     store('set', KEY_SETTINGS, JSON.stringify(app.settings));
     applySettings();
@@ -1500,11 +1530,12 @@
   }
 
   var SETTING_ROWS = [
-    { key: 'ambient', label: 'Rustscherm na', options: [[0, 'UIT'], [2, '2 MIN'], [5, '5 MIN'], [15, '15 MIN'], [30, '30 MIN']] },
-    { key: 'ambientPhotos', label: 'Foto\'s op rustscherm', options: [[true, 'AAN'], [false, 'UIT']] },
-    { key: 'sound', label: 'Tikgeluid', options: [[true, 'AAN'], [false, 'UIT']] },
-    { key: 'anim', label: 'Animaties', options: [[true, 'AAN'], [false, 'UIT (SNELLER)']] },
-    { key: 'fullscreen', label: 'Altijd schermvullend', options: [[true, 'AAN'], [false, 'UIT']], fs: true }
+    { key: 'lang', label: T('Taal'), options: [['en', 'ENGLISH'], ['nl', 'NEDERLANDS'], ['es', 'ESPAÑOL']], global: true },
+    { key: 'ambient', label: T('Rustscherm na'), options: [[0, T('UIT')], [2, '2 MIN'], [5, '5 MIN'], [15, '15 MIN'], [30, '30 MIN']] },
+    { key: 'ambientPhotos', label: T('Foto\'s op rustscherm'), options: [[true, T('AAN')], [false, T('UIT')]] },
+    { key: 'sound', label: T('Tikgeluid'), options: [[true, T('AAN')], [false, T('UIT')]] },
+    { key: 'anim', label: T('Animaties'), options: [[true, T('AAN')], [false, T('UIT (SNELLER)')]] },
+    { key: 'fullscreen', label: T('Altijd schermvullend'), options: [[true, T('AAN')], [false, T('UIT')]], fs: true }
   ];
 
   function showSettings() {
@@ -1518,8 +1549,12 @@
         var opts = el('span', 'set-opts');
         for (var j = 0; j < row.options.length; j++) {
           (function (opt) {
-            var b = el('span', 'set-opt' + (app.settings[row.key] === opt[0] ? ' on' : ''), opt[1]);
-            bindTap(b, function () { app.settings[row.key] = opt[0]; saveSettings(); showSettings(); });
+            var cur = row.global ? (window.CP_LANG || 'en') : app.settings[row.key];
+            var b = el('span', 'set-opt' + (cur === opt[0] ? ' on' : ''), opt[1]);
+            bindTap(b, function () {
+              if (row.global) { setLanguage(opt[0]); return; }
+              app.settings[row.key] = opt[0]; saveSettings(); showSettings();
+            });
             opts.appendChild(b);
           })(row.options[j]);
         }
@@ -1531,13 +1566,11 @@
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
     var note;
     if (standalone) {
-      note = 'Cyberpad draait schermvullend vanaf het beginscherm.';
+      note = T('Cyberpad draait schermvullend vanaf het beginscherm.');
     } else if (fsSupported()) {
-      note = 'Schermvullend: tik op ⛶ rechtsboven, of zet "Altijd schermvullend" aan (dan gaat het vanzelf bij de eerste tik). ' +
-             'Ook kan: Safari › Deel › Zet op beginscherm; daarna één keer opnieuw koppelen.';
+      note = T('Schermvullend: tik op ⛶ rechtsboven, of zet "Altijd schermvullend" aan (dan gaat het vanzelf bij de eerste tik). Ook kan: Safari › Deel › Zet op beginscherm; daarna één keer opnieuw koppelen.');
     } else {
-      note = 'Schermvullend kan op dit apparaat alleen via Safari › Deel › Zet op beginscherm. ' +
-             'Daarna één keer opnieuw koppelen (iOS bewaart de koppeling apart).';
+      note = T('Schermvullend kan op dit apparaat alleen via Safari › Deel › Zet op beginscherm. Daarna één keer opnieuw koppelen (iOS bewaart de koppeling apart).');
     }
     $('settings-home').textContent = note;
     $('settings').className = 'settings';
@@ -1582,8 +1615,8 @@
   }
 
   function buildTouchpad(node, t) {
-    node.appendChild(el('div', 'tp-label', t.label || 'AANRAAKPAD'));
-    node.appendChild(el('div', 'tp-help', '1 vinger: bewegen · tik: klik · 2 vingers: scrollen · tik met 2: rechtsklik · vasthouden: slepen'));
+    node.appendChild(el('div', 'tp-label', t.label || T('AANRAAKPAD')));
+    node.appendChild(el('div', 'tp-help', T('1 vinger: bewegen · tik: klik · 2 vingers: scrollen · tik met 2: rechtsklik · vasthouden: slepen')));
     var acc = { dx: 0, dy: 0, sx: 0, sy: 0 }, timer = null;
     var startT = 0, moved = 0, fingers = 0, maxFingers = 0, last = null, holdTimer = null, dragging = false;
 
@@ -1600,7 +1633,7 @@
     }
     function needWs() {
       if (app.mode === 'ws' && app.ws && app.ws.readyState === 1) { return true; }
-      toast('Het aanraakpad werkt alleen met een WebSocket-verbinding');
+      toast(T('Het aanraakpad werkt alleen met een WebSocket-verbinding'));
       return false;
     }
 
@@ -1796,7 +1829,7 @@
         break;
       }
     }
-    if (!app.connected) { lines.push('⚠ GEEN VERBINDING MET DE MAC'); }
+    if (!app.connected) { lines.push('⚠ ' + T('GEEN VERBINDING MET DE MAC')); }
     $('amb-info').textContent = lines.join('\n');
     // Elke minuut een iets andere plek, tegen inbranden.
     if (d.getSeconds() < 2 || !app.ambientShift) {
@@ -1814,7 +1847,7 @@
     var b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     var days = Math.round((b - a) / 86400000);
     if (days <= 0) { return ''; }
-    if (days === 1) { return 'MORGEN '; }
+    if (days === 1) { return T('MORGEN') + ' '; }
     return DAYS[d.getDay()] + ' ';
   }
 
@@ -1844,6 +1877,7 @@
   // ---------- start ----------
 
   function init() {
+    translateDom();
     applySettings();
     app.lastTouch = new Date().getTime();
     // Laatst bekende status tonen tot de Mac antwoordt.
@@ -1881,9 +1915,9 @@
     bindTap($('settings-close'), function () { $('settings').className = 'settings hidden'; });
     bindTap($('settings-edit'), function () { location.href = '/editor/'; });
     bindTap($('settings-forget'), function () {
-      if (window.confirm('Deze tablet ontkoppelen? Je moet daarna opnieuw de code invoeren.')) {
+      if (window.confirm(T('Deze tablet ontkoppelen? Je moet daarna opnieuw de code invoeren.'))) {
         $('settings').className = 'settings hidden';
-        forget('Ontkoppeld. Voer een nieuwe code in om opnieuw te koppelen.');
+        forget(T('Ontkoppeld. Voer een nieuwe code in om opnieuw te koppelen.'));
       }
     });
     bindTap($('offline-retry'), retryNow);

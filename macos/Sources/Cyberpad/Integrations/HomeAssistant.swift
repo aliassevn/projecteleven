@@ -36,7 +36,7 @@ final class HomeAssistantClient {
         if url != nil && newURL == nil {
             teardown()
             baseURL = nil; self.token = token
-            status = .error("Ongeldig adres; gebruik bijv. http://homeassistant.local:8123")
+            status = .error(L("Ongeldig adres; gebruik bijv. http://homeassistant.local:8123"))
             return
         }
         guard newURL != baseURL || token != self.token || status == .off && newURL != nil else { return }
@@ -66,7 +66,7 @@ final class HomeAssistantClient {
     private func connect() {
         teardown()
         guard let base = baseURL else { status = .off; return }
-        guard let token, !token.isEmpty else { status = .error("Geen token ingesteld (Koppelingen…)"); return }
+        guard let token, !token.isEmpty else { status = .error(L("Geen token ingesteld (Koppelingen…)")); return }
         guard var comps = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return }
         comps.scheme = base.scheme?.lowercased() == "https" ? "wss" : "ws"
         comps.path += "/api/websocket"
@@ -81,7 +81,7 @@ final class HomeAssistantClient {
         receive(gen)
         DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
             guard let self, gen == self.generation, self.status == .connecting else { return }
-            self.failed("Home Assistant antwoordt niet")
+            self.failed(L("Home Assistant antwoordt niet"))
         }
     }
 
@@ -113,7 +113,7 @@ final class HomeAssistantClient {
             switch result {
             case .failure(let e):
                 NSLog("Cyberpad: Home Assistant: %@", e.localizedDescription)
-                self.failed("Geen verbinding met Home Assistant; opnieuw proberen…")
+                self.failed(L("Geen verbinding met Home Assistant; opnieuw proberen…"))
             case .success(let m):
                 var data: Data?
                 switch m {
@@ -143,7 +143,7 @@ final class HomeAssistantClient {
             startPing()
         case "auth_invalid":
             // Niet blijven proberen met een fout token.
-            failed("Token geweigerd door Home Assistant", retry: false)
+            failed(L("Token geweigerd door Home Assistant"), retry: false)
         case "result", "pong":
             if let id = m["id"] as? Int, let cb = pending.removeValue(forKey: id) {
                 cb(m["type"] as? String == "pong" || m["success"] as? Bool == true, m)
@@ -174,7 +174,7 @@ final class HomeAssistantClient {
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             guard let self else { return }
-            if self.awaitingPong { self.failed("Home Assistant antwoordt niet meer"); return }
+            if self.awaitingPong { self.failed(L("Home Assistant antwoordt niet meer")); return }
             self.awaitingPong = true
             self.send(["type": "ping"]) { [weak self] _, _ in self?.awaitingPong = false }
         }
@@ -197,7 +197,7 @@ final class HomeAssistantClient {
             guard let err else { return }
             DispatchQueue.main.async {
                 guard let self, gen == self.generation else { return }
-                self.failed("Versturen naar Home Assistant mislukt: \(err.localizedDescription)")
+                self.failed(L("Versturen naar Home Assistant mislukt: {0}", err.localizedDescription))
             }
         }
     }
@@ -206,7 +206,7 @@ final class HomeAssistantClient {
 
     private func ensureConnected() throws {
         guard status == .connected else {
-            throw ActionRunner.ActionError.failed(status == .off ? "Home Assistant is niet gekoppeld (menubalk › Koppelingen…)"
+            throw ActionRunner.ActionError.failed(status == .off ? L("Home Assistant is niet gekoppeld (menubalk › Koppelingen…)")
                                                                   : status.text)
         }
     }
@@ -222,16 +222,16 @@ final class HomeAssistantClient {
     /// Roept een dienst aan, bijv. "light.turn_on". Weigert HA, dan volgt een melding en `onFail`.
     func call(_ service: String, entity: String?, data: [String: Any] = [:], onFail: (() -> Void)? = nil) throws {
         guard service.range(of: "^[a-z0-9_]+\\.[a-z0-9_]+$", options: .regularExpression) != nil else {
-            throw ActionRunner.ActionError.failed("Ongeldige dienst: \(service) (verwacht bijv. light.turn_on)")
+            throw ActionRunner.ActionError.failed(L("Ongeldige dienst: {0} (verwacht bijv. light.turn_on)", service))
         }
-        if let entity, !Self.validEntity(entity) { throw ActionRunner.ActionError.failed("Ongeldige entiteit: \(entity)") }
+        if let entity, !Self.validEntity(entity) { throw ActionRunner.ActionError.failed(L("Ongeldige entiteit: {0}", entity)) }
         try ensureConnected()
         let parts = service.split(separator: ".", maxSplits: 1).map(String.init)
         var msg: [String: Any] = ["type": "call_service", "domain": parts[0], "service": parts[1], "service_data": data]
         if let entity { msg["target"] = ["entity_id": entity] }
         send(msg) { [weak self] ok, m in
             guard !ok else { return }
-            let err = (m["error"] as? [String: Any])?["message"] as? String ?? "onbekende fout"
+            let err = (m["error"] as? [String: Any])?["message"] as? String ?? L("onbekende fout")
             onFail?()
             self?.onError?("Home Assistant: \(err)")
         }
@@ -262,15 +262,15 @@ final class HomeAssistantClient {
         case "media_player": return ("media_player.media_play_pause", [:])
         case "lock":
             if entities[e]?["state"] as? String == "locked" {
-                throw ActionRunner.ActionError.failed("Ontgrendelen kan alleen met een ha.service-knop (lock.unlock)")
+                throw ActionRunner.ActionError.failed(L("Ontgrendelen kan alleen met een ha.service-knop (lock.unlock)"))
             }
             return ("lock.lock", [:])
         case "alarm_control_panel":
-            throw ActionRunner.ActionError.failed("Een alarm bedien je met ha.service, niet met aan/uit")
+            throw ActionRunner.ActionError.failed(L("Een alarm bedien je met ha.service, niet met aan/uit"))
         case let d where Self.toggleDomains.contains(d):
             return ("homeassistant.toggle", [:])
         default:
-            throw ActionRunner.ActionError.failed("\(e) kan niet aan of uit (gebruik ha.service)")
+            throw ActionRunner.ActionError.failed(L("{0} kan niet aan of uit (gebruik ha.service)", e))
         }
     }
 
@@ -306,7 +306,7 @@ final class HomeAssistantClient {
             let value = ((lo + v * (hi - lo)) / step).rounded() * step
             return ("\(Self.domain(e)).set_value", ["value": value])
         default:
-            throw ActionRunner.ActionError.failed("Een schuif werkt niet voor \(e)")
+            throw ActionRunner.ActionError.failed(L("Een schuif werkt niet voor {0}", e))
         }
     }
 
@@ -314,7 +314,7 @@ final class HomeAssistantClient {
     func stepClimate(_ e: String, by dir: Double) throws {
         try ensureConnected()
         let a = entities[e]?["attributes"] as? [String: Any] ?? [:]
-        guard let target = Self.number(a["temperature"]) else { throw ActionRunner.ActionError.failed("Geen doeltemperatuur voor \(e)") }
+        guard let target = Self.number(a["temperature"]) else { throw ActionRunner.ActionError.failed(L("Geen doeltemperatuur voor {0}", e)) }
         let step = Self.number(a["target_temp_step"]) ?? 0.5
         var t = ((target + dir * step) / step).rounded() * step
         if let lo = Self.number(a["min_temp"]) { t = max(t, lo) }
@@ -341,9 +341,9 @@ final class HomeAssistantClient {
 
     /// Alleen de velden die de tablet toont, niet alle attributen.
     func entityJSON(_ id: String?) -> [String: Any] {
-        guard let id else { return ["status": "error", "error": "Geen entiteit ingesteld"] }
+        guard let id else { return ["status": "error", "error": L("Geen entiteit ingesteld")] }
         guard status == .connected else { return ["status": status.code, "error": status.text] }
-        guard let s = entities[id] else { return ["status": "error", "error": "Onbekend in Home Assistant: \(id)"] }
+        guard let s = entities[id] else { return ["status": "error", "error": L("Onbekend in Home Assistant: {0}", id)] }
         let a = s["attributes"] as? [String: Any] ?? [:]
         let state = s["state"] as? String ?? "unknown"
         let domain = Self.domain(id)

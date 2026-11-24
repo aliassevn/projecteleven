@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -18,16 +18,16 @@
   <div id="status" class="status">
     <span class="brand">CYBERPAD</span>
     <span id="profile-name" class="profile-name"></span>
-    <span id="meeting-pill" class="meeting-pill hidden">● VERGADERING</span>
-    <span id="status-text" class="status-text">VERBINDEN…</span>
+    <span id="meeting-pill" class="meeting-pill hidden">● <span data-t>VERGADERING</span></span>
+    <span id="status-text" class="status-text" data-t>VERBINDEN…</span>
     <span id="status-dot" class="dot"></span>
-    <span id="fs-toggle" class="fs-toggle hidden" title="Schermvullend">⛶</span>
+    <span id="fs-toggle" class="fs-toggle hidden" title="Schermvullend" data-t-title>⛶</span>
     <span id="settings-open" class="settings-open">⚙</span>
   </div>
 
   <div id="offline" class="offline-bar hidden">
-    <span class="offline-text">VERBINDING MET DE MAC WEG</span>
-    <span id="offline-retry" class="offline-retry">NU PROBEREN</span>
+    <span class="offline-text" data-t>VERBINDING MET DE MAC WEG</span>
+    <span id="offline-retry" class="offline-retry" data-t>NU PROBEREN</span>
   </div>
 
   <div id="pad" class="pad"></div>
@@ -35,9 +35,9 @@
 
   <div id="meeting" class="meeting hidden">
     <div class="meeting-head">
-      <span id="meeting-title" class="meeting-title">// VERGADERING</span>
+      <span id="meeting-title" class="meeting-title">// <span data-t>VERGADERING</span></span>
       <span id="meeting-since" class="meeting-since"></span>
-      <span id="meeting-hide" class="meeting-hide">VERBERGEN ✕</span>
+      <span id="meeting-hide" class="meeting-hide" data-t>VERBERGEN ✕</span>
     </div>
     <div id="meeting-grid" class="meeting-grid"></div>
     <div id="meeting-note" class="meeting-note"></div>
@@ -45,10 +45,10 @@
 
   <div id="pair" class="pair hidden">
     <div class="pair-box">
-      <div class="pair-title">// KOPPELEN</div>
-      <p class="pair-help">Voer de 6-cijferige code in die in de menubalk van je Mac staat.</p>
+      <div class="pair-title">// <span data-t>KOPPELEN</span></div>
+      <p class="pair-help" data-t>Voer de 6-cijferige code in die in de menubalk van je Mac staat.</p>
       <input id="pair-code" class="pair-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="000000">
-      <button id="pair-btn" class="pair-btn">KOPPEL</button>
+      <button id="pair-btn" class="pair-btn" data-t>KOPPEL</button>
       <p id="pair-msg" class="pair-msg"></p>
     </div>
   </div>
@@ -56,13 +56,13 @@
   <div id="settings" class="settings hidden">
     <div class="settings-box">
       <div class="settings-head">
-        <span class="pair-title">// INSTELLINGEN</span>
-        <span id="settings-close" class="meeting-hide">SLUITEN ✕</span>
+        <span class="pair-title">// <span data-t>INSTELLINGEN</span></span>
+        <span id="settings-close" class="meeting-hide" data-t>SLUITEN ✕</span>
       </div>
       <div id="settings-rows"></div>
       <p id="settings-home" class="settings-note"></p>
-      <span id="settings-edit" class="set-opt">LAYOUT BEWERKEN ›</span>
-      <span id="settings-forget" class="set-opt danger">DEZE TABLET ONTKOPPELEN</span>
+      <span id="settings-edit" class="set-opt" data-t>LAYOUT BEWERKEN ›</span>
+      <span id="settings-forget" class="set-opt danger" data-t>DEZE TABLET ONTKOPPELEN</span>
     </div>
   </div>
 
@@ -78,6 +78,7 @@
   <div id="toast" class="toast"></div>
   <div class="scanlines"></div>
 
+  <script src="i18n.js"></script>
   <script src="pad.js"></script>
 </body>
 </html>

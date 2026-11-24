@@ -4,6 +4,54 @@
 (function () {
   'use strict';
 
+  // Vertalingen: de Nederlandse tekst is de sleutel (shared/i18n/<taal>.json, via /i18n.js).
+  var I18N = window.CP_I18N || {};
+  function T(s) {
+    var out = Object.prototype.hasOwnProperty.call(I18N, s) ? I18N[s] : s;
+    for (var i = 1; i < arguments.length; i++) { out = out.split('{' + (i - 1) + '}').join(String(arguments[i])); }
+    return out;
+  }
+  // Namen, labels en voorbeelden in schema.json vertalen (types, groepen en opties blijven zoals ze zijn).
+  function translateSchema(o) {
+    if (o && typeof o === 'object') {
+      for (var k in o) {
+        if (!Object.prototype.hasOwnProperty.call(o, k)) { continue; }
+        if ((k === 'name' || k === 'label' || k === 'placeholder') && typeof o[k] === 'string') { o[k] = T(o[k]); }
+        else { translateSchema(o[k]); }
+      }
+    }
+    return o;
+  }
+
+  function translateDom() {
+    if (window.CP_LANG) { document.documentElement.lang = window.CP_LANG; }
+    document.title = 'Cyberpad — ' + T('Layout bewerken');
+    var n = document.querySelectorAll('[data-t],[data-t-title]');
+    for (var i = 0; i < n.length; i++) {
+      if (n[i].hasAttribute('data-t')) { n[i].textContent = T(n[i].textContent.replace(/^\s+|\s+$/g, '')); }
+      if (n[i].hasAttribute('data-t-title')) { n[i].title = T(n[i].title); }
+    }
+  }
+
+  var LANGS = [['en', 'English'], ['nl', 'Nederlands'], ['es', 'Español']];
+
+  // Taal wisselen: geldt voor heel Cyberpad. Eerst vragen als er nog iets niet is opgeslagen.
+  function switchLanguage(code) {
+    if (code === (window.CP_LANG || 'en')) { return; }
+    if (E.layout && isDirty() && !window.confirm(T('Niet-opgeslagen wijzigingen weggooien?'))) { return; }
+    req('POST', '/api/lang', { lang: code }, function (st) {
+      if (st === 200) { E.leaving = true; setTimeout(function () { location.reload(); }, 300); }
+      else { message(T('Taal wisselen mislukt ({0})', st), true); }
+    });
+  }
+
+  // Taal gewisseld in het menu op de Mac (alleen in het Mac-venster).
+  window.cpLanguageChanged = function () {
+    if (E.layout && isDirty()) { message(T('De taal is gewisseld. Sla op en open de editor opnieuw om hem in de nieuwe taal te zien.'), false); return; }
+    E.leaving = true;
+    location.reload();
+  };
+
   var E = {
     auth: null,          // { mode: 'mac'|'tablet', header, token }
     schema: null,
@@ -143,10 +191,10 @@
     $('b-redo').disabled = !E.redo.length;
     var s = $('b-save');
     s.className = 'btn primary' + (isDirty() ? ' dirty' : '');
-    s.textContent = isDirty() ? 'OPSLAAN ●' : 'OPGESLAGEN';
+    s.textContent = isDirty() ? T('OPSLAAN') + ' ●' : T('OPGESLAGEN');
     var p = $('problems');
     var n = E.problems.length + (E.jsonBad ? 1 : 0);
-    p.textContent = n ? '⚠ ' + n + (n === 1 ? ' PROBLEEM' : ' PROBLEMEN') : '';
+    p.textContent = n ? '⚠ ' + (n === 1 ? T('1 PROBLEEM') : T('{0} PROBLEMEN', n)) : '';
   }
 
   function validate() {
@@ -231,9 +279,9 @@
         box.appendChild(b);
       })(i);
     }
-    var add = el('span', 'ptab add', '+ PAGINA');
+    var add = el('span', 'ptab add', '+ ' + T('PAGINA'));
     tap(add, function () {
-      var name = window.prompt('Naam van de nieuwe pagina', 'Nieuw');
+      var name = window.prompt(T('Naam van de nieuwe pagina'), T('Nieuw'));
       if (!name) { return; }
       snapshot();
       E.layout.pages.push({ id: uniquePageId(name), name: name, tiles: [] });
@@ -251,12 +299,12 @@
   // ---------- voorbeeld op tablet-formaat ----------
   // Ruimte voor tegels = venster min statusbalk (54) en tabs (70) en marges (2×18), zoals op de tablet.
   var PRESETS = [
-    { id: 'ipad97', name: 'iPad 9,7″ (oud)', sw: 1024, sh: 768, bar: 64 },
-    { id: 'ipad102', name: 'iPad 10,2″', sw: 1080, sh: 810, bar: 74 },
-    { id: 'ipad109', name: 'iPad 10,9″ / Air', sw: 1180, sh: 820, bar: 74 },
+    { id: 'ipad97', name: T('iPad 9,7″ (oud)'), sw: 1024, sh: 768, bar: 64 },
+    { id: 'ipad102', name: T('iPad 10,2″'), sw: 1080, sh: 810, bar: 74 },
+    { id: 'ipad109', name: T('iPad 10,9″ / Air'), sw: 1180, sh: 820, bar: 74 },
     { id: 'ipadmini', name: 'iPad mini', sw: 1133, sh: 744, bar: 74 },
     { id: 'ipadpro11', name: 'iPad Pro 11″', sw: 1194, sh: 834, bar: 74 },
-    { id: 'ipadpro13', name: 'iPad Pro 12,9″', sw: 1366, sh: 1024, bar: 74 }
+    { id: 'ipadpro13', name: T('iPad Pro 12,9″'), sw: 1366, sh: 1024, bar: 74 }
   ];
   function padBox(vw, vh) {
     var small = vw <= 600;
@@ -297,16 +345,16 @@
   function drawPreviewBar() {
     var bar = $('preview'), p = E.preview || {};
     bar.innerHTML = '';
-    bar.appendChild(el('span', 'pv-label', 'VOORBEELD'));
+    bar.appendChild(el('span', 'pv-label', T('VOORBEELD')));
     var sel = el('select');
-    sel.appendChild(optionEl('', 'Vrij (past in dit venster)'));
+    sel.appendChild(optionEl('', T('Vrij (past in dit venster)')));
     var devs = E.catalog.devices || [];
     if (devs.length) {
-      var og = el('optgroup'); og.label = 'Zoals je tablet nu is';
+      var og = el('optgroup'); og.label = T('Zoals je tablet nu is');
       for (var i = 0; i < devs.length; i++) { og.appendChild(optionEl('dev:' + devs[i].id, devs[i].name + ' (' + devs[i].vw + '×' + devs[i].vh + ')')); }
       sel.appendChild(og);
     }
-    var og2 = el('optgroup'); og2.label = 'Modellen';
+    var og2 = el('optgroup'); og2.label = T('Modellen');
     for (var j = 0; j < PRESETS.length; j++) { og2.appendChild(optionEl(PRESETS[j].id, PRESETS[j].name)); }
     sel.appendChild(og2);
     sel.value = p.src || '';
@@ -316,13 +364,13 @@
       var rot = el('label', 'pv-check');
       var rc = el('input'); rc.type = 'checkbox'; rc.checked = !!p.rotate;
       on(rc, 'change', function () { E.preview.rotate = rc.checked; savePreview(); drawPreviewBar(); drawGrid(); });
-      rot.appendChild(rc); rot.appendChild(document.createTextNode(' gedraaid'));
+      rot.appendChild(rc); rot.appendChild(document.createTextNode(' ' + T('gedraaid')));
       bar.appendChild(rot);
       if (p.src.indexOf('dev:') !== 0) {
         var fs = el('label', 'pv-check');
         var fc = el('input'); fc.type = 'checkbox'; fc.checked = !!p.full;
         on(fc, 'change', function () { E.preview.full = fc.checked; savePreview(); drawPreviewBar(); drawGrid(); });
-        fs.appendChild(fc); fs.appendChild(document.createTextNode(' schermvullend'));
+        fs.appendChild(fc); fs.appendChild(document.createTextNode(' ' + T('schermvullend')));
         bar.appendChild(fs);
       }
       bar.appendChild(el('span', 'pv-info', ''));
@@ -351,8 +399,8 @@
     geo = { cw: (box.w - gap * (cols() - 1)) / cols(), ch: (box.h - gap * (rowsN() - 1)) / rowsN(), gap: gap, s: sc };
     var info = document.querySelector('#preview .pv-info');
     if (info) {
-      info.textContent = box.name + ' · tegelruimte ' + Math.round(box.w) + '×' + Math.round(box.h) +
-        ' · 1 vak = ' + Math.round(geo.cw) + '×' + Math.round(geo.ch) + ' pt';
+      info.textContent = box.name + ' · ' + T('tegelruimte {0}', Math.round(box.w) + '×' + Math.round(box.h)) +
+        ' · ' + T('1 vak = {0}', Math.round(geo.cw) + '×' + Math.round(geo.ch) + ' pt');
     }
   }
   function place(node, x, y, w, h) {
@@ -564,7 +612,7 @@
       case 'select':
         input = el('select');
         for (var i = 0; i < f.options.length; i++) {
-          var o = el('option', null, f.options[i] || '— standaard —');
+          var o = el('option', null, f.options[i] || T('— standaard —'));
           o.value = f.options[i];
           input.appendChild(o);
         }
@@ -573,7 +621,7 @@
         break;
       case 'app':
         input = el('select');
-        input.appendChild(optionEl('', '— kies een app —'));
+        input.appendChild(optionEl('', T('— kies een app —')));
         var found = !v;
         for (var a = 0; a < E.catalog.apps.length; a++) {
           var ap = E.catalog.apps[a];
@@ -586,7 +634,7 @@
         break;
       case 'preset':
         input = el('select');
-        input.appendChild(optionEl('', '— kies een sneltoets —'));
+        input.appendChild(optionEl('', T('— kies een sneltoets —')));
         var groups = {}, order = [];
         for (var p = 0; p < E.catalog.presets.length; p++) {
           var pr = E.catalog.presets[p];
@@ -599,10 +647,10 @@
         break;
       case 'plugin':
         input = el('select');
-        input.appendChild(optionEl('', '— kies een plugin —'));
+        input.appendChild(optionEl('', T('— kies een plugin —')));
         for (var q = 0; q < E.catalog.plugins.length; q++) {
           var pl = E.catalog.plugins[q];
-          input.appendChild(optionEl(pl.id, pl.icon + ' ' + pl.name + (pl.enabled ? '' : ' (staat uit)')));
+          input.appendChild(optionEl(pl.id, pl.icon + ' ' + pl.name + (pl.enabled ? '' : ' (' + T('staat uit') + ')')));
         }
         input.value = v || '';
         on(input, 'change', function () { snapshot(); changed(input.value || undefined); if (ctx && ctx.rerender) { ctx.rerender(); } });
@@ -610,7 +658,7 @@
       case 'pluginAction':
       case 'pluginWidget':
         input = el('select');
-        input.appendChild(optionEl('', '— kies —'));
+        input.appendChild(optionEl('', T('— kies —')));
         var plug = null, pid = ctx && ctx.pluginId ? ctx.pluginId() : null;
         for (var r = 0; r < E.catalog.plugins.length; r++) { if (E.catalog.plugins[r].id === pid) { plug = E.catalog.plugins[r]; } }
         var list = plug ? (f.type === 'pluginAction' ? plug.actions : plug.widgets) : [];
@@ -709,15 +757,15 @@
     box.appendChild(head);
     var a = get();
     var sel = el('select');
-    if (optional) { sel.appendChild(optionEl('', '— geen —')); }
+    if (optional) { sel.appendChild(optionEl('', T('— geen —'))); }
     var defs = allowedActions(kind, slot, inMacro), groups = {}, order = [];
     for (var i = 0; i < defs.length; i++) {
       var g = defs[i].group;
-      if (!groups[g]) { groups[g] = el('optgroup'); groups[g].label = g; order.push(g); }
+      if (!groups[g]) { groups[g] = el('optgroup'); groups[g].label = T(g); order.push(g); }
       groups[g].appendChild(optionEl(defs[i].type, defs[i].name));
     }
     for (var j = 0; j < order.length; j++) { sel.appendChild(groups[order[j]]); }
-    if (a && a.type && !actionDef(a.type)) { sel.appendChild(optionEl(a.type, a.type + ' (onbekend)')); }
+    if (a && a.type && !actionDef(a.type)) { sel.appendChild(optionEl(a.type, a.type + ' (' + T('onbekend') + ')')); }
     sel.value = a ? a.type : '';
     var r = el('div', 'row');
     r.appendChild(sel);
@@ -743,11 +791,11 @@
 
   function stepsEditor(a, rerender) {
     var wrap = el('div', 'steps');
-    wrap.appendChild(el('span', 'lbl', 'Stappen'));
+    wrap.appendChild(el('span', 'lbl', T('Stappen')));
     if (!a.steps) { a.steps = []; }
     for (var i = 0; i < a.steps.length; i++) {
       (function (idx) {
-        var ed = actionEditor('Stap ' + (idx + 1), 'button', 'action', function () { return a.steps[idx]; },
+        var ed = actionEditor(T('Stap {0}', idx + 1), 'button', 'action', function () { return a.steps[idx]; },
           function (v) { a.steps[idx] = v || { type: 'delay', ms: 300 }; }, true, false, rerender);
         var tools = el('span', 'step-tools');
         var upB = el('span', null, '↑'), dnB = el('span', null, '↓'), rm = el('span', null, '✕');
@@ -759,9 +807,9 @@
         wrap.appendChild(ed);
       })(i);
     }
-    var add = el('button', 'btn small', '+ STAP');
+    var add = el('button', 'btn small', '+ ' + T('STAP'));
     tap(add, function () { snapshot(); a.steps.push({ type: 'keys.press' }); afterChange(false); rerender(); });
-    var addDelay = el('button', 'btn small', '+ PAUZE');
+    var addDelay = el('button', 'btn small', '+ ' + T('PAUZE'));
     tap(addDelay, function () { snapshot(); a.steps.push({ type: 'delay', ms: 300 }); afterChange(false); rerender(); });
     wrap.appendChild(add);
     wrap.appendChild(addDelay);
@@ -782,25 +830,25 @@
     var kd = kindDef(t.kind);
 
     var top = el('div', 'sec');
-    top.appendChild(el('div', 'sec-title', '// TEGEL'));
+    top.appendChild(el('div', 'sec-title', '// ' + T('TEGEL')));
     var tools = el('div', 'row');
-    var dup = el('button', 'btn small', 'DUPLICEREN');
+    var dup = el('button', 'btn small', T('DUPLICEREN'));
     tap(dup, function () { duplicateTile(t); });
-    var del = el('button', 'btn small danger', 'VERWIJDEREN');
+    var del = el('button', 'btn small danger', T('VERWIJDEREN'));
     tap(del, function () { snapshot(); var ts = curPage().tiles; ts.splice(ts.indexOf(t), 1); E.sel = null; afterChange(true); });
-    var desel = el('button', 'btn small', 'KLAAR');
+    var desel = el('button', 'btn small', T('KLAAR'));
     tap(desel, function () { E.sel = null; drawGrid(); drawSide(); });
     tools.appendChild(dup); tools.appendChild(del); tools.appendChild(desel);
     top.appendChild(tools);
 
-    top.appendChild(field({ key: 'label', label: 'Label', type: 'text' }, function () { return t.label; }, function (v) { t.label = v || ''; drawGridSoon(); }));
+    top.appendChild(field({ key: 'label', label: T('Label'), type: 'text' }, function () { return t.label; }, function (v) { t.label = v || ''; drawGridSoon(); }));
     top.appendChild(iconPicker(t));
-    top.appendChild(colorField('Kleur van de tegel', function () { return t.color; }, function (v) { t.color = v; drawGridSoon(); }));
+    top.appendChild(colorField(T('Kleur van de tegel'), function () { return t.color; }, function (v) { t.color = v; drawGridSoon(); }));
 
     var kinds = [];
     for (var k = 0; k < E.schema.kinds.length; k++) { kinds.push(E.schema.kinds[k].kind); }
     var kindRow = el('div', 'row');
-    kindRow.appendChild(el('label', null, 'Soort'));
+    kindRow.appendChild(el('label', null, T('Soort')));
     var ksel = el('select');
     for (var j = 0; j < E.schema.kinds.length; j++) { ksel.appendChild(optionEl(E.schema.kinds[j].kind, E.schema.kinds[j].name)); }
     ksel.value = t.kind || 'button';
@@ -809,17 +857,17 @@
     top.appendChild(kindRow);
 
     var size = el('div', 'pair');
-    size.appendChild(field({ key: 'w', label: 'Breedte', type: 'number' }, function () { return t.w || 1; }, function (v) { resizeTile(t, v, t.h || 1); }));
-    size.appendChild(field({ key: 'h', label: 'Hoogte', type: 'number' }, function () { return t.h || 1; }, function (v) { resizeTile(t, t.w || 1, v); }));
+    size.appendChild(field({ key: 'w', label: T('Breedte'), type: 'number' }, function () { return t.w || 1; }, function (v) { resizeTile(t, v, t.h || 1); }));
+    size.appendChild(field({ key: 'h', label: T('Hoogte'), type: 'number' }, function () { return t.h || 1; }, function (v) { resizeTile(t, t.w || 1, v); }));
     top.appendChild(size);
-    top.appendChild(el('div', 'hint', 'Id: ' + t.id + ' · sleep de tegel om te verplaatsen, het roze hoekje om te vergroten.'));
+    top.appendChild(el('div', 'hint', 'Id: ' + t.id + ' · ' + T('sleep de tegel om te verplaatsen, het roze hoekje om te vergroten.')));
     side.appendChild(top);
 
     // Instellingen per soort
     var cfg = (kd.config || []).concat(kd.kind === 'button' ? (E.schema.buttonConfig || []) : []);
     if (cfg.length) {
       var cs = el('div', 'sec');
-      cs.appendChild(el('div', 'sec-title', '// INSTELLINGEN'));
+      cs.appendChild(el('div', 'sec-title', '// ' + T('INSTELLINGEN')));
       for (var c = 0; c < cfg.length; c++) {
         (function (f) {
           cs.appendChild(field(f, function () { return t.config ? t.config[f.key] : undefined; },
@@ -834,9 +882,9 @@
     var slots = kd.actions || [];
     if (slots.length) {
       var as = el('div', 'sec');
-      as.appendChild(el('div', 'sec-title', '// ACTIES'));
-      var titles = kd.dial ? { action: 'Met de klok mee', offAction: 'Tegen de klok in (niet bij volume/niveau)' }
-        : { action: kd.kind === 'slider' ? 'Schuif bedient' : 'Tik', longPress: 'Lang indrukken', doubleTap: 'Dubbeltikken' };
+      as.appendChild(el('div', 'sec-title', '// ' + T('ACTIES')));
+      var titles = kd.dial ? { action: T('Met de klok mee'), offAction: T('Tegen de klok in (niet bij volume/niveau)') }
+        : { action: kd.kind === 'slider' ? T('Schuif bedient') : T('Tik'), longPress: T('Lang indrukken'), doubleTap: T('Dubbeltikken') };
       for (var s = 0; s < slots.length; s++) {
         (function (slot) {
           as.appendChild(actionEditor(titles[slot], kd.kind, slot, function () { return t[slot]; },
@@ -844,10 +892,10 @@
         })(slots[s]);
       }
       if (kd.toggle) {
-        as.appendChild(field({ key: 'toggle', label: 'Aan/uit-knop (Cyberpad onthoudt de stand)', type: 'bool' },
+        as.appendChild(field({ key: 'toggle', label: T('Aan/uit-knop (Cyberpad onthoudt de stand)'), type: 'bool' },
           function () { return t.toggle; }, function (v) { t.toggle = v; drawSide(); }));
         if (t.toggle) {
-          as.appendChild(actionEditor('Bij uitzetten (leeg = zelfde als tik)', kd.kind, 'offAction', function () { return t.offAction; },
+          as.appendChild(actionEditor(T('Bij uitzetten (leeg = zelfde als tik)'), kd.kind, 'offAction', function () { return t.offAction; },
             function (v) { t.offAction = v; }, false, true, rerender));
         }
       }
@@ -858,13 +906,13 @@
   // Icoon kiezen: emoji, app-icoon van de computer of een eigen afbeelding.
   function iconPicker(t) {
     var row = el('div', 'row');
-    row.appendChild(el('label', null, 'Icoon'));
+    row.appendChild(el('label', null, T('Icoon')));
     var tab = E.iconTab || (/^app:/.test(t.icon || '') ? 'app' : /^img:/.test(t.icon || '') ? 'img' : 'emoji');
     var head = el('div', 'icon-tabs');
     var prev = el('span', 'icon-prev', isImgIcon(t.icon) ? '' : (t.icon || ''));
     if (isImgIcon(t.icon)) { loadIcon(t.icon, function (u) { prev.style.backgroundImage = 'url(' + u + ')'; }); }
     head.appendChild(prev);
-    var tabs = [['emoji', 'EMOJI'], ['app', 'APP-ICOON'], ['img', 'AFBEELDING']];
+    var tabs = [['emoji', 'EMOJI'], ['app', T('APP-ICOON')], ['img', T('AFBEELDING')]];
     for (var i = 0; i < tabs.length; i++) {
       (function (tb) {
         var b = el('span', tb[0] === tab ? 'on' : '', tb[1]);
@@ -872,7 +920,7 @@
         head.appendChild(b);
       })(tabs[i]);
     }
-    var clear = el('span', '', 'GEEN');
+    var clear = el('span', '', T('GEEN'));
     tap(clear, function () { snapshot(); delete t.icon; afterChange(false); drawSide(); });
     head.appendChild(clear);
     row.appendChild(head);
@@ -881,7 +929,7 @@
       var inp = el('input');
       inp.type = 'text';
       inp.value = isImgIcon(t.icon) ? '' : (t.icon || '');
-      inp.placeholder = 'emoji of tekst';
+      inp.placeholder = T('emoji of tekst');
       on(inp, 'focus', snapshot);
       on(inp, 'input', function () { t.icon = inp.value || undefined; prev.textContent = inp.value; afterChange(false); });
       row.appendChild(inp);
@@ -897,17 +945,17 @@
       row.appendChild(emo);
     } else if (tab === 'app') {
       var sel = el('select');
-      sel.appendChild(optionEl('', '— kies een app —'));
+      sel.appendChild(optionEl('', T('— kies een app —')));
       for (var a = 0; a < E.catalog.apps.length; a++) { sel.appendChild(optionEl('app:' + E.catalog.apps[a].id, E.catalog.apps[a].name)); }
       sel.value = /^app:/.test(t.icon || '') ? t.icon : '';
       on(sel, 'change', function () { if (!sel.value) { return; } snapshot(); t.icon = sel.value; afterChange(false); drawSide(); });
       row.appendChild(sel);
-      row.appendChild(el('div', 'hint', 'Het icoon van een app op deze computer. Handig bij "App openen".'));
+      row.appendChild(el('div', 'hint', T('Het icoon van een app op deze computer. Handig bij "App openen".')));
     } else {
-      var up = el('button', 'btn small', 'AFBEELDING KIEZEN…');
+      var up = el('button', 'btn small', T('AFBEELDING KIEZEN…'));
       tap(up, function () { E.iconTarget = t; $('f-icon').click(); });
       row.appendChild(up);
-      row.appendChild(el('div', 'hint', 'PNG, JPEG of HEIC tot 700 KB. Wordt verkleind tot 256 px en op de computer bewaard.'));
+      row.appendChild(el('div', 'hint', T('PNG, JPEG of HEIC tot 700 KB. Wordt verkleind tot 256 px en op de computer bewaard.')));
     }
     return row;
   }
@@ -915,12 +963,12 @@
   function uploadIcon(file) {
     var t = E.iconTarget;
     if (!t || !file) { return; }
-    if (file.size > 700 * 1024) { message('Afbeelding te groot (max. 700 KB).', true); return; }
+    if (file.size > 700 * 1024) { message(T('Afbeelding te groot (max. 700 KB).'), true); return; }
     var r = new FileReader();
     r.onload = function () {
       req('POST', '/api/editor/icon', { data: r.result }, function (st, d) {
         if (st === 200 && d && d.icon) { snapshot(); t.icon = d.icon; afterChange(false); drawSide(); }
-        else { message((d && d.error) || 'Uploaden mislukt (' + st + ')', true); }
+        else { message((d && d.error) || T('Uploaden mislukt ({0})', st), true); }
       });
     };
     r.readAsDataURL(file);
@@ -937,7 +985,7 @@
     var txt = el('input');
     txt.type = 'text';
     txt.value = v;
-    txt.placeholder = noClear ? '#rrggbb' : 'geen';
+    txt.placeholder = noClear ? '#rrggbb' : T('geen');
     txt.style.width = '100px';
     txt.style.display = 'inline-block';
     txt.style.marginLeft = '6px';
@@ -954,7 +1002,7 @@
     if (pick.type === 'color') { row.appendChild(pick); }
     row.appendChild(txt);
     if (!noClear && v) {
-      var cl = el('span', 'link', '  WISSEN');
+      var cl = el('span', 'link', '  ' + T('WISSEN'));
       tap(cl, function () { snapshot(); set(undefined); afterChange(false); drawSide(); });
       row.appendChild(cl);
     }
@@ -964,23 +1012,23 @@
   // ---------- thema-bouwer ----------
 
   var FONTS = [
-    ['', '— lettertype van het thema —'],
-    ['Menlo, "SF Mono", Consolas, "Courier New", monospace', 'Mono (Menlo)'],
-    ['"Courier New", Courier, monospace', 'Typemachine (Courier)'],
-    ['"Avenir Next Condensed", "DIN Condensed", "Arial Narrow", sans-serif', 'Smal (Avenir Condensed)'],
-    ['Futura, "Avenir Next", "Century Gothic", sans-serif', 'Geometrisch (Futura)'],
-    ['-apple-system, "Helvetica Neue", "Segoe UI", Arial, sans-serif', 'Systeem (Helvetica)'],
+    ['', T('— lettertype van het thema —')],
+    ['Menlo, "SF Mono", Consolas, "Courier New", monospace', T('Mono (Menlo)')],
+    ['"Courier New", Courier, monospace', T('Typemachine (Courier)')],
+    ['"Avenir Next Condensed", "DIN Condensed", "Arial Narrow", sans-serif', T('Smal (Avenir Condensed)')],
+    ['Futura, "Avenir Next", "Century Gothic", sans-serif', T('Geometrisch (Futura)')],
+    ['-apple-system, "Helvetica Neue", "Segoe UI", Arial, sans-serif', T('Systeem (Helvetica)')],
     ['"American Typewriter", "Courier New", serif', 'American Typewriter'],
     ['Copperplate, "Copperplate Gothic Light", serif', 'Copperplate'],
-    ['"Chalkboard SE", "Comic Sans MS", sans-serif', 'Krijtbord']
+    ['"Chalkboard SE", "Comic Sans MS", sans-serif', T('Krijtbord')]
   ];
-  var COLOR_LABELS = { bg: 'Achtergrond', bg2: 'Achtergrond 2', text: 'Tekst', accent: 'Accent', accent2: 'Accent 2 (aan)',
-    accent2Text: 'Tekst op accent 2', danger: 'Waarschuwing', dangerText: 'Tekst waarschuwing', ok: 'Goed', okText: 'Tekst goed',
-    panel: 'Paneel (widgets)', panelBorder: 'Rand paneel', button: 'Knop', buttonText: 'Tekst op knop', buttonBorder: 'Rand knop',
-    buttonActive: 'Knop aan', buttonActiveText: 'Tekst op knop aan' };
+  var COLOR_LABELS = { bg: T('Achtergrond'), bg2: T('Achtergrond 2'), text: T('Tekst'), accent: T('Accent'), accent2: T('Accent 2 (aan)'),
+    accent2Text: T('Tekst op accent 2'), danger: T('Waarschuwing'), dangerText: T('Tekst waarschuwing'), ok: T('Goed'), okText: T('Tekst goed'),
+    panel: T('Paneel (widgets)'), panelBorder: T('Rand paneel'), button: T('Knop'), buttonText: T('Tekst op knop'), buttonBorder: T('Rand knop'),
+    buttonActive: T('Knop aan'), buttonActiveText: T('Tekst op knop aan') };
   // Deze mag een thema weglaten; dan volgen ze vanzelf uit accent en tekst ("automatisch").
   var OPTIONAL_COLORS = { panel: 1, panelBorder: 1, button: 1, buttonText: 1, buttonBorder: 1, buttonActive: 1, buttonActiveText: 1 };
-  var EFFECT_LABELS = { scanlines: 'Scanlijnen', glow: 'Gloed', grid: 'Raster op achtergrond', corner: 'Schuine hoek', glitch: 'Glitch', upper: 'HOOFDLETTERS', bold: 'Vet' };
+  var EFFECT_LABELS = { scanlines: T('Scanlijnen'), glow: T('Gloed'), grid: T('Raster op achtergrond'), corner: T('Schuine hoek'), glitch: T('Glitch'), upper: T('HOOFDLETTERS'), bold: T('Vet') };
 
   function baseTheme() {
     for (var i = 0; i < E.themes.length; i++) { if (E.themes[i].id === E.layout.theme) { return E.themes[i]; } }
@@ -1006,10 +1054,10 @@
   }
 
   function showTheme() {
-    $('modal-title').textContent = '// THEMA';
+    $('modal-title').textContent = '// ' + T('THEMA');
     var body = $('modal-body');
     body.innerHTML = '';
-    if (!E.themes.length) { body.appendChild(el('p', 'hint', 'Geen thema\'s gevonden.')); $('modal').className = 'modal'; return; }
+    if (!E.themes.length) { body.appendChild(el('p', 'hint', T('Geen thema\'s gevonden.'))); $('modal').className = 'modal'; return; }
     var cards = el('div', 'themes');
     for (var i = 0; i < E.themes.length; i++) {
       (function (th) {
@@ -1018,10 +1066,10 @@
         c.style.color = th.colors.text;
         c.style.fontFamily = th.font;
         c.style.borderRadius = th.radius + 'px';
-        var nm = el('div', 'tname', th.name);
+        var nm = el('div', 'tname', T(th.name));
         nm.style.color = th.colors.accent;
         c.appendChild(nm);
-        var ds = el('div', 'tdesc', th.description || '');
+        var ds = el('div', 'tdesc', T(th.description || ''));
         ds.style.color = hexA(th.colors.text, 0.7);
         c.appendChild(ds);
         var keys = ['button', 'accent', 'accent2', 'text', 'danger'];
@@ -1031,7 +1079,7 @@
         }
         tap(c, function () {
           if (th.id === E.layout.theme) { return; }
-          if (hasOverrides() && !window.confirm('Eigen aanpassingen op het huidige thema wissen?')) { return; }
+          if (hasOverrides() && !window.confirm(T('Eigen aanpassingen op het huidige thema wissen?'))) { return; }
           snapshot();
           E.layout.theme = th.id;
           delete E.layout.themeOverrides;
@@ -1048,7 +1096,7 @@
     var pv = el('div', 'preview');
     pv.style.background = t.colors.bg;
     pv.style.fontFamily = t.font;
-    var samples = [['KNOP', 'b'], ['KNOP AAN', 'ba'], ['PANEEL', 'n'], ['⚠ FOUT', 'd']];
+    var samples = [[T('KNOP'), 'b'], [T('KNOP AAN'), 'ba'], [T('PANEEL'), 'n'], ['⚠ ' + T('FOUT'), 'd']];
     for (var s2 = 0; s2 < samples.length; s2++) {
       var kind = samples[s2][1];
       var pt = el('div', 'pt', t.effects.upper ? samples[s2][0] : samples[s2][0].charAt(0) + samples[s2][0].slice(1).toLowerCase());
@@ -1077,10 +1125,10 @@
       if (t.effects.glow) { pt.style.boxShadow = '0 0 14px ' + hexA(col, 0.35); }
       pv.appendChild(pt);
     }
-    body.appendChild(el('div', 'sec-title', '// VOORBEELD'));
+    body.appendChild(el('div', 'sec-title', '// ' + T('VOORBEELD')));
     body.appendChild(pv);
 
-    body.appendChild(el('div', 'sec-title', '// AANPASSEN (BLIJFT BIJ DEZE LAYOUT)'));
+    body.appendChild(el('div', 'sec-title', '// ' + T('AANPASSEN (BLIJFT BIJ DEZE LAYOUT)')));
     var cols = el('div', 'colors');
     for (var ck in COLOR_LABELS) {
       if (!COLOR_LABELS.hasOwnProperty(ck)) { continue; }
@@ -1097,7 +1145,7 @@
     body.appendChild(cols);
 
     var fr = el('div', 'row');
-    fr.appendChild(el('label', null, 'Lettertype'));
+    fr.appendChild(el('label', null, T('Lettertype')));
     var fsel = el('select');
     var curFont = (E.layout.themeOverrides || {}).font || '';
     var found = false;
@@ -1108,12 +1156,12 @@
     fr.appendChild(fsel);
     body.appendChild(fr);
 
-    body.appendChild(field({ key: 'radius', label: 'Afronding (0–30 px)', type: 'number', placeholder: String(baseTheme().radius) },
+    body.appendChild(field({ key: 'radius', label: T('Afronding (0–30 px)'), type: 'number', placeholder: String(baseTheme().radius) },
       function () { return (E.layout.themeOverrides || {}).radius; },
       function (v) { var o = overrides(); if (v === undefined || isNaN(v)) { delete o.radius; } else { o.radius = Math.max(0, Math.min(30, v)); } }));
 
     var fx = el('div', 'row');
-    fx.appendChild(el('span', 'lbl', 'Effecten'));
+    fx.appendChild(el('span', 'lbl', T('Effecten')));
     var chips = el('div', 'chips');
     for (var ek in EFFECT_LABELS) {
       if (!EFFECT_LABELS.hasOwnProperty(ek)) { continue; }
@@ -1134,11 +1182,10 @@
     fx.appendChild(chips);
     body.appendChild(fx);
 
-    var reset = el('button', 'btn small', 'TERUG NAAR HET THEMA ZELF');
+    var reset = el('button', 'btn small', T('TERUG NAAR HET THEMA ZELF'));
     tap(reset, function () { snapshot(); delete E.layout.themeOverrides; afterChange(false); showTheme(); });
     body.appendChild(reset);
-    body.appendChild(el('p', 'hint', 'Na Opslaan krijgen alle tablets het nieuwe uiterlijk. Je aanpassingen gaan mee in een geëxporteerd .cyberpad-bestand. ' +
-      'Lettertypen zijn standaardlettertypen van iPad, Mac en Windows; ontbreekt er een, dan gebruikt de tablet de volgende uit de lijst.'));
+    body.appendChild(el('p', 'hint', T('Na Opslaan krijgen alle tablets het nieuwe uiterlijk. Je aanpassingen gaan mee in een geëxporteerd .cyberpad-bestand. Lettertypen zijn standaardlettertypen van iPad, Mac en Windows; ontbreekt er een, dan gebruikt de tablet de volgende uit de lijst.')));
     $('modal').className = 'modal';
   }
 
@@ -1170,21 +1217,21 @@
     function add(group, name, sub, icon, make, todo) { items.push({ group: group, name: name, sub: sub || '', icon: icon, make: make, todo: todo }); }
     function button(label, icon, action) { return function () { return { label: label, icon: icon, action: action }; }; }
 
-    add('Basis', 'Lege knop', 'zelf een actie kiezen', '➕', function () { return { label: 'Nieuw' }; }, 'actie');
+    add('Basis', T('Lege knop'), T('zelf een actie kiezen'), '➕', function () { return { label: T('Nieuw') }; }, T('actie'));
 
     for (i = 0; i < E.catalog.apps.length; i++) {
       (function (ap) {
-        add('Apps', ap.name, 'app openen', 'app:' + ap.id, button(ap.name, 'app:' + ap.id, { type: 'app.open', app: ap.id }));
+        add('Apps', ap.name, T('app openen'), 'app:' + ap.id, button(ap.name, 'app:' + ap.id, { type: 'app.open', app: ap.id }));
       })(E.catalog.apps[i]);
     }
 
     var sc = E.catalog.shortcuts || [];
     for (i = 0; i < sc.length; i++) {
-      (function (name) { add('Opdrachten', name, 'opdracht uitvoeren', '⚡️', button(name, '⚡️', { type: 'shortcut.run', shortcut: name })); })(sc[i]);
+      (function (name) { add('Opdrachten', name, T('opdracht uitvoeren'), '⚡️', button(name, '⚡️', { type: 'shortcut.run', shortcut: name })); })(sc[i]);
     }
     if ((E.catalog.platform || 'macos') === 'macos') {
-      add('Opdrachten', 'Andere opdracht…', sc.length ? 'naam zelf invullen' : 'nog geen opdrachten gevonden in de Opdrachten-app', '⚡️',
-        button('Opdracht', '⚡️', { type: 'shortcut.run' }), 'naam van de opdracht');
+      add('Opdrachten', T('Andere opdracht…'), sc.length ? T('naam zelf invullen') : T('nog geen opdrachten gevonden in de Opdrachten-app'), '⚡️',
+        button(T('Opdracht'), '⚡️', { type: 'shortcut.run' }), T('naam van de opdracht'));
     }
 
     for (i = 0; i < E.schema.actions.length; i++) {
@@ -1194,7 +1241,7 @@
         var icon = ACTION_ICON[d.type] || '•';
         if (d.slider) {
           if (d.type === 'ha.level') { return; }
-          add('Media en geluid', d.name.replace(/ \(schuif\/draaiknop\)/, '') + ' — schuif', 'schuifbalk', '▭', function () {
+          add('Media en geluid', d.name.replace(/\s*\([^)]*\)$/, '') + ' — ' + T('schuif'), T('schuifbalk'), '▭', function () {
             return { label: d.name.replace(/ \(schuif\/draaiknop\)/, ''), kind: 'slider', action: { type: d.type } };
           });
           return;
@@ -1203,7 +1250,7 @@
           'Apps en links': 'Toetsen en tekst', Automatisering: 'Toetsen en tekst', 'Smart home': 'Smart home' }[d.group];
         if (!group || d.type === 'app.open' || d.type === 'shortcut.run' || d.type === 'preset' || d.type === 'plugin') { return; }
         var needs = (d.fields || []).filter(function (f) { return f.required; }).map(function (f) { return f.label.toLowerCase(); }).join(', ');
-        add(group, d.name, needs ? 'invullen: ' + needs : d.group.toLowerCase(), icon,
+        add(group, d.name, needs ? T('invullen: {0}', needs) : T(d.group).toLowerCase(), icon,
           function () { return { label: d.name.replace(/ aan\/uit$/, ''), icon: icon, action: { type: d.type } }; }, needs || null);
       })(d);
     }
@@ -1217,40 +1264,40 @@
     for (i = 0; i < E.schema.kinds.length; i++) {
       (function (k) {
         if (['button', 'slider', 'dial', 'touchpad', 'ha', 'mqtt', 'plugin'].indexOf(k.kind) >= 0) { return; }
-        add('Widgets', k.name, 'widget', KIND_ICON[k.kind] || '▣', function () {
+        add('Widgets', k.name, T('widget'), KIND_ICON[k.kind] || '▣', function () {
           return { label: k.name, kind: k.kind, config: KIND_CONFIG[k.kind] ? clone(KIND_CONFIG[k.kind]) : undefined };
-        }, k.kind === 'terminal' ? 'commando' : null);
+        }, k.kind === 'terminal' ? T('commando') : null);
       })(E.schema.kinds[i]);
     }
 
-    add('Bediening', 'Aanraakpad', 'tablet als trackpad', '▦', function () { return { label: 'Aanraakpad', kind: 'touchpad', config: clone(KIND_CONFIG.touchpad) }; });
-    add('Bediening', 'Volumeknop', 'draaiknop', '◎', function () { return { label: 'Volume', kind: 'dial', action: { type: 'audio.volume' } }; });
-    add('Bediening', 'Scrollknop', 'draaiknop', '◎', function () { return { label: 'Scrollen', kind: 'dial', action: { type: 'pointer.scroll' } }; });
-    add('Bediening', 'Bureaubladen wisselen', 'draaiknop', '◎', function () {
-      return { label: 'Bureaubladen', kind: 'dial', action: { type: 'keys.press', keys: 'ctrl+right' }, offAction: { type: 'keys.press', keys: 'ctrl+left' } };
+    add('Bediening', T('Aanraakpad'), T('tablet als trackpad'), '▦', function () { return { label: T('Aanraakpad'), kind: 'touchpad', config: clone(KIND_CONFIG.touchpad) }; });
+    add('Bediening', T('Volumeknop'), T('draaiknop'), '◎', function () { return { label: T('Volume'), kind: 'dial', action: { type: 'audio.volume' } }; });
+    add('Bediening', T('Scrollknop'), T('draaiknop'), '◎', function () { return { label: T('Scrollen'), kind: 'dial', action: { type: 'pointer.scroll' } }; });
+    add('Bediening', T('Bureaubladen wisselen'), T('draaiknop'), '◎', function () {
+      return { label: T('Bureaubladen'), kind: 'dial', action: { type: 'keys.press', keys: 'ctrl+right' }, offAction: { type: 'keys.press', keys: 'ctrl+left' } };
     });
-    add('Bediening', 'Volumeschuif', 'schuifbalk', '▭', function () { return { label: 'Volume', kind: 'slider', action: { type: 'audio.volume' } }; });
+    add('Bediening', T('Volumeschuif'), T('schuifbalk'), '▭', function () { return { label: T('Volume'), kind: 'slider', action: { type: 'audio.volume' } }; });
 
-    add('Smart home', 'Home Assistant-schuif', 'helderheid, rolluik, volume…', '▭', function () {
-      return { label: 'Helderheid', kind: 'slider', action: { type: 'ha.level' } };
-    }, 'entiteit');
-    add('Smart home', 'Home Assistant-waarde', 'sensor, lamp of thermostaat tonen', '🏠', function () {
-      return { label: 'Sensor', kind: 'ha', config: {} };
-    }, 'entiteit');
-    add('Smart home', 'MQTT-waarde', 'laatste bericht van een topic', '📡', function () { return { label: 'MQTT', kind: 'mqtt', config: {} }; }, 'topic');
+    add('Smart home', T('Home Assistant-schuif'), T('helderheid, rolluik, volume…'), '▭', function () {
+      return { label: T('Helderheid'), kind: 'slider', action: { type: 'ha.level' } };
+    }, T('entiteit'));
+    add('Smart home', T('Home Assistant-waarde'), T('sensor, lamp of thermostaat tonen'), '🏠', function () {
+      return { label: T('Sensor'), kind: 'ha', config: {} };
+    }, T('entiteit'));
+    add('Smart home', T('MQTT-waarde'), T('laatste bericht van een topic'), '📡', function () { return { label: 'MQTT', kind: 'mqtt', config: {} }; }, 'topic');
 
     for (i = 0; i < E.catalog.plugins.length; i++) {
       (function (pl) {
         var j;
         for (j = 0; j < pl.actions.length; j++) {
           (function (a) {
-            add('Plugins', pl.name + ': ' + a.name, pl.enabled ? 'plugin-actie' : 'plugin staat uit', pl.icon,
+            add('Plugins', pl.name + ': ' + a.name, pl.enabled ? T('plugin-actie') : T('plugin staat uit'), pl.icon,
               button(a.name, pl.icon, { type: 'plugin', plugin: pl.id, action: a.id }));
           })(pl.actions[j]);
         }
         for (j = 0; j < pl.widgets.length; j++) {
           (function (w) {
-            add('Plugins', pl.name + ': ' + w.name, pl.enabled ? 'plugin-widget' : 'plugin staat uit', pl.icon, function () {
+            add('Plugins', pl.name + ': ' + w.name, pl.enabled ? T('plugin-widget') : T('plugin staat uit'), pl.icon, function () {
               return { label: w.name, kind: 'plugin', config: { plugin: pl.id, widget: w.id } };
             });
           })(pl.widgets[j]);
@@ -1285,7 +1332,7 @@
   function placeItem(item, target) {
     var t = item.make(), sz = sizeFor(t);
     var spot = findSpot(sz[0], sz[1], target);
-    if (!spot) { message('Geen ruimte meer op deze pagina. Maak de pagina compact of kies een andere pagina.', true); return; }
+    if (!spot) { message(T('Geen ruimte meer op deze pagina. Maak de pagina compact of kies een andere pagina.'), true); return; }
     snapshot();
     t.id = uniqueTileId(t.label);
     t.x = spot.x; t.y = spot.y;
@@ -1295,17 +1342,17 @@
     E.sel = t.id;
     $('modal').className = 'modal hidden';
     afterChange(true);
-    message(item.todo ? 'Toegevoegd. Vul rechts nog in: ' + item.todo + '.' : 'Toegevoegd: ' + t.label + '.', false);
+    message(item.todo ? T('Toegevoegd. Vul rechts nog in: {0}.', item.todo) : T('Toegevoegd: {0}.', t.label), false);
   }
 
   function showPalette(target) {
-    $('modal-title').textContent = '// TOEVOEGEN' + (target ? ' · VAK ' + (target.x + 1) + ',' + (target.y + 1) : '');
+    $('modal-title').textContent = '// ' + T('TOEVOEGEN') + (target ? ' · ' + T('VAK {0}', (target.x + 1) + ',' + (target.y + 1)) : '');
     var body = $('modal-body');
     body.innerHTML = '';
     var all = paletteItems();
     var search = el('input', 'pal-search');
     search.type = 'text';
-    search.placeholder = 'Zoek: app, actie, widget, sneltoets…';
+    search.placeholder = T('Zoek: app, actie, widget, sneltoets…');
     search.setAttribute('autocapitalize', 'off');
     search.setAttribute('autocorrect', 'off');
     body.appendChild(search);
@@ -1326,7 +1373,7 @@
       for (var i = 0; i < PALETTE_GROUPS.length; i++) {
         (function (g) {
           if (g !== 'Alles' && !cnt[g]) { return; }
-          var c = el('span', g === group ? 'on' : '', g + (g === 'Alles' ? '' : ' ' + cnt[g]));
+          var c = el('span', g === group ? 'on' : '', T(g) + (g === 'Alles' ? '' : ' ' + cnt[g]));
           tap(c, function () { group = E.palGroup = g; drawChips(); drawList(); });
           chips.appendChild(c);
         })(PALETTE_GROUPS[i]);
@@ -1339,7 +1386,7 @@
       for (var i = 0; i < all.length && shown < 250; i++) {
         var it = all[i];
         if (group !== 'Alles' && it.group !== group && it.group !== 'Basis') { continue; }
-        var hay = (it.name + ' ' + it.sub + ' ' + it.group).toLowerCase(), ok = true;
+        var hay = (it.name + ' ' + it.sub + ' ' + T(it.group)).toLowerCase(), ok = true;
         for (var w = 0; w < words.length; w++) { if (hay.indexOf(words[w]) < 0) { ok = false; break; } }
         if (!ok) { continue; }
         shown++;
@@ -1350,13 +1397,13 @@
           row.appendChild(ic);
           var tx = el('span', 'pi-text');
           tx.appendChild(el('span', 'pi-name', it.name));
-          tx.appendChild(el('span', 'pi-sub', (group === 'Alles' ? it.group + ' · ' : '') + it.sub));
+          tx.appendChild(el('span', 'pi-sub', (group === 'Alles' ? T(it.group) + ' · ' : '') + it.sub));
           row.appendChild(tx);
           tap(row, function () { placeItem(it, target); });
           list.appendChild(row);
         })(it);
       }
-      if (!shown) { list.appendChild(el('p', 'hint', 'Niets gevonden.')); }
+      if (!shown) { list.appendChild(el('p', 'hint', T('Niets gevonden.'))); }
     }
     on(search, 'input', drawList);
     drawChips();
@@ -1394,7 +1441,7 @@
   function resizeTile(t, w, h) {
     w = Math.max(1, Math.round(w || 1)); h = Math.max(1, Math.round(h || 1));
     if (fits(curPage(), t.id, t.x, t.y, w, h)) { t.w = w; t.h = h; drawGrid(); }
-    else { message('Past niet: er staat iets in de weg of het valt buiten het raster.', true); }
+    else { message(T('Past niet: er staat iets in de weg of het valt buiten het raster.'), true); }
   }
 
   function duplicateTile(t) {
@@ -1413,24 +1460,24 @@
         }
       }
     }
-    message('Geen vrije plek op deze pagina voor een kopie.', true);
+    message(T('Geen vrije plek op deze pagina voor een kopie.'), true);
   }
 
   function drawPagePanel(side) {
     var pg = curPage(), L = E.layout;
     var sec = el('div', 'sec');
-    sec.appendChild(el('div', 'sec-title', '// PAGINA'));
-    sec.appendChild(field({ key: 'name', label: 'Naam', type: 'text' }, function () { return pg.name; }, function (v) { pg.name = v || ''; drawPages(); }));
-    sec.appendChild(field({ key: 'apps', label: 'Contextpagina voor apps', type: 'list', placeholder: 'com.adobe.Photoshop, Final Cut Pro' },
+    sec.appendChild(el('div', 'sec-title', '// ' + T('PAGINA')));
+    sec.appendChild(field({ key: 'name', label: T('Naam'), type: 'text' }, function () { return pg.name; }, function (v) { pg.name = v || ''; drawPages(); }));
+    sec.appendChild(field({ key: 'apps', label: T('Contextpagina voor apps'), type: 'list', placeholder: 'com.adobe.Photoshop, Final Cut Pro' },
       function () { return pg.apps; }, function (v) { pg.apps = v; drawPages(); }));
-    sec.appendChild(el('div', 'hint', 'Komt een van deze apps vooraan op de computer, dan springt de tablet naar deze pagina. Bundle-id of app-naam.'));
+    sec.appendChild(el('div', 'hint', T('Komt een van deze apps vooraan op de computer, dan springt de tablet naar deze pagina. Bundle-id of app-naam.')));
     var tools = el('div', 'row');
-    var left = el('button', 'btn small', '← NAAR LINKS'), right = el('button', 'btn small', 'NAAR RECHTS →'), del = el('button', 'btn small danger', 'PAGINA VERWIJDEREN');
+    var left = el('button', 'btn small', '← ' + T('NAAR LINKS')), right = el('button', 'btn small', T('NAAR RECHTS') + ' →'), del = el('button', 'btn small danger', T('PAGINA VERWIJDEREN'));
     tap(left, function () { movePage(-1); });
     tap(right, function () { movePage(1); });
     tap(del, function () {
-      if (L.pages.length < 2) { message('De laatste pagina kan niet weg.', true); return; }
-      if (!window.confirm('Pagina "' + pg.name + '" met ' + pg.tiles.length + ' tegels verwijderen?')) { return; }
+      if (L.pages.length < 2) { message(T('De laatste pagina kan niet weg.'), true); return; }
+      if (!window.confirm(T('Pagina "{0}" met {1} tegels verwijderen?', pg.name, pg.tiles.length))) { return; }
       snapshot();
       L.pages.splice(E.page, 1);
       var prof = L.profiles || [];
@@ -1444,13 +1491,13 @@
 
     // Raster van deze pagina: standaard, compact (2× zoveel vakken = halve tegels) of eigen maat.
     var pgr = el('div', 'sec');
-    pgr.appendChild(el('div', 'sec-title', '// RASTER VAN DEZE PAGINA'));
+    pgr.appendChild(el('div', 'sec-title', '// ' + T('RASTER VAN DEZE PAGINA')));
     var modeRow = el('div', 'row');
     var msel = el('select');
     var std = L.columns + '×' + L.rows;
-    msel.appendChild(optionEl('std', 'Standaard (' + std + ', zoals de layout)'));
-    msel.appendChild(optionEl('compact', 'Compact (' + Math.min(12, L.columns * 2) + '×' + Math.min(8, L.rows * 2) + ': tegels half zo groot)'));
-    msel.appendChild(optionEl('own', 'Eigen maat'));
+    msel.appendChild(optionEl('std', T('Standaard ({0}, zoals de layout)', std)));
+    msel.appendChild(optionEl('compact', T('Compact ({0}: tegels half zo groot)', Math.min(12, L.columns * 2) + '×' + Math.min(8, L.rows * 2))));
+    msel.appendChild(optionEl('own', T('Eigen maat')));
     var mode = !pg.columns ? 'std' : (pg.columns === Math.min(12, L.columns * 2) && pg.rows === Math.min(8, L.rows * 2) ? 'compact' : 'own');
     msel.value = mode;
     on(msel, 'change', function () {
@@ -1464,29 +1511,29 @@
     pgr.appendChild(modeRow);
     if (mode === 'own') {
       var own = el('div', 'pair');
-      own.appendChild(field({ key: 'pcols', label: 'Kolommen (1–12)', type: 'number' }, function () { return pg.columns; },
+      own.appendChild(field({ key: 'pcols', label: T('Kolommen (1–12)'), type: 'number' }, function () { return pg.columns; },
         function (v) { if (v >= 1 && v <= 12) { pg.columns = Math.round(v); drawGrid(); } }));
-      own.appendChild(field({ key: 'prows', label: 'Rijen (1–8)', type: 'number' }, function () { return pg.rows; },
+      own.appendChild(field({ key: 'prows', label: T('Rijen (1–8)'), type: 'number' }, function () { return pg.rows; },
         function (v) { if (v >= 1 && v <= 8) { pg.rows = Math.round(v); drawGrid(); } }));
       pgr.appendChild(own);
     }
-    pgr.appendChild(el('div', 'hint', 'Compact: kies dit om meer, kleinere tegels op één pagina te zetten. Bestaande tegels worden mee vergroot, zodat ze even groot blijven.'));
+    pgr.appendChild(el('div', 'hint', T('Compact: kies dit om meer, kleinere tegels op één pagina te zetten. Bestaande tegels worden mee vergroot, zodat ze even groot blijven.')));
     side.appendChild(pgr);
 
     var g = el('div', 'sec');
-    g.appendChild(el('div', 'sec-title', '// STANDAARDRASTER (ALLE ANDERE PAGINA\'S)'));
+    g.appendChild(el('div', 'sec-title', '// ' + T('STANDAARDRASTER (ALLE ANDERE PAGINA\'S)')));
     var pair = el('div', 'pair');
-    pair.appendChild(field({ key: 'columns', label: 'Kolommen (1–12)', type: 'number' }, function () { return L.columns; },
+    pair.appendChild(field({ key: 'columns', label: T('Kolommen (1–12)'), type: 'number' }, function () { return L.columns; },
       function (v) { if (v >= 1 && v <= 12) { L.columns = Math.round(v); drawGrid(); } }));
-    pair.appendChild(field({ key: 'rows', label: 'Rijen (1–8)', type: 'number' }, function () { return L.rows; },
+    pair.appendChild(field({ key: 'rows', label: T('Rijen (1–8)'), type: 'number' }, function () { return L.rows; },
       function (v) { if (v >= 1 && v <= 8) { L.rows = Math.round(v); drawGrid(); } }));
     g.appendChild(pair);
-    g.appendChild(el('div', 'hint', 'Tik op een leeg vak (+) of op + TOEVOEGEN om iets toe te voegen. Tegels die na het verkleinen buiten het raster vallen, worden rood.'));
+    g.appendChild(el('div', 'hint', T('Tik op een leeg vak (+) of op + TOEVOEGEN om iets toe te voegen. Tegels die na het verkleinen buiten het raster vallen, worden rood.')));
     side.appendChild(g);
 
     if (E.problems.length) {
       var ps = el('div', 'sec');
-      ps.appendChild(el('div', 'sec-title', '// PROBLEMEN'));
+      ps.appendChild(el('div', 'sec-title', '// ' + T('PROBLEMEN')));
       for (var i = 0; i < E.problems.length; i++) { ps.appendChild(el('div', 'hint', '⚠ ' + E.problems[i])); }
       side.appendChild(ps);
     }
@@ -1516,20 +1563,19 @@
 
   // ---------- profielen ----------
 
-  var DAYNAMES = ['MA', 'DI', 'WO', 'DO', 'VR', 'ZA', 'ZO'];
+  var DAYNAMES = T('MA DI WO DO VR ZA ZO').split(' ');
 
   function showProfiles() {
-    $('modal-title').textContent = '// PROFIELEN';
+    $('modal-title').textContent = '// ' + T('PROFIELEN');
     var body = $('modal-body');
     body.innerHTML = '';
     var L = E.layout;
     if (!L.profiles) { L.profiles = []; }
-    body.appendChild(el('p', 'hint', 'Een profiel bepaalt welke pagina\'s een tablet ziet. Het eerste profiel waarvan een tijdregel past, geldt; anders het standaardprofiel. ' +
-      'Per tablet kun je in de menubalk ook een vast profiel kiezen. Zonder profielen ziet elke tablet alle pagina\'s.'));
+    body.appendChild(el('p', 'hint', T('Een profiel bepaalt welke pagina\'s een tablet ziet. Het eerste profiel waarvan een tijdregel past, geldt; anders het standaardprofiel. Per tablet kun je in de menubalk ook een vast profiel kiezen. Zonder profielen ziet elke tablet alle pagina\'s.')));
     for (var i = 0; i < L.profiles.length; i++) { body.appendChild(profileBox(L.profiles[i], i)); }
-    var add = el('button', 'btn', '+ PROFIEL');
+    var add = el('button', 'btn', '+ ' + T('PROFIEL'));
     tap(add, function () {
-      var name = window.prompt('Naam van het profiel', 'Nieuw profiel');
+      var name = window.prompt(T('Naam van het profiel'), T('Nieuw profiel'));
       if (!name) { return; }
       snapshot();
       var ids = {}, b = slug(name) || 'profiel', id = b, n = 2;
@@ -1547,9 +1593,9 @@
 
   function profileBox(pr, idx) {
     var L = E.layout, box = el('div', 'prof');
-    box.appendChild(field({ key: 'name', label: 'Naam', type: 'text' }, function () { return pr.name; }, function (v) { pr.name = v || ''; }));
+    box.appendChild(field({ key: 'name', label: T('Naam'), type: 'text' }, function () { return pr.name; }, function (v) { pr.name = v || ''; }));
     var chips = el('div', 'row');
-    chips.appendChild(el('span', 'lbl', 'Pagina\'s (volgorde zoals in de editor)'));
+    chips.appendChild(el('span', 'lbl', T('Pagina\'s (volgorde zoals in de editor)')));
     var cw = el('div', 'chips');
     for (var i = 0; i < L.pages.length; i++) {
       (function (pg) {
@@ -1570,7 +1616,7 @@
     }
     chips.appendChild(cw);
     box.appendChild(chips);
-    box.appendChild(field({ key: 'default', label: 'Standaardprofiel (als geen tijdregel past)', type: 'bool' }, function () { return pr['default']; }, function (v) {
+    box.appendChild(field({ key: 'default', label: T('Standaardprofiel (als geen tijdregel past)'), type: 'bool' }, function () { return pr['default']; }, function (v) {
       for (var k = 0; k < L.profiles.length; k++) { delete L.profiles[k]['default']; }
       if (v) { pr['default'] = true; }
       showProfiles();
@@ -1596,32 +1642,32 @@
           })(d);
         }
         rb.appendChild(days);
-        rb.appendChild(el('div', 'hint', rule.days ? '' : 'Geen dag gekozen = elke dag.'));
+        rb.appendChild(el('div', 'hint', rule.days ? '' : T('Geen dag gekozen = elke dag.')));
         var tp = el('div', 'pair');
-        tp.appendChild(field({ key: 'from', label: 'Van (UU:MM)', type: 'text', placeholder: '08:00' }, function () { return rule.from; }, function (v) { rule.from = v; }));
-        tp.appendChild(field({ key: 'to', label: 'Tot (UU:MM)', type: 'text', placeholder: '18:00' }, function () { return rule.to; }, function (v) { rule.to = v; }));
+        tp.appendChild(field({ key: 'from', label: T('Van (UU:MM)'), type: 'text', placeholder: '08:00' }, function () { return rule.from; }, function (v) { rule.from = v; }));
+        tp.appendChild(field({ key: 'to', label: T('Tot (UU:MM)'), type: 'text', placeholder: '18:00' }, function () { return rule.to; }, function (v) { rule.to = v; }));
         rb.appendChild(tp);
-        var rm = el('span', 'link', 'REGEL VERWIJDEREN');
+        var rm = el('span', 'link', T('REGEL VERWIJDEREN'));
         tap(rm, function () { snapshot(); pr.when.splice(ri, 1); if (!pr.when.length) { delete pr.when; } afterChange(false); showProfiles(); });
         rb.appendChild(rm);
         box.appendChild(rb);
       })(rules[r], r);
     }
     var tools = el('div', 'row');
-    var addRule = el('button', 'btn small', '+ TIJDREGEL');
+    var addRule = el('button', 'btn small', '+ ' + T('TIJDREGEL'));
     tap(addRule, function () { snapshot(); if (!pr.when) { pr.when = []; } pr.when.push({ days: [1, 2, 3, 4, 5], from: '08:00', to: '18:00' }); afterChange(false); showProfiles(); });
-    var del = el('button', 'btn small danger', 'PROFIEL VERWIJDEREN');
-    tap(del, function () { if (!window.confirm('Profiel "' + pr.name + '" verwijderen?')) { return; } snapshot(); L.profiles.splice(idx, 1); afterChange(false); showProfiles(); });
+    var del = el('button', 'btn small danger', T('PROFIEL VERWIJDEREN'));
+    tap(del, function () { if (!window.confirm(T('Profiel "{0}" verwijderen?', pr.name))) { return; } snapshot(); L.profiles.splice(idx, 1); afterChange(false); showProfiles(); });
     tools.appendChild(addRule); tools.appendChild(del);
     box.appendChild(tools);
-    box.appendChild(el('div', 'hint', 'Id: ' + pr.id + ' · Focus-automatisering: cyberpad://profile/' + pr.id));
+    box.appendChild(el('div', 'hint', 'Id: ' + pr.id + ' · ' + T('Focus-automatisering') + ': cyberpad://profile/' + pr.id));
     return box;
   }
 
   // ---------- opslaan, exporteren, importeren ----------
 
   function save() {
-    if (E.jsonBad) { message('Er staat nog een fout in een JSON-veld (rood omrand).', true); return; }
+    if (E.jsonBad) { message(T('Er staat nog een fout in een JSON-veld (rood omrand).'), true); return; }
     var data = clean(E.layout);
     $('b-save').disabled = true;
     req('PUT', '/api/editor/layout', { layout: data, baseRevision: E.revision }, function (st, res) {
@@ -1631,16 +1677,16 @@
         E.saved = JSON.stringify(data);
         E.problems = [];
         updateButtons();
-        message('Opgeslagen. Alle tablets zijn bijgewerkt.', false);
+        message(T('Opgeslagen. Alle tablets zijn bijgewerkt.'), false);
       } else if (st === 409) {
-        message('De layout is intussen elders gewijzigd (bijv. in een ander venster of in layout.json).\nExporteer je werk eventueel eerst, en laad dan opnieuw.', true, true);
+        message(T('De layout is intussen elders gewijzigd (bijv. in een ander venster of in layout.json).\nExporteer je werk eventueel eerst, en laad dan opnieuw.'), true, true);
       } else if (st === 403) {
-        message('Niet opgeslagen: deze tablet is niet meer gekoppeld. Exporteer je werk eventueel en koppel opnieuw.', true, true);
+        message(T('Niet opgeslagen: deze tablet is niet meer gekoppeld. Exporteer je werk eventueel en koppel opnieuw.'), true, true);
       } else {
-        E.problems = (res && res.errors) || ['Opslaan mislukt (' + st + ')'];
+        E.problems = (res && res.errors) || [T('Opslaan mislukt ({0})', st)];
         updateButtons();
         drawSide();
-        message('Niet opgeslagen:\n• ' + E.problems.join('\n• '), true, true);
+        message(T('Niet opgeslagen:') + '\n• ' + E.problems.join('\n• '), true, true);
       }
     });
   }
@@ -1661,7 +1707,7 @@
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.parentNode.removeChild(a); }, 1000);
     } catch (e) {
-      message('Exporteren lukt niet in deze browser.', true);
+      message(T('Exporteren lukt niet in deze browser.'), true);
     }
   }
 
@@ -1669,16 +1715,16 @@
     var r = new FileReader();
     r.onload = function () {
       var obj;
-      try { obj = JSON.parse(r.result); } catch (e) { message('Dit is geen geldig .cyberpad-bestand.', true); return; }
+      try { obj = JSON.parse(r.result); } catch (e) { message(T('Dit is geen geldig .cyberpad-bestand.'), true); return; }
       var l = obj && obj.format === 'cyberpad-layout' ? obj.layout : obj;
-      if (!l || !l.pages || !l.columns || !l.rows) { message('Dit bestand bevat geen Cyberpad-layout.', true); return; }
-      if (!window.confirm('Huidige layout vervangen door "' + file.name + '"? Pas na Opslaan geldt hij; tot dan kun je terug met ↶.')) { return; }
+      if (!l || !l.pages || !l.columns || !l.rows) { message(T('Dit bestand bevat geen Cyberpad-layout.'), true); return; }
+      if (!window.confirm(T('Huidige layout vervangen door "{0}"? Pas na Opslaan geldt hij; tot dan kun je terug met ↶.', file.name))) { return; }
       snapshot();
       E.layout = l;
       if (!E.layout.pages.length) { E.layout.pages = [{ id: 'main', name: 'Main', tiles: [] }]; }
       E.page = 0; E.sel = null;
       afterChange(true);
-      message('Geïmporteerd. Controleer en klik Opslaan.', false);
+      message(T('Geïmporteerd. Controleer en klik Opslaan.'), false);
     };
     r.readAsText(file);
   }
@@ -1701,7 +1747,7 @@
     x.open('GET', 'schema.json', true);
     x.onreadystatechange = function () {
       if (x.readyState !== 4) { return; }
-      try { E.schema = JSON.parse(x.responseText); } catch (e) { failed = 'Schema ontbreekt.'; }
+      try { E.schema = translateSchema(JSON.parse(x.responseText)); } catch (e) { failed = T('Schema ontbreekt.'); }
       done();
     };
     x.send();
@@ -1710,7 +1756,7 @@
     req('GET', '/api/editor/layout', null, function (st, d) {
       if (st === 200 && d && d.layout) { E.layout = d.layout; E.revision = d.revision; }
       else if (st === 403) { failed = 'permission'; }
-      else { failed = 'Kan de layout niet laden (' + st + ').'; }
+      else { failed = T('Kan de layout niet laden ({0}).', st); }
       done();
     });
   }
@@ -1721,11 +1767,12 @@
     $('gate-btn').className = 'btn primary hidden';
     if (reason !== 'permission') { txt.textContent = reason; return; }
     txt.textContent = E.auth.mode === 'mac'
-      ? 'Deze editor is verlopen. Sluit het venster en open hem opnieuw via de menubalk.'
-      : 'Deze tablet is niet (meer) gekoppeld. Ga terug naar de knoppen en koppel opnieuw.';
+      ? T('Deze editor is verlopen. Sluit het venster en open hem opnieuw via de menubalk.')
+      : T('Deze tablet is niet (meer) gekoppeld. Ga terug naar de knoppen en koppel opnieuw.');
   }
 
   function init() {
+    translateDom();
     var m = /[#&]mac=([0-9a-f]{64})/.exec(location.hash);
     if (m) {
       store('cyberpad.editor', m[1]);
@@ -1736,11 +1783,19 @@
       E.auth = { mode: 'mac', header: 'X-Cyberpad-Editor', token: macToken };
     } else {
       var t = local('cyberpad.token');
-      if (!t) { gate('Deze tablet is nog niet gekoppeld. Ga terug naar de knoppen en koppel eerst.'); return; }
+      if (!t) { gate(T('Deze tablet is nog niet gekoppeld. Ga terug naar de knoppen en koppel eerst.')); return; }
       E.auth = { mode: 'tablet', header: 'X-Cyberpad-Token', token: t };
       $('b-close').className = 'btn close';
     }
 
+    var ml = $('more-lang');
+    for (var li = 0; li < LANGS.length; li++) {
+      (function (lg) {
+        var it = el('span', 'more-item' + (lg[0] === (window.CP_LANG || 'en') ? ' on' : ''), '🌐 ' + lg[1]);
+        tap(it, function () { $('more-menu').className = 'more-menu hidden'; switchLanguage(lg[0]); });
+        ml.appendChild(it);
+      })(LANGS[li]);
+    }
     tap($('b-undo'), undo);
     tap($('b-redo'), redoIt);
     tap($('b-save'), save);
@@ -1761,12 +1816,12 @@
     tap($('problems'), function () { E.sel = null; drawGrid(); drawSide(); });
     tap($('msg'), function () { $('msg').className = 'msg hidden'; });
     tap($('b-close'), function () {
-      if (E.layout && isDirty() && !window.confirm('Niet-opgeslagen wijzigingen weggooien?')) { return; }
+      if (E.layout && isDirty() && !window.confirm(T('Niet-opgeslagen wijzigingen weggooien?'))) { return; }
       E.leaving = true;
       location.href = '/';
     });
     on(window, 'resize', function () { if (E.layout) { drawGrid(); } });
-    on(window, 'beforeunload', function (e) { if (E.layout && !E.leaving && isDirty()) { e.returnValue = 'Niet opgeslagen'; return e.returnValue; } });
+    on(window, 'beforeunload', function (e) { if (E.layout && !E.leaving && isDirty()) { e.returnValue = T('Niet opgeslagen'); return e.returnValue; } });
     on(document, 'keydown', function (e) {
       var meta = e.metaKey || e.ctrlKey, tag = (e.target.tagName || '').toLowerCase();
       if (meta && e.key === 's') { e.preventDefault(); save(); }

@@ -13,10 +13,10 @@ final class PluginManager: ObservableObject {
 
         var text: String {
             switch self {
-            case .off: return "uit"
-            case .idle: return "aan"
-            case .running: return "actief"
-            case .changed: return "gewijzigd — opnieuw toestaan"
+            case .off: return L("uit")
+            case .idle: return L("aan")
+            case .running: return L("actief")
+            case .changed: return L("gewijzigd — opnieuw toestaan")
             case .failed(let m): return m
             }
         }
@@ -103,7 +103,7 @@ final class PluginManager: ObservableObject {
                 let m = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: dir.appendingPathComponent("plugin.json")))
                 try m.validate()
                 if let other = found[m.id], !other.builtIn || builtIn {
-                    errs.append("\(dir.lastPathComponent): id “\(m.id)” bestaat al")
+                    errs.append(L("{0}: id “{1}” bestaat al", dir.lastPathComponent, m.id))
                     continue
                 }
                 found[m.id] = Plugin(manifest: m, dir: dir, builtIn: builtIn)
@@ -213,14 +213,14 @@ final class PluginManager: ObservableObject {
 
     /// Geeft een draaiende plugin terug, of een duidelijke fout waarom niet.
     private func running(_ id: String) throws -> (Plugin, PluginProcess) {
-        guard let p = plugins[id] else { throw PluginError.failed("Plugin “\(id)” niet gevonden") }
+        guard let p = plugins[id] else { throw PluginError.failed(L("Plugin “{0}” niet gevonden", id)) }
         guard let ok = approved[id] else {
-            throw PluginError.failed("Plugin “\(p.manifest.name)” staat uit (menubalk › Plugins)")
+            throw PluginError.failed(L("Plugin “{0}” staat uit (menubalk › Plugins)", p.manifest.name))
         }
         if let proc = p.process, proc.isRunning { return (p, proc) }
-        if p.status == .changed { throw PluginError.failed("Plugin “\(p.manifest.name)” is gewijzigd; sta hem opnieuw toe") }
+        if p.status == .changed { throw PluginError.failed(L("Plugin “{0}” is gewijzigd; sta hem opnieuw toe", p.manifest.name)) }
         if Date() < p.nextStart {
-            throw PluginError.failed("Plugin “\(p.manifest.name)” is gecrasht; nieuwe poging over \(Int(p.nextStart.timeIntervalSinceNow.rounded(.up))) s")
+            throw PluginError.failed(L("Plugin “{0}” is gecrasht; nieuwe poging over {1} s", p.manifest.name, Int(p.nextStart.timeIntervalSinceNow.rounded(.up))))
         }
         // Controleren of de bestanden nog dezelfde zijn als toen je de plugin toestond.
         let hash: String
@@ -228,16 +228,16 @@ final class PluginManager: ObservableObject {
         guard hash == ok else {
             p.status = .changed
             objectWillChange.send()
-            throw PluginError.failed("Plugin “\(p.manifest.name)” is gewijzigd; sta hem opnieuw toe (menubalk › Plugins)")
+            throw PluginError.failed(L("Plugin “{0}” is gewijzigd; sta hem opnieuw toe (menubalk › Plugins)", p.manifest.name))
         }
-        guard let cmd = p.manifest.command else { throw PluginError.failed("Geen opdracht voor macOS") }
+        guard let cmd = p.manifest.command else { throw PluginError.failed(L("Geen opdracht voor macOS")) }
         let proc: PluginProcess
         do {
             proc = try PluginProcess(command: cmd, dir: p.dir, env: env(for: p))
         } catch {
-            p.status = .failed("Start mislukt: \(error.localizedDescription)")
+            p.status = .failed(L("Start mislukt: {0}", error.localizedDescription))
             objectWillChange.send()
-            throw PluginError.failed("Plugin “\(p.manifest.name)” start niet: \(error.localizedDescription)")
+            throw PluginError.failed(L("Plugin “{0}” start niet: {1}", p.manifest.name, error.localizedDescription))
         }
         let pid = id
         proc.onMessage = { [weak self] m in self?.message(from: pid, m) }
@@ -294,10 +294,10 @@ final class PluginManager: ObservableObject {
 
     func invoke(_ a: ActionSpec, tile: Tile?, gesture: String, onFail: (() -> Void)?) throws {
         guard let id = a.plugin else { throw ActionRunner.ActionError.missing("plugin") }
-        guard let action = a.action else { throw ActionRunner.ActionError.missing("action (naam van de plugin-actie)") }
-        guard let p = plugins[id] else { throw ActionRunner.ActionError.failed("Plugin “\(id)” niet gevonden") }
+        guard let action = a.action else { throw ActionRunner.ActionError.missing(L("action (naam van de plugin-actie)")) }
+        guard let p = plugins[id] else { throw ActionRunner.ActionError.failed(L("Plugin “{0}” niet gevonden", id)) }
         guard p.manifest.actions?.contains(where: { $0.id == action }) == true else {
-            throw ActionRunner.ActionError.failed("Plugin “\(p.manifest.name)” kent geen actie “\(action)”")
+            throw ActionRunner.ActionError.failed(L("Plugin “{0}” kent geen actie “{1}”", p.manifest.name, action))
         }
         let (_, proc) = try running(id)
         let def = p.manifest.actions?.first { $0.id == action }
@@ -347,7 +347,7 @@ final class PluginManager: ObservableObject {
             if ok, let data = r["data"] as? [String: Any] {
                 self.widgetData[t.id] = Self.sanitize(data)
             } else if !ok {
-                self.widgetData[t.id] = ["error": String((r["error"] as? String ?? "geen gegevens").prefix(200))]
+                self.widgetData[t.id] = ["error": String((r["error"] as? String ?? L("geen gegevens")).prefix(200))]
             }
             self.onChange?()
         }
@@ -356,7 +356,7 @@ final class PluginManager: ObservableObject {
     func widgetAction(_ tile: Tile, action: String, value: Double?) throws {
         guard let id = tile.config?.plugin, let wid = tile.config?.widget else { throw ActionRunner.ActionError.missing("config.plugin / config.widget") }
         guard action.range(of: "^[A-Za-z0-9_.-]{1,64}$", options: .regularExpression) != nil else {
-            throw ActionRunner.ActionError.failed("Ongeldige actie")
+            throw ActionRunner.ActionError.failed(L("Ongeldige actie"))
         }
         let (p, proc) = try running(id)
         let def = p.manifest.widgets?.first { $0.id == wid }
@@ -377,15 +377,15 @@ final class PluginManager: ObservableObject {
 
     func widgetJSON(_ tile: Tile) -> [String: Any] {
         guard let id = tile.config?.plugin, let wid = tile.config?.widget else {
-            return ["status": "error", "error": "Stel config.plugin en config.widget in"]
+            return ["status": "error", "error": L("Stel config.plugin en config.widget in")]
         }
-        guard let p = plugins[id] else { return ["status": "error", "error": "Plugin “\(id)” niet gevonden"] }
+        guard let p = plugins[id] else { return ["status": "error", "error": L("Plugin “{0}” niet gevonden", id)] }
         guard p.manifest.widgets?.contains(where: { $0.id == wid }) == true else {
-            return ["status": "error", "error": "Plugin “\(p.manifest.name)” heeft geen widget “\(wid)”"]
+            return ["status": "error", "error": L("Plugin “{0}” heeft geen widget “{1}”", p.manifest.name, wid)]
         }
-        guard approved[id] != nil else { return ["status": "off", "error": "Plugin staat uit (menubalk › Plugins)"] }
+        guard approved[id] != nil else { return ["status": "off", "error": L("Plugin staat uit (menubalk › Plugins)")] }
         switch p.status {
-        case .changed: return ["status": "error", "error": "Plugin gewijzigd — opnieuw toestaan"]
+        case .changed: return ["status": "error", "error": L("Plugin gewijzigd — opnieuw toestaan")]
         case .failed(let m) where p.process == nil: return ["status": "error", "error": m]
         default: break
         }

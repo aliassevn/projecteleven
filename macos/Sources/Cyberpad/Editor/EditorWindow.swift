@@ -22,7 +22,7 @@ final class EditorWindow: NSObject, WKUIDelegate, WKScriptMessageHandler, WKNavi
         web.navigationDelegate = self
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
                          styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        w.title = "Cyberpad — Layout bewerken"
+        w.title = "Cyberpad — " + L("Layout bewerken")
         w.minSize = NSSize(width: 900, height: 600)
         w.isReleasedWhenClosed = false
         w.delegate = self
@@ -33,6 +33,12 @@ final class EditorWindow: NSObject, WKUIDelegate, WKScriptMessageHandler, WKNavi
         web.load(URLRequest(url: URL(string: "http://127.0.0.1:\(Server.port)/editor/#mac=\(token)")!))
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
+    }
+
+    /// Taal gewisseld op de Mac: de editor herlaadt zelf (en vraagt eerst als er nog iets niet is opgeslagen).
+    func languageChanged() {
+        window?.title = "Cyberpad — " + L("Layout bewerken")
+        web?.evaluateJavaScript("window.cpLanguageChanged && window.cpLanguageChanged()", completionHandler: nil)
     }
 
     // Venster dicht → alles opruimen (volgende keer vers laden).
@@ -68,7 +74,7 @@ final class EditorWindow: NSObject, WKUIDelegate, WKScriptMessageHandler, WKNavi
         let a = NSAlert()
         a.messageText = message
         a.addButton(withTitle: "OK")
-        a.addButton(withTitle: "Annuleer")
+        a.addButton(withTitle: L("Annuleer"))
         completionHandler(a.runModal() == .alertFirstButtonReturn)
     }
 

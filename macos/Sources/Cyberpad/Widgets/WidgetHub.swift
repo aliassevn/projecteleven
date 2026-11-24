@@ -84,18 +84,18 @@ final class WidgetHub {
             case "toggle": try i.ha.perform(ActionSpec(type: "ha.toggle", entity: e), onFail: nil)
             case "up": try i.ha.stepClimate(e, by: 1)
             case "down": try i.ha.stepClimate(e, by: -1)
-            default: throw ActionRunner.ActionError.failed("Onbekende actie")
+            default: throw ActionRunner.ActionError.failed(L("Onbekende actie"))
             }
         case "plugin":
-            guard let pm = plugins else { throw ActionRunner.ActionError.failed("Plugins niet beschikbaar") }
+            guard let pm = plugins else { throw ActionRunner.ActionError.failed(L("Plugins niet beschikbaar")) }
             do { try pm.widgetAction(tile, action: action, value: value) } catch let e as PluginError {
                 throw ActionRunner.ActionError.failed(e.localizedDescription)
             }
         case "weather":
-            guard action == "refresh" else { throw ActionRunner.ActionError.failed("Onbekende actie") }
+            guard action == "refresh" else { throw ActionRunner.ActionError.failed(L("Onbekende actie")) }
             weather.refresh(tile.config)
         default:
-            throw ActionRunner.ActionError.failed("Deze tegel heeft geen acties")
+            throw ActionRunner.ActionError.failed(L("Deze tegel heeft geen acties"))
         }
         onChange?()
     }

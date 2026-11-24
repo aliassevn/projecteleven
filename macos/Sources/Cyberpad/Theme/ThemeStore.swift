@@ -49,12 +49,12 @@ struct ThemeOverrides: Codable, Equatable {
     func problems() -> [String] {
         var out: [String] = []
         for (k, v) in colors ?? [:] {
-            if !Theme.colorKeys.contains(k) { out.append("Onbekende themakleur “\(k)”") }
+            if !Theme.colorKeys.contains(k) { out.append(L("Onbekende themakleur “{0}”", k)) }
             if !Self.validColor(v) { out.append("Kleur \(k) moet als #rrggbb") }
         }
-        if let f = font, !Self.validFont(f) { out.append("Lettertype mag alleen letters, cijfers, spaties, komma's en aanhalingstekens bevatten") }
-        if let r = radius, !(0...30).contains(r) { out.append("Afronding moet tussen 0 en 30 liggen") }
-        for k in (effects ?? [:]).keys where !Theme.effectKeys.contains(k) { out.append("Onbekend effect “\(k)”") }
+        if let f = font, !Self.validFont(f) { out.append(L("Lettertype mag alleen letters, cijfers, spaties, komma's en aanhalingstekens bevatten")) }
+        if let r = radius, !(0...30).contains(r) { out.append(L("Afronding moet tussen 0 en 30 liggen")) }
+        for k in (effects ?? [:]).keys where !Theme.effectKeys.contains(k) { out.append(L("Onbekend effect “{0}”", k)) }
         return out
     }
 }

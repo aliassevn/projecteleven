@@ -59,7 +59,7 @@ struct MenuView: View {
             Text("CYBERPAD").font(.system(.headline, design: .monospaced)).kerning(2)
             Spacer()
             Circle().fill(core.serverError == nil ? Color.green : Color.red).frame(width: 8, height: 8)
-            Text(core.serverError == nil ? "Actief op :\(Server.port)" : "Gestopt")
+            Text(core.serverError == nil ? L("Actief op :{0}", Server.port) : L("Gestopt"))
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -67,10 +67,10 @@ struct MenuView: View {
     private var pairingSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let err = core.serverError { Text(err).font(.caption).foregroundStyle(.red) }
-            Text("Open op je tablet:").font(.caption).foregroundStyle(.secondary)
+            Text(L("Open op je tablet:")).font(.caption).foregroundStyle(.secondary)
             Text(Core.hostURL).font(.system(.body, design: .monospaced)).textSelection(.enabled)
             if let direct = core.directURL {
-                Text("of \(direct)").font(.system(.caption, design: .monospaced))
+                Text(L("of {0}", direct)).font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary).textSelection(.enabled)
             }
             HStack(alignment: .center, spacing: 14) {
@@ -78,16 +78,16 @@ struct MenuView: View {
                     Image(nsImage: qr).interpolation(.none).resizable().frame(width: 96, height: 96)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Koppelcode").font(.caption).foregroundStyle(.secondary)
+                    Text(L("Koppelcode")).font(.caption).foregroundStyle(.secondary)
                     Text(spaced(core.pairing.code))
                         .font(.system(size: 28, weight: .semibold, design: .monospaced))
                         .textSelection(.enabled)
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         let left = max(0, Int(core.pairing.codeExpires.timeIntervalSince(ctx.date)))
-                        Text("Nieuwe code over \(left / 60):\(String(format: "%02d", left % 60))")
+                        Text(L("Nieuwe code over {0}", "\(left / 60):\(String(format: "%02d", left % 60))"))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
-                    Button("Nieuwe code") { core.pairing.rotate() }.controlSize(.small)
+                    Button(L("Nieuwe code")) { core.pairing.rotate() }.controlSize(.small)
                 }
             }
         }
@@ -95,9 +95,9 @@ struct MenuView: View {
 
     private var devicesSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Gekoppelde tablets").font(.caption).foregroundStyle(.secondary)
+            Text(L("Gekoppelde tablets")).font(.caption).foregroundStyle(.secondary)
             if core.pairing.devices.isEmpty {
-                Text("Nog geen tablets gekoppeld").font(.callout).foregroundStyle(.secondary)
+                Text(L("Nog geen tablets gekoppeld")).font(.callout).foregroundStyle(.secondary)
             }
             ForEach(core.pairing.devices) { d in
                 HStack {
@@ -106,14 +106,14 @@ struct MenuView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(d.name)
                         if let seen = d.lastSeen {
-                            Text("Laatst gezien \(seen.formatted(.relative(presentation: .named)))")
+                            Text(L("Laatst gezien {0}", seen.formatted(.relative(presentation: .named).locale(Localizer.shared.locale))))
                                 .font(.caption2).foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
                     if !core.context.profiles.isEmpty {
-                        Menu(core.context.profiles.first { $0.id == d.profile }?.name ?? "Automatisch") {
-                            Button("Automatisch") { core.pairing.setProfile(id: d.id, profile: nil) }
+                        Menu(core.context.profiles.first { $0.id == d.profile }?.name ?? L("Automatisch")) {
+                            Button(L("Automatisch")) { core.pairing.setProfile(id: d.id, profile: nil) }
                             Divider()
                             ForEach(core.context.profiles, id: \.id) { p in
                                 Button(p.name) { core.pairing.setProfile(id: d.id, profile: p.id) }
@@ -122,7 +122,7 @@ struct MenuView: View {
                         .controlSize(.small)
                         .fixedSize()
                     }
-                    Button("Intrekken", role: .destructive) { core.pairing.revoke(id: d.id) }.controlSize(.small)
+                    Button(L("Intrekken"), role: .destructive) { core.pairing.revoke(id: d.id) }.controlSize(.small)
                 }
             }
         }
@@ -134,26 +134,26 @@ struct MenuView: View {
                 Image(systemName: core.meetingInfo == nil ? "video.slash" : "video.fill")
                     .foregroundStyle(core.meetingInfo == nil ? Color.secondary : Color.green)
                 if let m = core.meetingInfo {
-                    Text("In vergadering: \(m.name)")
+                    Text(L("In vergadering: {0}", m.name))
                     if let muted = m.muted {
-                        Text(muted ? "· mic uit" : "· mic aan").foregroundStyle(muted ? .red : .secondary)
-                        if m.statusSource == "estimated" { Text("(geschat)").font(.caption2).foregroundStyle(.secondary) }
+                        Text(muted ? L("· mic uit") : L("· mic aan")).foregroundStyle(muted ? .red : .secondary)
+                        if m.statusSource == "estimated" { Text(L("(geschat)")).font(.caption2).foregroundStyle(.secondary) }
                     }
                 } else {
-                    Text("Geen vergadering").foregroundStyle(.secondary)
+                    Text(L("Geen vergadering")).foregroundStyle(.secondary)
                 }
             }
             .font(.callout)
             HStack(spacing: 6) {
                 Image(systemName: "calendar").foregroundStyle(.secondary)
                 switch core.agendaAccess {
-                case .granted: Text("Agenda gekoppeld").foregroundStyle(.secondary)
+                case .granted: Text(L("Agenda gekoppeld")).foregroundStyle(.secondary)
                 case .notDetermined:
-                    Text("Agenda niet gekoppeld").foregroundStyle(.secondary)
-                    Button("Toestaan…") { core.requestAgendaAccess() }.controlSize(.small)
+                    Text(L("Agenda niet gekoppeld")).foregroundStyle(.secondary)
+                    Button(L("Toestaan…")) { core.requestAgendaAccess() }.controlSize(.small)
                 case .denied:
-                    Text("Geen toegang tot Agenda").foregroundStyle(.orange)
-                    Button("Instellingen…") { core.requestAgendaAccess() }.controlSize(.small)
+                    Text(L("Geen toegang tot Agenda")).foregroundStyle(.orange)
+                    Button(L("Instellingen…")) { core.requestAgendaAccess() }.controlSize(.small)
                 }
             }
             .font(.callout)
@@ -169,9 +169,9 @@ struct MenuView: View {
         if !core.context.profiles.isEmpty {
             HStack(spacing: 6) {
                 Image(systemName: "rectangle.stack").foregroundStyle(.secondary)
-                Picker("Profiel", selection: Binding(get: { core.context.override ?? "auto" },
+                Picker(L("Profiel"), selection: Binding(get: { core.context.override ?? "auto" },
                                                      set: { core.context.setOverride($0) })) {
-                    Text("Automatisch (\(core.context.autoProfile?.name ?? "—"))").tag("auto")
+                    Text(L("Automatisch ({0})", core.context.autoProfile?.name ?? "—")).tag("auto")
                     ForEach(core.context.profiles, id: \.id) { p in Text(p.name).tag(p.id) }
                 }
                 .pickerStyle(.menu)
@@ -186,7 +186,7 @@ struct MenuView: View {
                 Text(a.name).lineLimit(1)
                 if let page = core.context.contextPage,
                    let name = core.layouts.layout.pages.first(where: { $0.id == page })?.name {
-                    Text("→ pagina \(name)").foregroundStyle(.secondary)
+                    Text(L("→ pagina {0}", name)).foregroundStyle(.secondary)
                 }
             }
             .font(.callout)
@@ -198,7 +198,7 @@ struct MenuView: View {
         if st != .off {
             HStack(spacing: 6) {
                 Image(systemName: icon).foregroundStyle(st == .connected ? Color.green : Color.secondary)
-                Text("\(name): \(st == .connected ? "verbonden" : st.text)")
+                Text("\(name): \(st == .connected ? L("verbonden") : st.text)")
                     .foregroundStyle(st.code == "error" ? Color.orange : Color.secondary)
                     .lineLimit(2)
             }
@@ -208,7 +208,7 @@ struct MenuView: View {
 
     private var pluginsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Plugins").font(.caption).foregroundStyle(.secondary)
+            Text(L("Plugins")).font(.caption).foregroundStyle(.secondary)
             ForEach(core.plugins.sorted, id: \.manifest.id) { p in
                 HStack(spacing: 6) {
                     Text(p.manifest.icon ?? "🧩")
@@ -220,9 +220,9 @@ struct MenuView: View {
                     }
                     Spacer()
                     if core.plugins.isApproved(p.manifest.id) && p.status != .changed {
-                        Button("Uitzetten") { core.plugins.revoke(p.manifest.id) }.controlSize(.small)
+                        Button(L("Uitzetten")) { core.plugins.revoke(p.manifest.id) }.controlSize(.small)
                     } else {
-                        Button(p.status == .changed ? "Opnieuw toestaan…" : "Aanzetten…") { core.approvePlugin(p.manifest.id) }
+                        Button(p.status == .changed ? L("Opnieuw toestaan…") : L("Aanzetten…")) { core.approvePlugin(p.manifest.id) }
                             .controlSize(.small)
                     }
                 }
@@ -246,8 +246,8 @@ struct MenuView: View {
     private var warnings: some View {
         VStack(alignment: .leading, spacing: 6) {
             if !core.hasAccessibility {
-                Text("Media- en toetsacties hebben Toegankelijkheid nodig.").font(.caption)
-                Button("Toegankelijkheid toestaan…") { core.requestAccessibility() }.controlSize(.small)
+                Text(L("Media- en toetsacties hebben Toegankelijkheid nodig.")).font(.caption)
+                Button(L("Toegankelijkheid toestaan…")) { core.requestAccessibility() }.controlSize(.small)
             }
             if let e = core.layoutError { Text(e).font(.caption).foregroundStyle(.orange) }
         }
@@ -256,16 +256,24 @@ struct MenuView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button("Layout bewerken…") { core.openEditor() }
-                Button("Koppelingen…") { core.openIntegrations() }
-                Button("Map") { core.openSupportFolder() }
-                Button("Plugins") { core.openPluginFolder() }
+                Button(L("Layout bewerken…")) { core.openEditor() }
+                Button(L("Koppelingen…")) { core.openIntegrations() }
+                Button(L("Map")) { core.openSupportFolder() }
+                Button(L("Plugins")) { core.openPluginFolder() }
                 Spacer()
-                Button("Stop") { NSApp.terminate(nil) }
+                Button(L("Stop")) { NSApp.terminate(nil) }
             }
             HStack {
-                Button("layout.json openen") { core.openLayoutFile() }
-                Button("Standaard-layout terugzetten…") { core.resetLayout() }
+                Picker(L("Taal"), selection: Binding(get: { Localizer.shared.lang }, set: { Localizer.shared.set($0) })) {
+                    ForEach(Localizer.languages, id: \.code) { l in Text(l.name).tag(l.code) }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+                Spacer()
+            }
+            HStack {
+                Button(L("layout.json openen")) { core.openLayoutFile() }
+                Button(L("Standaard-layout terugzetten…")) { core.resetLayout() }
             }
         }
         .controlSize(.small)

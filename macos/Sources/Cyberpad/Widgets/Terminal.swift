@@ -28,7 +28,7 @@ final class TerminalService {
         if let e = r.exit { d["exit"] = Int(e) }
         if let s = r.started { d["started"] = Int(s.timeIntervalSince1970 * 1000) }
         if let e = r.ended { d["ended"] = Int(e.timeIntervalSince1970 * 1000) }
-        if cfg?.command == nil { d["error"] = "Geen commando ingesteld" }
+        if cfg?.command == nil { d["error"] = L("Geen commando ingesteld") }
         return d
     }
 
@@ -38,16 +38,16 @@ final class TerminalService {
         case "run":
             guard let cmd = tile.config?.command, !cmd.isEmpty else { throw ActionRunner.ActionError.missing("config.command") }
             if tile.config?.dangerous == true && !confirmed {
-                throw ActionRunner.ActionError.failed("Bevestig eerst op de tablet")
+                throw ActionRunner.ActionError.failed(L("Bevestig eerst op de tablet"))
             }
-            if runs[tile.id]?.status == "running" { throw ActionRunner.ActionError.failed("Draait al") }
+            if runs[tile.id]?.status == "running" { throw ActionRunner.ActionError.failed(L("Draait al")) }
             start(tile.id, cmd, cfg: tile.config)
         case "stop":
             stop(tile.id, reason: "stopped")
         case "clear":
             if runs[tile.id]?.status != "running" { runs[tile.id] = Run() }
         default:
-            throw ActionRunner.ActionError.failed("Onbekende terminalactie")
+            throw ActionRunner.ActionError.failed(L("Onbekende terminalactie"))
         }
         notify()
     }
@@ -92,7 +92,7 @@ final class TerminalService {
             try p.run()
         } catch {
             run.status = "failed"
-            run.output = "Kon niet starten: \(error.localizedDescription)"
+            run.output = L("Kon niet starten: {0}", error.localizedDescription)
             run.ended = Date()
             runs[id] = run
             return

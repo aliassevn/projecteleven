@@ -45,7 +45,7 @@ final class NowPlayingService {
                 let r = Self.osascript(Self.script(a.id == "spotify" ? "Spotify" : "Music", spotify: a.id == "spotify"))
                 if let err = r.error {
                     results.append(["status": "error", "app": a.id, "appName": a.name,
-                                    "error": err.contains("-1743") ? "Sta Automatisering › \(a.name) toe voor Cyberpad" : err])
+                                    "error": err.contains("-1743") ? L("Sta Automatisering › {0} toe voor Cyberpad", a.name) : err])
                     continue
                 }
                 let parts = r.output.components(separatedBy: "\t")
@@ -74,7 +74,7 @@ final class NowPlayingService {
     /// playpause, next, prev, seek (seconden)
     func control(_ action: String, value: Double?) throws {
         guard let id = current["app"] as? String, current["status"] as? String == "ok" else {
-            throw ActionRunner.ActionError.failed("Er speelt niets in Muziek of Spotify")
+            throw ActionRunner.ActionError.failed(L("Er speelt niets in Muziek of Spotify"))
         }
         let app = id == "spotify" ? "Spotify" : "Music"
         let cmd: String
@@ -83,9 +83,9 @@ final class NowPlayingService {
         case "next": cmd = "next track"
         case "prev": cmd = "previous track"
         case "seek":
-            guard let v = value, v.isFinite, v >= 0 else { throw ActionRunner.ActionError.failed("Ongeldige positie") }
+            guard let v = value, v.isFinite, v >= 0 else { throw ActionRunner.ActionError.failed(L("Ongeldige positie")) }
             cmd = "set player position to \(Int(v))"
-        default: throw ActionRunner.ActionError.failed("Onbekende bediening")
+        default: throw ActionRunner.ActionError.failed(L("Onbekende bediening"))
         }
         queue.async { [weak self] in
             _ = Self.osascript("tell application \"\(app)\" to \(cmd)")
@@ -104,12 +104,12 @@ final class NowPlayingService {
         p.standardOutput = out
         p.standardError = err
         p.standardInput = FileHandle.nullDevice
-        do { try p.run() } catch { return ("", "osascript niet gevonden") }
+        do { try p.run() } catch { return ("", L("osascript niet gevonden")) }
         let o = out.fileHandleForReading.readDataToEndOfFile()
         let e = err.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         let es = String(data: e, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return (String(data: o, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
-                p.terminationStatus == 0 ? nil : (es.isEmpty ? "AppleScript-fout" : es))
+                p.terminationStatus == 0 ? nil : (es.isEmpty ? L("AppleScript-fout") : es))
     }
 }

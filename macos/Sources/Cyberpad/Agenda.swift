@@ -108,7 +108,7 @@ final class AgendaProvider {
 
         let items = events.prefix(5).map { e -> Item in
             let link = Self.meetingLink(e)
-            return Item(id: e.eventIdentifier ?? UUID().uuidString, title: e.title ?? "(zonder titel)",
+            return Item(id: e.eventIdentifier ?? UUID().uuidString, title: e.title ?? L("(zonder titel)"),
                         start: e.startDate, end: e.endDate, link: link?.url, linkApp: link?.app)
         }
         if items.first != next || items != upcoming { next = items.first; upcoming = Array(items); onChange?() }
@@ -136,8 +136,8 @@ final class AgendaProvider {
 
     /// Opent de vergaderlink van de volgende afspraak. De tablet stuurt nooit zelf een link.
     func joinNext() throws {
-        guard access == .granted else { throw ActionRunner.ActionError.failed("Geef Cyberpad toegang tot Agenda (menubalk)") }
-        guard let link = next?.link else { throw ActionRunner.ActionError.failed("Deze afspraak heeft geen vergaderlink") }
+        guard access == .granted else { throw ActionRunner.ActionError.failed(L("Geef Cyberpad toegang tot Agenda (menubalk)")) }
+        guard let link = next?.link else { throw ActionRunner.ActionError.failed(L("Deze afspraak heeft geen vergaderlink")) }
         NSWorkspace.shared.open(link)
     }
 

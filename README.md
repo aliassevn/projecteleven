@@ -34,6 +34,12 @@ en voer de 6-cijferige code in. Daarna onthoudt de tablet de koppeling.
 Let op: de app is ad-hoc ondertekend. Na elke nieuwe build kan macOS de Toegankelijkheid-toestemming
 vergeten; zet hem dan uit en weer aan.
 
+## Taal
+
+Cyberpad is er in het **Engels** (standaard), **Nederlands** en **Spaans**. Wissel in het menubalk-venster
+(**Language**), op de tablet (⚙ › **Language**) of in de editor (**MORE ▾**). De taal geldt voor de Mac, alle tablets
+en de editor tegelijk. Zie [docs/TALEN.md](docs/TALEN.md).
+
 ## Layout bewerken
 
 Menu › **Layout bewerken…** opent de editor in een eigen venster:
@@ -329,9 +335,11 @@ macos/                    Mac-versie (Swift)
   Resources/Info.plist
   scripts/build.sh        bouwt macos/build/Cyberpad.app
   scripts/make-pad-icons.swift  tekent shared/pad/icons
+  scripts/i18n-keys.py    controleert of alle teksten vertaald zijn
   Sources/Cyberpad/
     CyberpadApp.swift     menubalk-venster
     Core.swift            koppelt alles aan elkaar
+    Localizer.swift       taal (Engels, Nederlands, Spaans) en L("…")
     Server.swift          HTTP + WebSocket op poort 7420 (+ XHR-terugval)
     WebSocket.swift       frames (RFC 6455)
     Pairing.swift         koppelcodes, tokens, rate-limit
@@ -357,10 +365,12 @@ shared/                   gedeeld door macOS en Windows
   plugins/                meegeleverde voorbeeldplugins
   editor/                 layout-editor (ES5) + schema.json met alle acties en tegelsoorten
   themes/                 negen thema's (zie docs/THEMES.md)
+  i18n/                   vertalingen: en.json, es.json (zie docs/TALEN.md)
 docs/
   PROTOCOL.md             tablet ↔ computer: routes, berichten, status
   PLUGINS.md              plugins schrijven
   THEMES.md               thema's en iconen
+  TALEN.md                talen en vertalingen
 windows/                  Windows 11-versie (gepland)
 ```
 

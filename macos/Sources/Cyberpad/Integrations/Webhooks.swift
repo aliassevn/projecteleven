@@ -21,7 +21,7 @@ final class WebhookRunner {
         var url = a.url, method = a.method, headers = a.headers ?? [:], body = a.body, timeout = 10
         if let name = a.webhook {
             guard let h = hooks[name] else {
-                throw ActionRunner.ActionError.failed("Webhook “\(name)” staat niet in integrations.json")
+                throw ActionRunner.ActionError.failed(L("Webhook “{0}” staat niet in integrations.json", name))
             }
             url = h.url
             method = a.method ?? h.method
@@ -30,17 +30,17 @@ final class WebhookRunner {
             timeout = h.timeout ?? 10
             if let header = h.secretHeader {
                 guard let value = secret(Integrations.webhookAccount(name)) else {
-                    throw ActionRunner.ActionError.failed("Geheim voor webhook “\(name)” ontbreekt (menubalk › Koppelingen…)")
+                    throw ActionRunner.ActionError.failed(L("Geheim voor webhook “{0}” ontbreekt (menubalk › Koppelingen…)", name))
                 }
                 headers[header] = value
             }
         }
         guard let s = url, let u = URL(string: s), ["http", "https"].contains(u.scheme?.lowercased() ?? ""),
               let host = u.host, !host.isEmpty else {
-            throw ActionRunner.ActionError.missing("geldige http(s)-url voor de webhook")
+            throw ActionRunner.ActionError.missing(L("geldige http(s)-url voor de webhook"))
         }
         let m = (method ?? (body == nil ? "GET" : "POST")).uppercased()
-        guard Self.methods.contains(m) else { throw ActionRunner.ActionError.failed("Onbekende methode: \(m)") }
+        guard Self.methods.contains(m) else { throw ActionRunner.ActionError.failed(L("Onbekende methode: {0}", m)) }
 
         var req = URLRequest(url: u, timeoutInterval: TimeInterval(min(max(timeout, 1), 60)))
         req.httpMethod = m
@@ -58,7 +58,7 @@ final class WebhookRunner {
             DispatchQueue.main.async {
                 if let err {
                     onFail?()
-                    self?.onError?("Webhook \(label) mislukt: \(err.localizedDescription)")
+                    self?.onError?(L("Webhook {0} mislukt: {1}", label, err.localizedDescription))
                 } else if let code = (resp as? HTTPURLResponse)?.statusCode, code >= 400 {
                     onFail?()
                     self?.onError?("Webhook \(label) gaf foutcode \(code)")

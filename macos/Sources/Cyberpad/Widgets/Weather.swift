@@ -24,7 +24,11 @@ final class WeatherService {
     }
 
     func json(for cfg: WidgetConfig?) -> [String: Any] {
-        data[key(cfg)] ?? ["status": "loading"]
+        guard var d = data[key(cfg)] else { return ["status": "loading"] }
+        // Omschrijving steeds in de huidige taal (ook na een taalwissel tussen twee keer ophalen).
+        if let code = d["code"] as? Int { d["desc"] = Self.describe(code, day: d["day"] as? Bool ?? true).text }
+        d["day"] = nil
+        return d
     }
 
     /// Haalt nieuwe gegevens op als ze ouder zijn dan 15 minuten.
@@ -37,7 +41,7 @@ final class WeatherService {
         resolve(cfg) { [weak self] place, error in
             guard let self else { return }
             guard let place else {
-                self.finish(k, ["status": "error", "error": error ?? "Plaats niet gevonden"], retryIn: 300)
+                self.finish(k, ["status": "error", "error": error ?? L("Plaats niet gevonden")], retryIn: 300)
                 return
             }
             self.fetchForecast(place) { result in self.finish(k, result, retryIn: result["status"] as? String == "ok" ? nil : 300) }
@@ -67,7 +71,7 @@ final class WeatherService {
             guard let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let first = (obj["results"] as? [[String: Any]])?.first,
                   let lat = first["latitude"] as? Double, let lon = first["longitude"] as? Double else {
-                done(nil, err == nil ? "Plaats “\(city)” niet gevonden" : "Geen internet")
+                done(nil, err == nil ? L("Plaats “{0}” niet gevonden", city) : L("Geen internet"))
                 return
             }
             let p = Place(name: first["name"] as? String ?? city, lat: lat, lon: lon)
@@ -89,7 +93,7 @@ final class WeatherService {
                   let cur = obj["current"] as? [String: Any],
                   let temp = (cur["temperature_2m"] as? NSNumber)?.doubleValue,
                   let code = (cur["weather_code"] as? NSNumber)?.intValue else {
-                done(["status": "error", "error": err == nil ? "Onverwacht antwoord van Open-Meteo" : "Geen internet"])
+                done(["status": "error", "error": err == nil ? L("Onverwacht antwoord van Open-Meteo") : L("Geen internet")])
                 return
             }
             let daily = obj["daily"] as? [String: Any]
@@ -98,7 +102,7 @@ final class WeatherService {
             let desc = Self.describe(code, day: isDay)
             var out: [String: Any] = [
                 "status": "ok", "place": p.name, "temp": (temp * 10).rounded() / 10,
-                "code": code, "desc": desc.text, "icon": desc.icon,
+                "code": code, "day": isDay, "desc": desc.text, "icon": desc.icon,
                 "updated": Int(Date().timeIntervalSince1970 * 1000),
             ]
             if let v = firstNum("temperature_2m_max") { out["max"] = v.rounded() }
@@ -112,22 +116,22 @@ final class WeatherService {
     /// WMO-weercodes naar Nederlandse omschrijving en emoji.
     static func describe(_ code: Int, day: Bool) -> (text: String, icon: String) {
         switch code {
-        case 0: return ("Onbewolkt", day ? "☀️" : "🌙")
-        case 1: return ("Vrijwel onbewolkt", day ? "🌤" : "🌙")
-        case 2: return ("Half bewolkt", day ? "⛅️" : "☁️")
-        case 3: return ("Bewolkt", "☁️")
-        case 45, 48: return ("Mist", "🌫")
-        case 51, 53, 55: return ("Motregen", "🌦")
-        case 56, 57: return ("IJzel", "🌧")
-        case 61, 63: return ("Regen", "🌧")
-        case 65: return ("Zware regen", "🌧")
-        case 66, 67: return ("IJzel", "🌧")
-        case 71, 73, 75, 77: return ("Sneeuw", "🌨")
-        case 80, 81: return ("Buien", "🌦")
-        case 82: return ("Zware buien", "⛈")
-        case 85, 86: return ("Sneeuwbuien", "🌨")
-        case 95, 96, 99: return ("Onweer", "⛈")
-        default: return ("Onbekend", "🌡")
+        case 0: return (L("Onbewolkt"), day ? "☀️" : "🌙")
+        case 1: return (L("Vrijwel onbewolkt"), day ? "🌤" : "🌙")
+        case 2: return (L("Half bewolkt"), day ? "⛅️" : "☁️")
+        case 3: return (L("Bewolkt"), "☁️")
+        case 45, 48: return (L("Mist"), "🌫")
+        case 51, 53, 55: return (L("Motregen"), "🌦")
+        case 56, 57: return (L("IJzel"), "🌧")
+        case 61, 63: return (L("Regen"), "🌧")
+        case 65: return (L("Zware regen"), "🌧")
+        case 66, 67: return (L("IJzel"), "🌧")
+        case 71, 73, 75, 77: return (L("Sneeuw"), "🌨")
+        case 80, 81: return (L("Buien"), "🌦")
+        case 82: return (L("Zware buien"), "⛈")
+        case 85, 86: return (L("Sneeuwbuien"), "🌨")
+        case 95, 96, 99: return (L("Onweer"), "⛈")
+        default: return (L("Onbekend"), "🌡")
         }
     }
 }

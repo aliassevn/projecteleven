@@ -23,6 +23,7 @@ cp -R "$SHARED/catalog" "$APP/Contents/Resources/catalog"
 if [[ -d "$SHARED/plugins" ]]; then cp -R "$SHARED/plugins" "$APP/Contents/Resources/plugins"; fi
 cp -R "$SHARED/editor" "$APP/Contents/Resources/editor"
 cp -R "$SHARED/themes" "$APP/Contents/Resources/themes"
+cp -R "$SHARED/i18n" "$APP/Contents/Resources/i18n"
 codesign --force --sign - "$APP"
 
 echo "Klaar: macos/$APP"

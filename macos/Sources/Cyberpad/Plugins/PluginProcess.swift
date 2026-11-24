@@ -16,7 +16,7 @@ final class PluginProcess {
     static let maxLine = 256 << 10
 
     init(command: [String], dir: URL, env: [String: String]) throws {
-        guard let first = command.first else { throw PluginError.failed("Geen opdracht") }
+        guard let first = command.first else { throw PluginError.failed(L("Geen opdracht")) }
         if first.contains("/") {
             let exe = first.hasPrefix("/") ? URL(fileURLWithPath: first) : dir.appendingPathComponent(first).standardizedFileURL
             process.executableURL = exe
@@ -71,7 +71,7 @@ final class PluginProcess {
         send(m)
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
             guard let cb = self?.pending.removeValue(forKey: id) else { return }
-            cb(false, ["error": "Plugin antwoordt niet (na \(Int(timeout)) s)"])
+            cb(false, ["error": L("Plugin antwoordt niet (na {0} s)", Int(timeout))])
         }
     }
 
@@ -98,7 +98,7 @@ final class PluginProcess {
             }
         }
         if buffer.count > Self.maxLine {
-            stderrTail += "\nTe lange regel zonder einde; plugin gestopt."
+            stderrTail += "\n" + L("Te lange regel zonder einde; plugin gestopt.")
             buffer = Data()
             stop()
         }
@@ -111,7 +111,7 @@ final class PluginProcess {
         stderrPipe.fileHandleForReading.readabilityHandler = nil
         let waiting = pending
         pending = [:]
-        for cb in waiting.values { cb(false, ["error": "Plugin is gestopt"]) }
+        for cb in waiting.values { cb(false, ["error": L("Plugin is gestopt")]) }
         onExit?(code, stderrTail.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }

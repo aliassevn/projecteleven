@@ -11,7 +11,7 @@ enum Keys {
     enum KeyError: LocalizedError {
         case invalid(String)
         var errorDescription: String? {
-            if case .invalid(let s) = self { return "Onbekende toetscombinatie: \(s)" }
+            if case .invalid(let s) = self { return L("Onbekende toetscombinatie: {0}", s) }
             return nil
         }
     }

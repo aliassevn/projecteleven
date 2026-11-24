@@ -39,6 +39,7 @@ final class Core: ObservableObject {
         supportDir = base.appendingPathComponent("Cyberpad", isDirectory: true)
         try? FileManager.default.createDirectory(at: supportDir, withIntermediateDirectories: true)
 
+        _ = Localizer.shared.builtInNames // vooraf vullen (op de hoofdthread, niet tijdens een verzoek)
         pairing = PairingManager(dir: supportDir)
         integrations = Integrations(dir: supportDir)
         plugins = PluginManager(supportDir: supportDir, builtInDir: Self.findResource("plugins", env: "CYBERPAD_PLUGINS_DIR"))
@@ -87,6 +88,14 @@ final class Core: ObservableObject {
             self.server.scheduleStateBroadcast()
         }
 
+        // Andere taal: menu's opnieuw tekenen, tablets en editor laten herladen.
+        Localizer.shared.onChange = { [weak self] _ in
+            guard let self else { return }
+            self.objectWillChange.send()
+            self.server.broadcastLayout()
+            EditorWindow.shared.languageChanged()
+        }
+
         // Wijzigingen in PairingManager doorgeven aan de UI.
         pairing.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onRevoke = { [weak self] id in
@@ -111,7 +120,7 @@ final class Core: ObservableObject {
         do {
             try server.start(serviceName: "Cyberpad (\(Host.current().localizedName ?? "Mac"))")
         } catch {
-            serverError = "Server kon niet starten: \(error.localizedDescription)"
+            serverError = L("Server kon niet starten: {0}", error.localizedDescription)
         }
         refreshNetwork()
         integrations.start()
@@ -186,14 +195,14 @@ final class Core: ObservableObject {
     func approvePlugin(_ id: String) {
         guard let p = plugins.plugins[id] else { return }
         let alert = NSAlert()
-        alert.messageText = "Plugin “\(p.manifest.name)” aanzetten?"
-        var info = "Een plugin is een programma dat met jouw rechten op deze Mac draait. Zet hem alleen aan als je de maker vertrouwt."
-        if let a = p.manifest.author { info += "\n\nMaker: \(a)" }
-        info += "\nMap: \(p.dir.path)\nOpdracht: \((p.manifest.command ?? []).joined(separator: " "))"
-        info += "\n\nVerandert er later iets aan de bestanden, dan staat de plugin weer uit tot je hem opnieuw toestaat."
+        alert.messageText = L("Plugin “{0}” aanzetten?", p.manifest.name)
+        var info = L("Een plugin is een programma dat met jouw rechten op deze Mac draait. Zet hem alleen aan als je de maker vertrouwt.")
+        if let a = p.manifest.author { info += "\n\n" + L("Maker: {0}", a) }
+        info += "\n" + L("Map: {0}", p.dir.path) + "\n" + L("Opdracht: {0}", (p.manifest.command ?? []).joined(separator: " "))
+        info += "\n\n" + L("Verandert er later iets aan de bestanden, dan staat de plugin weer uit tot je hem opnieuw toestaat.")
         alert.informativeText = info
-        alert.addButton(withTitle: "Aanzetten")
-        alert.addButton(withTitle: "Annuleer")
+        alert.addButton(withTitle: L("Aanzetten"))
+        alert.addButton(withTitle: L("Annuleer"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         plugins.approve(id)
@@ -202,10 +211,10 @@ final class Core: ObservableObject {
     /// Standaard-layout terugzetten; de oude wordt eerst als back-up bewaard.
     func resetLayout() {
         let alert = NSAlert()
-        alert.messageText = "Standaard-layout terugzetten?"
-        alert.informativeText = "Je huidige layout.json wordt eerst bewaard als back-up in de Cyberpad-map."
-        alert.addButton(withTitle: "Terugzetten")
-        alert.addButton(withTitle: "Annuleer")
+        alert.messageText = L("Standaard-layout terugzetten?")
+        alert.informativeText = L("Je huidige layout.json wordt eerst bewaard als back-up in de Cyberpad-map.")
+        alert.addButton(withTitle: L("Terugzetten"))
+        alert.addButton(withTitle: L("Annuleer"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         layouts.resetToDefault()
