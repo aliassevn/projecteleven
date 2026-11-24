@@ -593,3 +593,9 @@ html:not(.fx-upper) .tile .label, html:not(.fx-upper) .tab { text-transform: non
 .tile.kind-button.active, .tile.kind-button.flash { background: {{buttonActive}}; }
 .tile.kind-button.active .label { color: {{buttonActiveText}}; }
 .tile.kind-button .corner { border-left-color: {{buttonBorder}}; }
+
+/* Koppelcode: de 000000-hint verdwijnt zodra je het veld aantikt (komt terug als het leeg blijft). */
+.pair-input:focus::-webkit-input-placeholder { color: transparent; }
+.pair-input:focus::-moz-placeholder { color: transparent; }
+.pair-input:focus:-ms-input-placeholder { color: transparent; }
+.pair-input:focus::placeholder { color: transparent; }

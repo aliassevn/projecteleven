@@ -1858,6 +1858,9 @@
     // Alleen voor testen: index.html?debug → rustscherm direct op te roepen via de console.
     if (/[?&]debug\b/.test(location.search)) { window.cyberpadDebug = { ambient: showAmbient, settings: showSettings }; }
     bindTap($('pair-btn'), doPair);
+    // Ook voor browsers die de CSS-regel niet kennen: hint weg bij aantikken, terug als het veld leeg blijft.
+    $('pair-code').addEventListener('focus', function () { $('pair-code').placeholder = ''; }, false);
+    $('pair-code').addEventListener('blur', function () { if (!$('pair-code').value) { $('pair-code').placeholder = '000000'; } }, false);
     $('pair-code').addEventListener('keyup', function (e) {
       if (e.keyCode === 13 || $('pair-code').value.replace(/\D/g, '').length === 6) { doPair(); }
     }, false);
