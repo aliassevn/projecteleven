@@ -281,13 +281,14 @@
 
   // App-iconen en eigen afbeeldingen ophalen met de editor-toegang (een <img src> kan geen header meesturen).
   var ICONS = {};
-  function loadIcon(src, apply) {
-    var c = ICONS[src];
+  function loadIcon(src, apply, size) {
+    var key = src + (size ? '@' + size : '');
+    var c = ICONS[key];
     if (c && c.url) { apply(c.url); return; }
     if (!c) {
-      c = ICONS[src] = { url: null, wait: [] };
+      c = ICONS[key] = { url: null, wait: [] };
       var x = new XMLHttpRequest();
-      x.open('GET', '/api/icon?src=' + encodeURIComponent(src), true);
+      x.open('GET', '/api/icon?src=' + encodeURIComponent(src) + (size ? '&size=' + size : ''), true);
       x.responseType = 'blob';
       x.setRequestHeader(E.auth.header, E.auth.token);
       x.onreadystatechange = function () {
@@ -295,7 +296,7 @@
         if (x.status === 200) { c.url = URL.createObjectURL(x.response); }
         for (var i = 0; i < c.wait.length; i++) { if (c.url) { c.wait[i](c.url); } }
         c.wait = [];
-        if (!c.url) { delete ICONS[src]; }
+        if (!c.url) { delete ICONS[key]; }
       };
       x.send();
     }
@@ -323,7 +324,7 @@
         (function (sx, sy) {
           var s = el('div', 'slot');
           place(s, sx, sy, 1, 1);
-          tap(s, function () { addTile(sx, sy); });
+          tap(s, function () { showPalette({ x: sx, y: sy }); });
           g.appendChild(s);
         })(x, y);
       }
@@ -373,14 +374,6 @@
       var id = nodes[j].getAttribute('data-id');
       nodes[j].className = nodes[j].className.replace(/\s*\bbad\b/g, '') + (bad[id] ? ' bad' : '');
     }
-  }
-
-  function addTile(x, y) {
-    snapshot();
-    var t = { id: uniqueTileId('tegel'), label: 'Nieuw', x: x, y: y, action: { type: 'media.playPause' } };
-    curPage().tiles.push(t);
-    E.sel = t.id;
-    afterChange(true);
   }
 
   // Slepen = verplaatsen; het hoekje rechtsonder = groter/kleiner. Muis en aanraking.
@@ -1020,6 +1013,229 @@
     $('modal').className = 'modal';
   }
 
+  // ---------- toevoegen: lijst met alle mogelijkheden ----------
+
+  var ACTION_ICON = {
+    'media.playPause': '⏯', 'media.next': '⏭', 'media.previous': '⏮',
+    'audio.volumeUp': '🔊', 'audio.volumeDown': '🔉', 'audio.mute': '🔇', 'audio.micMute': '🎙',
+    'url.open': '🌐', 'keys.press': '⌨️', 'text.type': '✍️', 'preset': '🎛', 'shortcut.run': '⚡️', 'macro': '🧩',
+    'system.darkMode': '🌗', 'system.keepAwake': '☕️', 'system.lock': '🔒', 'system.displayOff': '🌑',
+    'system.screenshot': '📸', 'system.screenshotArea': '✂️', 'ha.toggle': '💡', 'ha.service': '🏠',
+    'mqtt.publish': '📡', 'webhook.call': '🪝', 'plugin': '🧩'
+  };
+  var KIND_ICON = { weather: '⛅', nowplaying: '🎵', timer: '⏱', pomodoro: '🍅', worldclock: '🌍', photos: '🖼', stats: '📊',
+    terminal: '>_', ha: '🏠', mqtt: '📡', plugin: '🧩', clock: '🕒', agenda: '📅', touchpad: '▦', dial: '◎', slider: '▭' };
+  // Grootte in een standaardraster (5×3); op een compacte pagina wordt dat vanzelf meer vakken.
+  var KIND_SIZE = { weather: [2, 1], nowplaying: [3, 1], timer: [1, 1], pomodoro: [1, 1], worldclock: [1, 1], photos: [2, 1],
+    stats: [2, 1], terminal: [3, 1], ha: [1, 1], mqtt: [1, 1], plugin: [2, 1], clock: [2, 1], agenda: [2, 1],
+    touchpad: [3, 3], dial: [1, 1], slider: [3, 1] };
+  var KIND_CONFIG = { weather: { city: 'Amsterdam' }, timer: { seconds: 300 }, pomodoro: { work: 25, rest: 5 },
+    worldclock: { zones: ['America/New_York', 'Asia/Tokyo'] }, photos: { seconds: 10 }, agenda: { count: 3 },
+    touchpad: { speed: 1.5, natural: true }, terminal: { command: 'ping -c 5 1.1.1.1', timeout: 30 } };
+  var PALETTE_GROUPS = ['Alles', 'Apps', 'Opdrachten', 'Media en geluid', 'Widgets', 'Bediening', 'Systeem',
+    'Toetsen en tekst', 'Sneltoetsen', 'Smart home', 'Plugins'];
+
+  // Alles wat je kunt toevoegen. `make()` geeft een tegel zonder id/positie; `todo` = nog in te vullen.
+  function paletteItems() {
+    var items = [], i, d;
+    function add(group, name, sub, icon, make, todo) { items.push({ group: group, name: name, sub: sub || '', icon: icon, make: make, todo: todo }); }
+    function button(label, icon, action) { return function () { return { label: label, icon: icon, action: action }; }; }
+
+    add('Basis', 'Lege knop', 'zelf een actie kiezen', '➕', function () { return { label: 'Nieuw' }; }, 'actie');
+
+    for (i = 0; i < E.catalog.apps.length; i++) {
+      (function (ap) {
+        add('Apps', ap.name, 'app openen', 'app:' + ap.id, button(ap.name, 'app:' + ap.id, { type: 'app.open', app: ap.id }));
+      })(E.catalog.apps[i]);
+    }
+
+    var sc = E.catalog.shortcuts || [];
+    for (i = 0; i < sc.length; i++) {
+      (function (name) { add('Opdrachten', name, 'opdracht uitvoeren', '⚡️', button(name, '⚡️', { type: 'shortcut.run', shortcut: name })); })(sc[i]);
+    }
+    if ((E.catalog.platform || 'macos') === 'macos') {
+      add('Opdrachten', 'Andere opdracht…', sc.length ? 'naam zelf invullen' : 'nog geen opdrachten gevonden in de Opdrachten-app', '⚡️',
+        button('Opdracht', '⚡️', { type: 'shortcut.run' }), 'naam van de opdracht');
+    }
+
+    for (i = 0; i < E.schema.actions.length; i++) {
+      d = E.schema.actions[i];
+      if (d.macroOnly || d.dialOnly || (d.platforms && d.platforms.indexOf(E.catalog.platform || 'macos') < 0)) { continue; }
+      (function (d) {
+        var icon = ACTION_ICON[d.type] || '•';
+        if (d.slider) {
+          if (d.type === 'ha.level') { return; }
+          add('Media en geluid', d.name.replace(/ \(schuif\/draaiknop\)/, '') + ' — schuif', 'schuifbalk', '▭', function () {
+            return { label: d.name.replace(/ \(schuif\/draaiknop\)/, ''), kind: 'slider', action: { type: d.type } };
+          });
+          return;
+        }
+        var group = { Media: 'Media en geluid', Geluid: 'Media en geluid', Systeem: 'Systeem', Toetsen: 'Toetsen en tekst',
+          'Apps en links': 'Toetsen en tekst', Automatisering: 'Toetsen en tekst', 'Smart home': 'Smart home' }[d.group];
+        if (!group || d.type === 'app.open' || d.type === 'shortcut.run' || d.type === 'preset' || d.type === 'plugin') { return; }
+        var needs = (d.fields || []).filter(function (f) { return f.required; }).map(function (f) { return f.label.toLowerCase(); }).join(', ');
+        add(group, d.name, needs ? 'invullen: ' + needs : d.group.toLowerCase(), icon,
+          function () { return { label: d.name.replace(/ aan\/uit$/, ''), icon: icon, action: { type: d.type } }; }, needs || null);
+      })(d);
+    }
+
+    for (i = 0; i < E.catalog.presets.length; i++) {
+      (function (p) {
+        add('Sneltoetsen', p.app + ': ' + p.name, p.keys, '🎛', button(p.name, '🎛', { type: 'preset', preset: p.id }));
+      })(E.catalog.presets[i]);
+    }
+
+    for (i = 0; i < E.schema.kinds.length; i++) {
+      (function (k) {
+        if (['button', 'slider', 'dial', 'touchpad', 'ha', 'mqtt', 'plugin'].indexOf(k.kind) >= 0) { return; }
+        add('Widgets', k.name, 'widget', KIND_ICON[k.kind] || '▣', function () {
+          return { label: k.name, kind: k.kind, config: KIND_CONFIG[k.kind] ? clone(KIND_CONFIG[k.kind]) : undefined };
+        }, k.kind === 'terminal' ? 'commando' : null);
+      })(E.schema.kinds[i]);
+    }
+
+    add('Bediening', 'Aanraakpad', 'tablet als trackpad', '▦', function () { return { label: 'Aanraakpad', kind: 'touchpad', config: clone(KIND_CONFIG.touchpad) }; });
+    add('Bediening', 'Volumeknop', 'draaiknop', '◎', function () { return { label: 'Volume', kind: 'dial', action: { type: 'audio.volume' } }; });
+    add('Bediening', 'Scrollknop', 'draaiknop', '◎', function () { return { label: 'Scrollen', kind: 'dial', action: { type: 'pointer.scroll' } }; });
+    add('Bediening', 'Bureaubladen wisselen', 'draaiknop', '◎', function () {
+      return { label: 'Bureaubladen', kind: 'dial', action: { type: 'keys.press', keys: 'ctrl+right' }, offAction: { type: 'keys.press', keys: 'ctrl+left' } };
+    });
+    add('Bediening', 'Volumeschuif', 'schuifbalk', '▭', function () { return { label: 'Volume', kind: 'slider', action: { type: 'audio.volume' } }; });
+
+    add('Smart home', 'Home Assistant-schuif', 'helderheid, rolluik, volume…', '▭', function () {
+      return { label: 'Helderheid', kind: 'slider', action: { type: 'ha.level' } };
+    }, 'entiteit');
+    add('Smart home', 'Home Assistant-waarde', 'sensor, lamp of thermostaat tonen', '🏠', function () {
+      return { label: 'Sensor', kind: 'ha', config: {} };
+    }, 'entiteit');
+    add('Smart home', 'MQTT-waarde', 'laatste bericht van een topic', '📡', function () { return { label: 'MQTT', kind: 'mqtt', config: {} }; }, 'topic');
+
+    for (i = 0; i < E.catalog.plugins.length; i++) {
+      (function (pl) {
+        var j;
+        for (j = 0; j < pl.actions.length; j++) {
+          (function (a) {
+            add('Plugins', pl.name + ': ' + a.name, pl.enabled ? 'plugin-actie' : 'plugin staat uit', pl.icon,
+              button(a.name, pl.icon, { type: 'plugin', plugin: pl.id, action: a.id }));
+          })(pl.actions[j]);
+        }
+        for (j = 0; j < pl.widgets.length; j++) {
+          (function (w) {
+            add('Plugins', pl.name + ': ' + w.name, pl.enabled ? 'plugin-widget' : 'plugin staat uit', pl.icon, function () {
+              return { label: w.name, kind: 'plugin', config: { plugin: pl.id, widget: w.id } };
+            });
+          })(pl.widgets[j]);
+        }
+      })(E.catalog.plugins[i]);
+    }
+    return items;
+  }
+
+  // Maat van een nieuwe tegel op de huidige pagina (compact = meer vakken).
+  function sizeFor(tile) {
+    var base = KIND_SIZE[tile.kind || 'button'] || [1, 1];
+    var fx = cols() / E.layout.columns, fy = rowsN() / E.layout.rows;
+    var w = Math.max(1, Math.min(cols(), Math.round(base[0] * fx))), h = Math.max(1, Math.min(rowsN(), Math.round(base[1] * fy)));
+    return [w, h];
+  }
+
+  // Plek zoeken: eerst het aangetikte vak (eventueel iets naar links/boven geschoven), dan de eerste vrije plek;
+  // past het nergens, dan zo groot als nog kan.
+  function findSpot(w, h, target) {
+    var page = curPage(), x, y;
+    if (target) {
+      for (y = target.y; y >= Math.max(0, target.y - h + 1); y--) {
+        for (x = target.x; x >= Math.max(0, target.x - w + 1); x--) { if (fits(page, null, x, y, w, h)) { return { x: x, y: y, w: w, h: h }; } }
+      }
+    }
+    for (y = 0; y <= rowsN() - h; y++) { for (x = 0; x <= cols() - w; x++) { if (fits(page, null, x, y, w, h)) { return { x: x, y: y, w: w, h: h }; } } }
+    if (w > 1 || h > 1) { return findSpot(Math.max(1, w - 1), Math.max(1, h - (w > 1 ? 0 : 1)), target); }
+    return null;
+  }
+
+  function placeItem(item, target) {
+    var t = item.make(), sz = sizeFor(t);
+    var spot = findSpot(sz[0], sz[1], target);
+    if (!spot) { message('Geen ruimte meer op deze pagina. Maak de pagina compact of kies een andere pagina.', true); return; }
+    snapshot();
+    t.id = uniqueTileId(t.label);
+    t.x = spot.x; t.y = spot.y;
+    if (spot.w > 1) { t.w = spot.w; }
+    if (spot.h > 1) { t.h = spot.h; }
+    curPage().tiles.push(t);
+    E.sel = t.id;
+    $('modal').className = 'modal hidden';
+    afterChange(true);
+    message(item.todo ? 'Toegevoegd. Vul rechts nog in: ' + item.todo + '.' : 'Toegevoegd: ' + t.label + '.', false);
+  }
+
+  function showPalette(target) {
+    $('modal-title').textContent = '// TOEVOEGEN' + (target ? ' · VAK ' + (target.x + 1) + ',' + (target.y + 1) : '');
+    var body = $('modal-body');
+    body.innerHTML = '';
+    var all = paletteItems();
+    var search = el('input', 'pal-search');
+    search.type = 'text';
+    search.placeholder = 'Zoek: app, actie, widget, sneltoets…';
+    search.setAttribute('autocapitalize', 'off');
+    search.setAttribute('autocorrect', 'off');
+    body.appendChild(search);
+    var chips = el('div', 'chips pal-groups');
+    body.appendChild(chips);
+    var list = el('div', 'pal-list');
+    body.appendChild(list);
+    var group = E.palGroup || 'Alles';
+
+    function counts() {
+      var c = {};
+      for (var i = 0; i < all.length; i++) { c[all[i].group] = (c[all[i].group] || 0) + 1; }
+      return c;
+    }
+    var cnt = counts();
+    function drawChips() {
+      chips.innerHTML = '';
+      for (var i = 0; i < PALETTE_GROUPS.length; i++) {
+        (function (g) {
+          if (g !== 'Alles' && !cnt[g]) { return; }
+          var c = el('span', g === group ? 'on' : '', g + (g === 'Alles' ? '' : ' ' + cnt[g]));
+          tap(c, function () { group = E.palGroup = g; drawChips(); drawList(); });
+          chips.appendChild(c);
+        })(PALETTE_GROUPS[i]);
+      }
+    }
+    function drawList() {
+      list.innerHTML = '';
+      var words = search.value.toLowerCase().split(/\s+/).filter(function (w) { return w; });
+      var shown = 0;
+      for (var i = 0; i < all.length && shown < 250; i++) {
+        var it = all[i];
+        if (group !== 'Alles' && it.group !== group && it.group !== 'Basis') { continue; }
+        var hay = (it.name + ' ' + it.sub + ' ' + it.group).toLowerCase(), ok = true;
+        for (var w = 0; w < words.length; w++) { if (hay.indexOf(words[w]) < 0) { ok = false; break; } }
+        if (!ok) { continue; }
+        shown++;
+        (function (it) {
+          var row = el('div', 'pitem');
+          var ic = el('span', 'pi-icon', isImgIcon(it.icon) ? '' : it.icon);
+          if (isImgIcon(it.icon)) { loadIcon(it.icon, function (u) { ic.style.backgroundImage = 'url(' + u + ')'; }, 64); }
+          row.appendChild(ic);
+          var tx = el('span', 'pi-text');
+          tx.appendChild(el('span', 'pi-name', it.name));
+          tx.appendChild(el('span', 'pi-sub', (group === 'Alles' ? it.group + ' · ' : '') + it.sub));
+          row.appendChild(tx);
+          tap(row, function () { placeItem(it, target); });
+          list.appendChild(row);
+        })(it);
+      }
+      if (!shown) { list.appendChild(el('p', 'hint', 'Niets gevonden.')); }
+    }
+    on(search, 'input', drawList);
+    drawChips();
+    drawList();
+    $('modal').className = 'modal';
+    if (!hasTouch) { setTimeout(function () { search.focus(); }, 50); }
+  }
+
   var drawSoon = null;
   function drawGridSoon() { clearTimeout(drawSoon); drawSoon = setTimeout(drawGrid, 150); }
 
@@ -1136,7 +1352,7 @@
     pair.appendChild(field({ key: 'rows', label: 'Rijen (1–8)', type: 'number' }, function () { return L.rows; },
       function (v) { if (v >= 1 && v <= 8) { L.rows = Math.round(v); drawGrid(); } }));
     g.appendChild(pair);
-    g.appendChild(el('div', 'hint', 'Tik op een leeg vak (+) om een tegel toe te voegen. Tegels die na het verkleinen buiten het raster vallen, worden rood.'));
+    g.appendChild(el('div', 'hint', 'Tik op een leeg vak (+) of op + TOEVOEGEN om iets toe te voegen. Tegels die na het verkleinen buiten het raster vallen, worden rood.'));
     side.appendChild(g);
 
     if (E.problems.length) {
@@ -1414,6 +1630,7 @@
     tap($('b-save'), save);
     tap($('b-profiles'), showProfiles);
     tap($('b-theme'), showTheme);
+    tap($('b-add'), function () { showPalette(null); });
     on($('f-icon'), 'change', function () { var f = $('f-icon').files[0]; if (f) { uploadIcon(f); } $('f-icon').value = ''; });
     tap($('b-export'), exportLayout);
     tap($('b-import'), function () { $('f-import').click(); });

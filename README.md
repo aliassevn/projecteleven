@@ -38,6 +38,11 @@ vergeten; zet hem dan uit en weer aan.
 
 Menu › **Layout bewerken…** opent de editor in een eigen venster:
 
+- **Toevoegen:** **+ TOEVOEGEN** (of tik op een leeg vak) opent een lijst met alles wat kan, met zoekveld en
+  groepen: alle apps op je Mac (met hun icoon), je opdrachten uit de Opdrachten-app, media en geluid, widgets,
+  aanraakpad en draaiknoppen, systeem, toetsen en tekst, sneltoetsen per app, smart home en plugins. Kies iets en het
+  staat er met label, icoon, actie en een passende maat (op een compacte pagina vanzelf groter in vakken). Moet er
+  nog iets ingevuld worden (bijv. een webadres), dan staat dat rechts klaar.
 - **Tegels:** tik op een leeg vak (+) om er een toe te voegen, sleep om te verplaatsen, sleep het roze hoekje om
   te vergroten. Rechts kies je label, icoon (emoji), soort, instellingen en wat tik, lang indrukken en dubbeltik
   doen. Macro's bouw je stap voor stap, met pauzes.

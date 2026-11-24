@@ -80,7 +80,7 @@ tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzel
 | `GET /api/editor/layout` | `{layout, revision}`: de volledige layout mét acties |
 | `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (intussen gewijzigd) of `422 {errors: […]}` |
 | `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (zonder op te slaan) |
-| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[]}`: wat er in keuzelijsten staat |
+| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[], shortcuts[]}`: wat er in keuzelijsten en de toevoegen-lijst staat |
 | `GET /api/editor/themes` | alle thema's (volledige definities) |
 | `POST /api/editor/icon` | `{data: "<base64 of data-URL>"}` → `{icon: "img:<naam>"}` (max. 700 KB, wordt 256 px PNG) |
 
@@ -107,7 +107,7 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
 - `themeClasses` gaan op `<html>`; verandert `themeKey`, dan laadt de tablet `pad.css?v=<themeKey>` opnieuw
   (zie [THEMES.md](THEMES.md)). `pad.css` is het sjabloon met de themakleuren ingevuld.
 - Een tegel kan `color` (`#rrggbb`) en een `icon` als `app:<id>` of `img:<naam>` hebben; die afbeelding komt van
-  `GET /api/icon?src=…` (apparaat-token of editor-toegang).
+  `GET /api/icon?src=…&size=…` (apparaat-token of editor-toegang; `size` 16–256, standaard 256).
 - Elke tablet krijgt zijn **eigen** layout: alleen de pagina's uit zijn profiel, in die volgorde.
   Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
 - `context: true`: pagina hoort bij een of meer apps (zie `state.context`).

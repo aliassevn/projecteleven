@@ -417,7 +417,8 @@ final class Server {
         guard device != nil || editor?.authorize(req, loopback: c.isLoopback) != nil else {
             c.respond(401, json: ["error": "unauthorized"]); return
         }
-        guard let src = req.query["src"], let data = icons?.png(src) else { c.respond(404, text: "Geen icoon"); return }
+        let size = Int(req.query["size"] ?? "") ?? IconService.size
+        guard let src = req.query["src"], let data = icons?.png(src, size: size) else { c.respond(404, text: "Geen icoon"); return }
         c.respond(200, body: data, contentType: "image/png")
     }
 

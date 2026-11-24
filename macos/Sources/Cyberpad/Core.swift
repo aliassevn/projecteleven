@@ -73,6 +73,7 @@ final class Core: ObservableObject {
         context.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &bag)
         pairing.onProfileChange = { [weak self] _ in self?.server.broadcastLayout() }
         editor.pairing = pairing
+        _ = editor.catalog(presets: actions.catalog, plugins: plugins) // opdrachtenlijst alvast ophalen
         server.editor = editor
         server.plugins = plugins
         server.editorDir = Self.findResource("editor", env: "CYBERPAD_EDITOR_DIR")

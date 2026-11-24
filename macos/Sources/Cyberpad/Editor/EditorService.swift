@@ -11,6 +11,10 @@ final class EditorService: ObservableObject {
     @Published private(set) var pending: [String] = []
     private var grants: [String: Date] = [:]
     private var appsCache: (at: Date, list: [[String: String]])?
+    /// Namen uit de Opdrachten-app; op de achtergrond ververst (`shortcuts list`).
+    private var shortcutNames: [String] = []
+    private var shortcutsFetched = Date.distantPast
+    private var shortcutsBusy = false
 
     weak var pairing: PairingManager?
     /// Nieuw verzoek van een tablet → Core toont een venster om toe te staan of te weigeren.
@@ -75,7 +79,40 @@ final class EditorService: ObservableObject {
                         "widgets": (m.widgets ?? []).map { ["id": $0.id, "name": $0.name, "params": params($0.params)] }]
             },
             "apps": installedApps(),
+            "shortcuts": shortcutsList(),
         ]
+    }
+
+    /// Geeft de laatst bekende lijst en ververst hem op de achtergrond (hoogstens eens per minuut).
+    private func shortcutsList() -> [String] {
+        if !shortcutsBusy, Date().timeIntervalSince(shortcutsFetched) > 60 {
+            shortcutsBusy = true
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let names = Self.fetchShortcuts()
+                DispatchQueue.main.async {
+                    self?.shortcutNames = names
+                    self?.shortcutsFetched = Date()
+                    self?.shortcutsBusy = false
+                }
+            }
+        }
+        return shortcutNames
+    }
+
+    private static func fetchShortcuts() -> [String] {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        p.arguments = ["list"]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        p.standardInput = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return [] }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return String(decoding: data, as: UTF8.self).split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.prefix(500)
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     /// Geïnstalleerde apps (naam + bundle-id) voor de app-kiezer; eens per 5 minuten opnieuw gelezen.

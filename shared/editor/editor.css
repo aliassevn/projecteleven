@@ -127,3 +127,17 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
 .grid.dense .etile .ici { width: 24px; height: 24px; margin-bottom: 3px; }
 .grid.dense .etile .lb { font-size: 9px; letter-spacing: 1px; }
 .grid.dense .etile .kd { font-size: 8px; letter-spacing: 1px; }
+
+/* ---------- toevoegen-lijst (deel 2) ---------- */
+.btn.add { color: #ff2bd6; border-color: rgba(255,43,214,0.6); }
+.pal-search { width: 100%; background: #0b1017; color: #e8fffb; border: 1px solid rgba(0,255,224,0.5); padding: 10px 12px;
+  font: inherit; font-size: 15px; border-radius: 0; -webkit-appearance: none; margin-bottom: 12px; }
+.pal-groups { margin-bottom: 10px; }
+.pal-list { max-height: 56vh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-top: 1px solid rgba(0,255,224,0.15); }
+.pitem { padding: 8px 6px; border-bottom: 1px solid rgba(0,255,224,0.08); cursor: pointer; overflow: hidden; }
+.pitem:hover, .pitem:active { background: rgba(0,255,224,0.08); }
+.pi-icon { float: left; width: 34px; height: 34px; margin-right: 12px; font-size: 22px; line-height: 34px; text-align: center;
+  background: center / contain no-repeat; }
+.pi-text { display: block; overflow: hidden; }
+.pi-name { display: block; font-size: 13px; color: #e8fffb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-sub { display: block; font-size: 11px; color: rgba(200,255,246,0.5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

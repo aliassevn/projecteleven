@@ -7,7 +7,7 @@ import CryptoKit
 /// (eigen afbeelding, geüpload via de editor en bewaard in Application Support/Cyberpad/Icons).
 final class IconService {
     let dir: URL
-    private var appCache: [String: Data] = [:]
+    private var appCache: [String: Data] = [:]   // sleutel: bundle-id@formaat
     static let maxUpload = 700 * 1024
     static let size = 256
 
@@ -20,8 +20,8 @@ final class IconService {
     static func validBundleID(_ s: String) -> Bool { s.range(of: "^[A-Za-z0-9.\\-]{1,200}$", options: .regularExpression) != nil }
 
     /// Zoekt een icoon op voor `src` ("app:…" of "img:…").
-    func png(_ src: String) -> Data? {
-        if src.hasPrefix("app:") { return appIcon(String(src.dropFirst(4))) }
+    func png(_ src: String, size: Int = IconService.size) -> Data? {
+        if src.hasPrefix("app:") { return appIcon(String(src.dropFirst(4)), px: min(max(size, 16), Self.size)) }
         if src.hasPrefix("img:") {
             let name = String(src.dropFirst(4))
             guard Self.validImageName(name) else { return nil }
@@ -30,13 +30,14 @@ final class IconService {
         return nil
     }
 
-    private func appIcon(_ bundle: String) -> Data? {
+    private func appIcon(_ bundle: String, px: Int) -> Data? {
         guard Self.validBundleID(bundle) else { return nil }
-        if let d = appCache[bundle] { return d }
+        let key = "\(bundle)@\(px)"
+        if let d = appCache[key] { return d }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return nil }
         let icon = NSWorkspace.shared.icon(forFile: url.path)
-        let s = CGFloat(Self.size)
-        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Self.size, pixelsHigh: Self.size, bitsPerSample: 8,
+        let s = CGFloat(px)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
         NSGraphicsContext.saveGraphicsState()
@@ -44,7 +45,7 @@ final class IconService {
         icon.draw(in: NSRect(x: 0, y: 0, width: s, height: s))
         NSGraphicsContext.restoreGraphicsState()
         let d = rep.representation(using: .png, properties: [:])
-        if let d { appCache[bundle] = d }
+        if let d { appCache[key] = d }
         return d
     }
 
