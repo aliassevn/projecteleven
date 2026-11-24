@@ -773,5 +773,7 @@
   "Verwijderen": "Eliminar",
   "TIJDZONE": "ZONA HORARIA",
   "Nog geen tijdzones gekozen: de klok toont New York en Tokio.": "Aún no has elegido zonas horarias: el reloj muestra Nueva York y Tokio.",
-  "onbekende zone": "zona desconocida"
+  "onbekende zone": "zona desconocida",
+  "Herinneringen": "Recordatorios",
+  "Notities": "Notas"
 }

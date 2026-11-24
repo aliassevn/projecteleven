@@ -52,6 +52,8 @@ final class Localizer: ObservableObject {
         var names = Set(l.pages.map(\.name))
         for p in l.pages { for t in p.tiles { names.insert(t.label) } }
         for p in l.profiles ?? [] { names.insert(p.name) }
+        // Namen die de editor zelf voorstelt (snelkeuze-apps bovenaan + TOEVOEGEN).
+        names.formUnion(["Agenda", "Herinneringen", "Notities"])
         return names
     }()
 

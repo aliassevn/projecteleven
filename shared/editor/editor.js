@@ -1297,8 +1297,23 @@
 
     add('Basis', T('Lege knop'), T('zelf een actie kiezen'), '➕', function () { return { label: T('Nieuw') }; }, T('actie'));
 
+    // Veelgebruikte apps van Apple bovenaan, met hun naam in de taal van Cyberpad (zoeken op "agenda" werkt dus ook
+    // als macOS de app "Calendar" noemt).
+    var FAVORITE_APPS = [['com.apple.iCal', T('Agenda')], ['com.apple.reminders', T('Herinneringen')], ['com.apple.Notes', T('Notities')]];
+    var favIds = {};
+    for (i = 0; i < FAVORITE_APPS.length; i++) {
+      (function (id, name) {
+        var ap = null;
+        for (var k = 0; k < E.catalog.apps.length; k++) { if (E.catalog.apps[k].id === id) { ap = E.catalog.apps[k]; } }
+        if (!ap && (E.catalog.platform || 'macos') !== 'macos') { return; }
+        favIds[id] = true;
+        var sub = T('app openen') + (ap && ap.name !== name ? ' · ' + ap.name : '');
+        add('Apps', name, sub, 'app:' + id, button(name, 'app:' + id, { type: 'app.open', app: id }));
+      })(FAVORITE_APPS[i][0], FAVORITE_APPS[i][1]);
+    }
     for (i = 0; i < E.catalog.apps.length; i++) {
       (function (ap) {
+        if (favIds[ap.id]) { return; }
         add('Apps', ap.name, T('app openen'), 'app:' + ap.id, button(ap.name, 'app:' + ap.id, { type: 'app.open', app: ap.id }));
       })(E.catalog.apps[i]);
     }

@@ -773,5 +773,7 @@
   "Verwijderen": "Remove",
   "TIJDZONE": "TIME ZONE",
   "Nog geen tijdzones gekozen: de klok toont New York en Tokio.": "No time zones chosen yet: the clock shows New York and Tokyo.",
-  "onbekende zone": "unknown zone"
+  "onbekende zone": "unknown zone",
+  "Herinneringen": "Reminders",
+  "Notities": "Notes"
 }

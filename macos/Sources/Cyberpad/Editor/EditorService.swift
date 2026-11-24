@@ -106,8 +106,9 @@ final class EditorService: ObservableObject {
             guard let items = try? fm.contentsOfDirectory(atPath: dir) else { continue }
             for name in items where name.hasSuffix(".app") {
                 guard let b = Bundle(path: "\(dir)/\(name)"), let id = b.bundleIdentifier, seen.insert(id).inserted else { continue }
-                let display = (b.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-                    ?? (b.object(forInfoDictionaryKey: "CFBundleName") as? String) ?? String(name.dropLast(4))
+                // Naam zoals Finder hem toont (in de taal van macOS, bijv. "Agenda" i.p.v. "Calendar").
+                let finder = fm.displayName(atPath: "\(dir)/\(name)").replacingOccurrences(of: "\u{00AD}", with: "") // zacht afbreekstreepje
+                let display = finder.hasSuffix(".app") ? String(finder.dropLast(4)) : finder
                 out.append(["name": display, "id": id])
             }
         }
