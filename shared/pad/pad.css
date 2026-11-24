@@ -65,8 +65,8 @@ body {
 
 .tile {
   position: absolute; overflow: hidden;
-  border: 1px solid {{accent 0.45}};
-  background: {{accent 0.04}};
+  border: 1px solid {{panelBorder}};
+  background: {{panel}};
   box-shadow: inset 0 0 18px {{accent 0.08}}, 0 0 10px {{accent 0.06}};
   display: -webkit-box; display: -webkit-flex; display: flex;
   -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column;
@@ -582,3 +582,14 @@ html:not(.fx-upper) .tile .label, html:not(.fx-upper) .tab { text-transform: non
 .agenda-row { font-size: 12px; line-height: 1.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{text 0.8}}; }
 .agenda-row-time { display: inline-block; min-width: 52px; margin-right: 12px; color: {{accent 0.85}}; letter-spacing: 1px; }
 .agenda-list .agenda-join { margin-top: 10px; }
+
+/* ---------- knoppen en panelen apart (deel 3) ----------
+ * panel/panelBorder: widgets, schuiven, draaiknoppen. button*: gewone knoppen (bijv. wit op zwart).
+ * Zonder eigen waarden in het thema zijn ze gelijk aan het oude uiterlijk. */
+.tile.kind-button { background: {{button}}; border-color: {{buttonBorder}}; }
+.tile.kind-button .label, .tile.kind-button .icon, .tile.kind-button .gestures { color: {{buttonText}}; }
+.tile.kind-button.active .icon { color: {{buttonActiveText}}; }
+.tile.kind-button.pressed { background: {{button}}; -webkit-filter: brightness(0.82); filter: brightness(0.82); }
+.tile.kind-button.active, .tile.kind-button.flash { background: {{buttonActive}}; }
+.tile.kind-button.active .label { color: {{buttonActiveText}}; }
+.tile.kind-button .corner { border-left-color: {{buttonBorder}}; }

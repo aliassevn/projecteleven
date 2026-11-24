@@ -870,7 +870,11 @@
     ['"Chalkboard SE", "Comic Sans MS", sans-serif', 'Krijtbord']
   ];
   var COLOR_LABELS = { bg: 'Achtergrond', bg2: 'Achtergrond 2', text: 'Tekst', accent: 'Accent', accent2: 'Accent 2 (aan)',
-    accent2Text: 'Tekst op accent 2', danger: 'Waarschuwing', dangerText: 'Tekst waarschuwing', ok: 'Goed', okText: 'Tekst goed' };
+    accent2Text: 'Tekst op accent 2', danger: 'Waarschuwing', dangerText: 'Tekst waarschuwing', ok: 'Goed', okText: 'Tekst goed',
+    panel: 'Paneel (widgets)', panelBorder: 'Rand paneel', button: 'Knop', buttonText: 'Tekst op knop', buttonBorder: 'Rand knop',
+    buttonActive: 'Knop aan', buttonActiveText: 'Tekst op knop aan' };
+  // Deze mag een thema weglaten; dan volgen ze vanzelf uit accent en tekst ("automatisch").
+  var OPTIONAL_COLORS = { panel: 1, panelBorder: 1, button: 1, buttonText: 1, buttonBorder: 1, buttonActive: 1, buttonActiveText: 1 };
   var EFFECT_LABELS = { scanlines: 'Scanlijnen', glow: 'Gloed', grid: 'Raster op achtergrond', corner: 'Schuine hoek', glitch: 'Glitch', upper: 'HOOFDLETTERS', bold: 'Vet' };
 
   function baseTheme() {
@@ -915,8 +919,11 @@
         var ds = el('div', 'tdesc', th.description || '');
         ds.style.color = hexA(th.colors.text, 0.7);
         c.appendChild(ds);
-        var keys = ['accent', 'accent2', 'text', 'danger'];
-        for (var k = 0; k < keys.length; k++) { var sw = el('span', 'sw'); sw.style.background = th.colors[keys[k]]; c.appendChild(sw); }
+        var keys = ['button', 'accent', 'accent2', 'text', 'danger'];
+        for (var k = 0; k < keys.length; k++) {
+          if (!th.colors[keys[k]]) { continue; }
+          var sw = el('span', 'sw'); sw.style.background = th.colors[keys[k]]; c.appendChild(sw);
+        }
         tap(c, function () {
           if (th.id === E.layout.theme) { return; }
           if (hasOverrides() && !window.confirm('Eigen aanpassingen op het huidige thema wissen?')) { return; }
@@ -936,14 +943,31 @@
     var pv = el('div', 'preview');
     pv.style.background = t.colors.bg;
     pv.style.fontFamily = t.font;
-    var samples = [['NORMAAL', 'n'], ['AAN', 'a'], ['⚠ FOUT', 'd']];
+    var samples = [['KNOP', 'b'], ['KNOP AAN', 'ba'], ['PANEEL', 'n'], ['⚠ FOUT', 'd']];
     for (var s2 = 0; s2 < samples.length; s2++) {
       var kind = samples[s2][1];
       var pt = el('div', 'pt', t.effects.upper ? samples[s2][0] : samples[s2][0].charAt(0) + samples[s2][0].slice(1).toLowerCase());
-      var col = kind === 'd' ? t.colors.danger : kind === 'a' ? t.colors.accent2 : t.colors.accent;
-      pt.style.borderColor = col;
-      pt.style.color = kind === 'd' ? t.colors.dangerText : kind === 'a' ? t.colors.accent2Text : t.colors.text;
-      pt.style.background = hexA(col, kind === 'n' ? 0.04 : 0.12);
+      pt.style.width = '110px';
+      var c = t.colors;
+      var col = kind === 'd' ? c.danger : kind === 'ba' ? c.accent2 : c.accent;
+      if (kind === 'b') {
+        pt.style.background = c.button || hexA(c.accent, 0.04);
+        pt.style.borderColor = c.buttonBorder || hexA(c.accent, 0.45);
+        pt.style.color = c.buttonText || hexA(c.text, 0.75);
+      } else if (kind === 'ba') {
+        pt.style.background = c.buttonActive || hexA(c.accent2, 0.12);
+        pt.style.borderColor = c.accent2;
+        pt.style.color = c.buttonActiveText || c.accent2Text;
+      } else if (kind === 'n') {
+        pt.style.background = c.panel || hexA(c.accent, 0.04);
+        pt.style.borderColor = c.panelBorder || hexA(c.accent, 0.45);
+        pt.style.color = c.text;
+      } else {
+        pt.style.borderColor = col;
+        pt.style.color = c.dangerText;
+        pt.style.background = hexA(col, 0.12);
+      }
+      if (t.effects.bold) { pt.style.fontWeight = 'bold'; }
       pt.style.borderRadius = t.radius + 'px';
       if (t.effects.glow) { pt.style.boxShadow = '0 0 14px ' + hexA(col, 0.35); }
       pv.appendChild(pt);
@@ -962,7 +986,7 @@
           if (v && v !== baseTheme().colors[key]) { o.colors[key] = v; } else { delete o.colors[key]; }
           clearTimeout(E.themeTimer);
           E.themeTimer = setTimeout(showTheme, 600);
-        }, true));
+        }, !OPTIONAL_COLORS[key]));
       })(ck);
     }
     body.appendChild(cols);

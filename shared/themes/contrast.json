@@ -1,0 +1,35 @@
+{
+  "id": "contrast",
+  "name": "Contrast",
+  "description": "Zwart met gele knoppen en vette zwarte letters. Maximaal leesbaar, ook van een afstand.",
+  "colors": {
+    "bg": "#000000",
+    "bg2": "#111111",
+    "text": "#ffffff",
+    "accent": "#ffd60a",
+    "accent2": "#00e5ff",
+    "accent2Text": "#b3f6ff",
+    "danger": "#ff3b30",
+    "dangerText": "#ff9b94",
+    "ok": "#34c759",
+    "okText": "#b5f0c3",
+    "panel": "#111111",
+    "panelBorder": "#ffd60a",
+    "button": "#ffd60a",
+    "buttonText": "#000000",
+    "buttonBorder": "#ffd60a",
+    "buttonActive": "#00e5ff",
+    "buttonActiveText": "#000000"
+  },
+  "font": "\"Helvetica Neue\", Arial, \"Segoe UI\", sans-serif",
+  "radius": 8,
+  "effects": {
+    "scanlines": false,
+    "glow": false,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": true,
+    "bold": true
+  }
+}

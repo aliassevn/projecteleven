@@ -31,6 +31,13 @@ werkt het ook in Safari uit iOS 9. macOS en Windows doen precies hetzelfde.
 | `accent2`, `accent2Text` | knoppen die **aan** staan, vergaderpaneel |
 | `danger`, `dangerText` | fouten, verbinding weg, "gevaarlijk" |
 | `ok`, `okText` | online-stip, terminaluitvoer |
+| `panel`, `panelBorder` | *optioneel:* achtergrond en rand van widgets, schuiven en draaiknoppen |
+| `button`, `buttonText`, `buttonBorder` | *optioneel:* gewone knoppen (bijv. wit met donkere tekst) |
+| `buttonActive`, `buttonActiveText` | *optioneel:* knoppen die aan staan |
+
+Laat een thema de optionele kleuren weg, dan volgen ze uit de andere: paneel en knop zijn dan `accent` met 4%
+dekking en een rand van 45%, knoptekst is `text` met 75%, "aan" is `accent2` met 12%. Zo zien oudere thema's er
+precies hetzelfde uit.
 
 | Effect | Aan = |
 |---|---|
@@ -47,6 +54,8 @@ werkt het ook in Safari uit iOS 9. macOS en Windows doen precies hetzelfde.
 - `{{naam}}` → de waarde: een kleur (`#rrggbb`), `font` of `radius`.
 - `{{naam 0.45}}` → `rgba(r,g,b,0.45)` van die kleur.
 - Onbekende kleur → `transparent`.
+- Optionele kleuren die het thema weglaat worden eerst afgeleid (zie hierboven); zo'n afgeleide kleur is al
+  `rgba(…)` en wordt zonder extra doorzichtigheid gebruikt.
 
 De tablet krijgt in de layout `themeClasses` (bijv. `"fx-noscan fx-nogrid fx-bold"`) voor de effecten, en
 `themeKey`: verandert die, dan laadt de tablet `pad.css?v=<themeKey>` opnieuw zonder te flikkeren.
@@ -65,6 +74,20 @@ De computer controleert alles: kleuren alleen als `#rrggbb`, een lettertype alle
 komma's en aanhalingstekens, en een afronding van 0–30. Zo kan een layout geen eigen CSS binnensmokkelen.
 
 Een nieuw thema voor iedereen: zet een `.json`-bestand in `shared/themes/` en bouw de app opnieuw.
+
+## Meegeleverde thema's
+
+| Thema | Kenmerk |
+|---|---|
+| Cyberdeck | neon cyaan/magenta, scanlijnen, glitch, mono |
+| Terminal | groene fosfor op zwart, vet |
+| Cockpit | amber op donkergrijs, smalle letters |
+| Vapor | paars/roze/mint, rond, gloed |
+| Minimal | licht, blauwe accenten |
+| Nacht | zwart met witte ronde knoppen, oranje voor "aan" |
+| Grafiet | donkergrijs zoals iPadOS, blauw en groen |
+| Contrast | zwart met gele knoppen en vette letters, voor maximale leesbaarheid |
+| Oceaan | diep blauw, turquoise, glazige ronde knoppen |
 
 ## Lettertypen
 

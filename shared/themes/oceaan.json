@@ -1,0 +1,35 @@
+{
+  "id": "oceaan",
+  "name": "Oceaan",
+  "description": "Diep blauw met turquoise en glazige, ronde knoppen; warm oranje als iets aan staat.",
+  "colors": {
+    "bg": "#06182a",
+    "bg2": "#0b2740",
+    "text": "#dff6ff",
+    "accent": "#4dd0e1",
+    "accent2": "#ffb86b",
+    "accent2Text": "#ffe2c2",
+    "danger": "#ff6b6b",
+    "dangerText": "#ffb3b3",
+    "ok": "#5eead4",
+    "okText": "#b6f7ec",
+    "panel": "#0d2a44",
+    "panelBorder": "#1d4d6e",
+    "button": "#11375a",
+    "buttonText": "#dff6ff",
+    "buttonBorder": "#2a6b94",
+    "buttonActive": "#4dd0e1",
+    "buttonActiveText": "#04202b"
+  },
+  "font": "\"Avenir Next\", Avenir, \"Segoe UI\", \"Helvetica Neue\", sans-serif",
+  "radius": 22,
+  "effects": {
+    "scanlines": false,
+    "glow": true,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": false,
+    "bold": false
+  }
+}

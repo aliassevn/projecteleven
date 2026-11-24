@@ -1,0 +1,35 @@
+{
+  "id": "nacht",
+  "name": "Nacht",
+  "description": "Zwarte achtergrond met witte, ronde knoppen. Wat aan staat wordt oranje. Rustig en goed leesbaar.",
+  "colors": {
+    "bg": "#000000",
+    "bg2": "#1c1c1e",
+    "text": "#f5f5f7",
+    "accent": "#f5f5f7",
+    "accent2": "#ff9500",
+    "accent2Text": "#ffd29a",
+    "danger": "#ff453a",
+    "dangerText": "#ff9f99",
+    "ok": "#30d158",
+    "okText": "#a6f0bb",
+    "panel": "#141416",
+    "panelBorder": "#2a2a2e",
+    "button": "#f2f2f2",
+    "buttonText": "#111111",
+    "buttonBorder": "#f2f2f2",
+    "buttonActive": "#ff9500",
+    "buttonActiveText": "#1a0e00"
+  },
+  "font": "-apple-system, \"Helvetica Neue\", \"Segoe UI\", Roboto, Arial, sans-serif",
+  "radius": 18,
+  "effects": {
+    "scanlines": false,
+    "glow": false,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": false,
+    "bold": true
+  }
+}

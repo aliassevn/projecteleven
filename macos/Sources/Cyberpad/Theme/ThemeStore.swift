@@ -11,7 +11,25 @@ struct Theme: Codable, Equatable {
     var radius: Double
     var effects: [String: Bool]
 
-    static let colorKeys = ["bg", "bg2", "text", "accent", "accent2", "accent2Text", "danger", "dangerText", "ok", "okText"]
+    static let colorKeys = ["bg", "bg2", "text", "accent", "accent2", "accent2Text", "danger", "dangerText", "ok", "okText",
+                            "panel", "panelBorder", "button", "buttonText", "buttonBorder", "buttonActive", "buttonActiveText"]
+
+    /// Kleuren die een thema mag weglaten: dan zijn ze afgeleid van de andere (het oude uiterlijk).
+    static func derived(_ c: [String: String]) -> [String: String] {
+        func rgba(_ key: String, _ a: Double) -> String {
+            guard let hex = c[key], hex.count == 7, let v = UInt32(hex.dropFirst(), radix: 16) else { return "transparent" }
+            return "rgba(\(v >> 16 & 0xff),\(v >> 8 & 0xff),\(v & 0xff),\(a))"
+        }
+        var d = c
+        if d["panel"] == nil { d["panel"] = rgba("accent", 0.04) }
+        if d["panelBorder"] == nil { d["panelBorder"] = rgba("accent", 0.45) }
+        if d["button"] == nil { d["button"] = d["panel"] }
+        if d["buttonBorder"] == nil { d["buttonBorder"] = d["panelBorder"] }
+        if d["buttonText"] == nil { d["buttonText"] = rgba("text", 0.75) }
+        if d["buttonActive"] == nil { d["buttonActive"] = rgba("accent2", 0.12) }
+        if d["buttonActiveText"] == nil { d["buttonActiveText"] = c["accent2Text"] ?? "inherit" }
+        return d
+    }
     static let effectKeys = ["scanlines", "glow", "grid", "corner", "glitch", "upper", "bold"]
 }
 
@@ -108,7 +126,9 @@ final class ThemeStore {
     }
 
     /// {{naam}} → waarde, {{kleur 0.4}} → rgba(r,g,b,0.4).
-    static func render(_ src: String, _ t: Theme) -> String {
+    static func render(_ src: String, _ theme: Theme) -> String {
+        var t = theme
+        t.colors = Theme.derived(theme.colors)
         guard let re = try? NSRegularExpression(pattern: "\\{\\{(\\w+)(?:\\s+([0-9.]+))?\\}\\}") else { return src }
         let ns = src as NSString
         var out = ""
@@ -129,8 +149,10 @@ final class ThemeStore {
         case "font": return t.font
         case "radius": return String(format: "%g", t.radius)
         default:
-            guard let hex = t.colors[name], hex.count == 7, let v = UInt32(hex.dropFirst(), radix: 16) else { return "transparent" }
-            guard let a = alpha else { return hex }
+            guard let value = t.colors[name] else { return "transparent" }
+            // Afgeleide kleuren zijn al rgba(…); die worden zonder extra doorzichtigheid gebruikt.
+            guard value.count == 7, value.hasPrefix("#"), let v = UInt32(value.dropFirst(), radix: 16) else { return value }
+            guard let a = alpha else { return value }
             return "rgba(\(v >> 16 & 0xff),\(v >> 8 & 0xff),\(v & 0xff),\(a))"
         }
     }

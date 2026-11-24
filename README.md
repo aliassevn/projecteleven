@@ -58,7 +58,8 @@ Menu › **Layout bewerken…** opent de editor in een eigen venster:
 - **↶ / ↷** (⌘Z / ⇧⌘Z) maakt wijzigingen ongedaan. **Exporteren** maakt een `.cyberpad`-bestand; **Importeren**
   laadt er een (pas na Opslaan echt actief).
 
-- **Thema:** knop **THEMA** in de editor. Kies Cyberdeck, Terminal, Cockpit, Vapor of Minimal, en pas eventueel
+- **Thema:** knop **THEMA** in de editor. Kies uit negen thema's (o.a. Cyberdeck, Nacht met witte ronde knoppen op
+  zwart, Grafiet, Contrast, Oceaan en het lichte Minimal), en pas eventueel
   kleuren, lettertype, afronding en effecten aan (met voorbeeld). Na Opslaan wisselen alle tablets direct van
   uiterlijk. Zie [docs/THEMES.md](docs/THEMES.md).
 - **Iconen en kleur per tegel:** emoji, het icoon van een app op je Mac, of een eigen afbeelding (PNG/JPEG/HEIC,
@@ -351,7 +352,7 @@ shared/                   gedeeld door macOS en Windows
   catalog/                shortcuts.json (sneltoetsen per app)
   plugins/                meegeleverde voorbeeldplugins
   editor/                 layout-editor (ES5) + schema.json met alle acties en tegelsoorten
-  themes/                 thema's (Cyberdeck, Terminal, Cockpit, Vapor, Minimal)
+  themes/                 negen thema's (zie docs/THEMES.md)
 docs/
   PROTOCOL.md             tablet ↔ computer: routes, berichten, status
   PLUGINS.md              plugins schrijven

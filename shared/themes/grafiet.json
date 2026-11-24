@@ -1,0 +1,35 @@
+{
+  "id": "grafiet",
+  "name": "Grafiet",
+  "description": "Donkergrijs zoals iPadOS: grijze knoppen, blauwe accenten, groen voor aan. Zacht voor de ogen.",
+  "colors": {
+    "bg": "#1c1c1e",
+    "bg2": "#2c2c2e",
+    "text": "#f2f2f7",
+    "accent": "#0a84ff",
+    "accent2": "#30d158",
+    "accent2Text": "#b7f5c6",
+    "danger": "#ff453a",
+    "dangerText": "#ff9f99",
+    "ok": "#30d158",
+    "okText": "#a6f0bb",
+    "panel": "#2c2c2e",
+    "panelBorder": "#2c2c2e",
+    "button": "#3a3a3c",
+    "buttonText": "#f2f2f7",
+    "buttonBorder": "#3a3a3c",
+    "buttonActive": "#30d158",
+    "buttonActiveText": "#04210d"
+  },
+  "font": "-apple-system, \"Helvetica Neue\", \"Segoe UI\", Roboto, Arial, sans-serif",
+  "radius": 20,
+  "effects": {
+    "scanlines": false,
+    "glow": false,
+    "grid": false,
+    "corner": false,
+    "glitch": false,
+    "upper": false,
+    "bold": false
+  }
+}
