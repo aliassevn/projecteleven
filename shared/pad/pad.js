@@ -332,9 +332,28 @@
     old.parentNode.insertBefore(link, old.nextSibling);
   }
 
+  // Mediatekens als vectoricoon: iPad/iOS maakt van ⏮ ⏯ ⏭ ▶ gekleurde emoji die niet bij het thema passen.
+  var SVG_PATHS = {
+    prev: 'M6 5h2.4v14H6z M20 5v14L9.5 12z',
+    next: 'M15.6 5H18v14h-2.4z M4 5v14l10.5-7z',
+    playpause: 'M3 5v14l9.5-7z M14 5h2.6v14H14z M19 5h2.6v14H19z',
+    play: 'M7 5v14l11.5-7z',
+    pause: 'M6.5 5H10v14H6.5z M14 5h3.5v14H14z',
+    stop: 'M6.5 6.5h11v11h-11z'
+  };
+  var GLYPH_SVG = { '⏮': 'prev', '⏭': 'next', '⏯': 'playpause', '⏸': 'pause', '▶': 'play', '⏹': 'stop', '■': 'stop' };
+  function svgIcon(name, cls) {
+    var span = el('span', 'svg-ic' + (cls ? ' ' + cls : ''));
+    span.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + SVG_PATHS[name] + '"/></svg>';
+    return span;
+  }
+  function glyphName(text) { return GLYPH_SVG[String(text || '').replace(/[\uFE0E\uFE0F]/g, '')]; }
+
   // Iconen als afbeelding ("app:…" of "img:…") worden met het token opgehaald en bewaard zolang de pagina open is.
   var ICONS = {};
   function iconNode(icon) {
+    var g = glyphName(icon);
+    if (g) { var w = el('div', 'icon'); w.appendChild(svgIcon(g)); return w; }
     if (!/^(app|img):/.test(icon) || !window.URL || !URL.createObjectURL) { return el('div', 'icon', /^(app|img):/.test(icon) ? '◻' : icon); }
     var n = el('div', 'icon-img');
     var c = ICONS[icon];
@@ -968,6 +987,16 @@
     photoTimers = [];
   }
 
+  // Terminalknop: vectoricoon + tekst, alleen opnieuw opbouwen als de stand verandert.
+  function termBtn(node, mode) {
+    var b = q(node, 'term-btn');
+    if (b.cpMode === mode) { return; }
+    b.cpMode = mode;
+    b.innerHTML = '';
+    b.appendChild(svgIcon(mode === 'STOP' ? 'stop' : 'play', 'inline'));
+    b.appendChild(document.createTextNode(' ' + mode));
+  }
+
   var WIDGETS = {
     weather: {
       build: function (node, t) {
@@ -1026,7 +1055,8 @@
         if ((node.cpWidth || 0) >= 330) {
           var ctrl = el('div', 'np-ctrl');
           var mk = function (label, action) {
-            var b = el('span', 'np-btn np-' + action, label);
+            var b = el('span', 'np-btn np-' + action);
+            b.appendChild(svgIcon(glyphName(label)));
             bindTap(b, function () { flash(b); sendWidget(t.id, action); });
             ctrl.appendChild(b);
           };
@@ -1179,7 +1209,8 @@
         head.appendChild(el('span', 'term-status', ''));
         node.appendChild(head);
         node.appendChild(el('pre', 'term-out', ''));
-        node.appendChild(el('div', 'term-btn', '▶ START'));
+        node.appendChild(el('div', 'term-btn'));
+        termBtn(node, 'START');
         node.cpArmed = null;
         bindPress(node, t, function () {
           var d = (app.values.widgets || {})[t.id] || {};
@@ -1189,8 +1220,9 @@
             if (!node.cpArmed) {
               setCls(node, 'armed', true);
               setText(node, 'term-btn', 'NOG EEN KEER = UITVOEREN');
+              q(node, 'term-btn').cpMode = null;
               node.cpArmed = setTimeout(function () {
-                node.cpArmed = null; setCls(node, 'armed', false); setText(node, 'term-btn', '▶ START');
+                node.cpArmed = null; setCls(node, 'armed', false); termBtn(node, 'START');
               }, 3000);
               return;
             }
@@ -1209,7 +1241,7 @@
         var out = q(node, 'term-out');
         var text = d.output || '';
         if (out.textContent !== text) { out.textContent = text; out.scrollTop = out.scrollHeight; }
-        if (!node.cpArmed) { setText(node, 'term-btn', d.status === 'running' ? '■ STOP' : '▶ START'); }
+        if (!node.cpArmed) { termBtn(node, d.status === 'running' ? 'STOP' : 'START'); }
         setCls(node, 'running', d.status === 'running');
         setCls(node, 'failed', d.status === 'failed' || d.status === 'timeout');
       }
