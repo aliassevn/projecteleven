@@ -174,3 +174,9 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
 .canvas.device .etile.tiny .ici { width: 28px; height: 28px; margin-bottom: 4px; }
 .canvas.device .etile.tiny .lb { font-size: 9px; letter-spacing: 1px; }
 .canvas.device .etile.tiny .kd { display: none; }
+
+/* ---------- tijdzones (wereldklok) ---------- */
+.zones { display: block; }
+.zone-row { display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; margin-bottom: 6px; }
+.zone-row select { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; min-width: 0; }
+.zone-rm { padding: 6px 4px 6px 12px; font-size: 14px; }

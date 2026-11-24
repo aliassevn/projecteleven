@@ -42,7 +42,26 @@ final class EditorService: ObservableObject {
             },
             "apps": installedApps(),
             "shortcuts": shortcutsList(),
+            "timeZones": Self.timeZones(),
         ]
+    }
+
+    /// Alle tijdzones voor het keuzemenu van de wereldklok: regio, plaats en huidige afwijking van UTC (seconden).
+    static func timeZones() -> [[String: Any]] {
+        let regions: Set<String> = ["Africa", "America", "Antarctica", "Asia", "Atlantic", "Australia", "Europe", "Indian", "Pacific"]
+        let now = Date()
+        var out: [[String: Any]] = TimeZone.knownTimeZoneIdentifiers.compactMap { id in
+            let parts = id.split(separator: "/", maxSplits: 1).map(String.init)
+            guard parts.count == 2, regions.contains(parts[0]), let tz = TimeZone(identifier: id) else { return nil }
+            let name = parts[1].replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "/", with: " / ")
+            return ["id": id, "region": parts[0], "name": name, "offset": tz.secondsFromGMT(for: now)]
+        }
+        out.sort { a, b in
+            let ra = a["region"] as? String ?? "", rb = b["region"] as? String ?? ""
+            return ra != rb ? ra < rb : (a["name"] as? String ?? "") < (b["name"] as? String ?? "")
+        }
+        out.append(["id": "UTC", "region": "Other", "name": "UTC", "offset": 0])
+        return out
     }
 
     /// Geeft de laatst bekende lijst en ververst hem op de achtergrond (hoogstens eens per minuut).

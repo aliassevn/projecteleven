@@ -681,6 +681,10 @@
           if (ok) { changed(val); } else { updateButtons(); }
         });
         break;
+      case 'zones':
+        row.appendChild(lab);
+        row.appendChild(zonesField(v, function (val) { snapshot(); changed(val); }));
+        return row;
       case 'list':
         input = el('input');
         input.type = 'text';
@@ -728,6 +732,80 @@
   }
 
   function optionEl(value, text) { var o = el('option', null, text); o.value = value; return o; }
+
+  // ---------- tijdzones (wereldklok) ----------
+
+  var ZONE_REGIONS = { Europe: T('Europa'), America: T('Amerika'), Asia: T('Azië'), Africa: T('Afrika'), Australia: T('Australië'),
+    Pacific: T('Stille Oceaan'), Atlantic: T('Atlantische Oceaan'), Indian: T('Indische Oceaan'), Antarctica: T('Antarctica'), Other: T('Overig') };
+  var ZONE_ORDER = ['Europe', 'America', 'Asia', 'Africa', 'Australia', 'Pacific', 'Atlantic', 'Indian', 'Antarctica', 'Other'];
+  var MAX_ZONES = 4; // zoveel toont de tablet
+
+  function utcLabel(sec) {
+    if (typeof sec !== 'number') { return ''; }
+    var a = Math.abs(sec), h = Math.floor(a / 3600), m = Math.round((a % 3600) / 60);
+    return 'UTC' + (sec < 0 ? '−' : '+') + h + (m ? ':' + (m < 10 ? '0' : '') + m : '');
+  }
+
+  // Keuzemenu met alle tijdzones, gegroepeerd per werelddeel: "Amsterdam (UTC+1)".
+  function zoneSelect(value) {
+    var sel = el('select'), zones = E.catalog.timeZones || [], groups = {}, known = false;
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      if (!groups[z.region]) { groups[z.region] = el('optgroup'); groups[z.region].label = ZONE_REGIONS[z.region] || z.region; }
+      groups[z.region].appendChild(optionEl(z.id, z.name + ' (' + utcLabel(z.offset) + ')'));
+      if (z.id === value) { known = true; }
+    }
+    if (value && !known) { sel.appendChild(optionEl(value, value + ' (' + T('onbekend') + ')')); }
+    for (var j = 0; j < ZONE_ORDER.length; j++) { if (groups[ZONE_ORDER[j]]) { sel.appendChild(groups[ZONE_ORDER[j]]); } }
+    for (var r in groups) { if (groups.hasOwnProperty(r) && ZONE_ORDER.indexOf(r) < 0) { sel.appendChild(groups[r]); } }
+    sel.value = value || '';
+    return sel;
+  }
+
+  // Lijst met een keuzemenu per tijdzone, een ✕ om te verwijderen en + TIJDZONE om er een toe te voegen.
+  // Een zelf getypte plaatsnaam ("New York") omzetten naar de echte tijdzone ("America/New_York").
+  function knownZone(v) {
+    var zones = E.catalog.timeZones || [], want = String(v || '').replace(/^\s+|\s+$/g, '').toLowerCase();
+    for (var i = 0; i < zones.length; i++) { if (zones[i].id === v) { return v; } }
+    for (var j = 0; j < zones.length; j++) {
+      var city = zones[j].id.split('/').pop().replace(/_/g, ' ').toLowerCase();
+      if (city === want) { return zones[j].id; }
+    }
+    return v;
+  }
+
+  function zonesField(v, changed) {
+    var box = el('div', 'zones'), cur = (v || []).slice();
+    for (var c = 0; c < cur.length; c++) { cur[c] = knownZone(cur[c]); }
+    function emit() { changed(cur.length ? cur.slice() : undefined); }
+    function draw() {
+      box.innerHTML = '';
+      for (var i = 0; i < cur.length; i++) {
+        (function (idx) {
+          var r = el('div', 'zone-row'), sel = zoneSelect(cur[idx]), rm = el('span', 'link zone-rm', '✕');
+          rm.title = T('Verwijderen');
+          on(sel, 'change', function () { cur[idx] = sel.value; emit(); });
+          tap(rm, function () { cur.splice(idx, 1); emit(); draw(); });
+          r.appendChild(sel);
+          r.appendChild(rm);
+          box.appendChild(r);
+        })(i);
+      }
+      if (!cur.length) { box.appendChild(el('div', 'hint', T('Nog geen tijdzones gekozen: de klok toont New York en Tokio.'))); }
+      if (cur.length < MAX_ZONES) {
+        var add = el('button', 'btn small', '+ ' + T('TIJDZONE'));
+        tap(add, function () {
+          var pick = ['Europe/London', 'America/New_York', 'Asia/Tokyo', 'Australia/Sydney', 'America/Los_Angeles', 'Asia/Dubai', 'UTC'];
+          var z = 'UTC';
+          for (var k = 0; k < pick.length; k++) { if (cur.indexOf(pick[k]) < 0) { z = pick[k]; break; } }
+          cur.push(z); emit(); draw();
+        });
+        box.appendChild(add);
+      }
+    }
+    draw();
+    return box;
+  }
 
   // ---------- acties ----------
 

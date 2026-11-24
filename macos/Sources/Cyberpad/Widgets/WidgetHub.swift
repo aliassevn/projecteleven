@@ -102,11 +102,20 @@ final class WidgetHub {
 
     // MARK: Wereldklok
 
+    /// Tijdzone-id, of een plaatsnaam zoals "New York" omgezet naar "America/New_York".
+    static func resolveZone(_ s: String) -> String? {
+        if TimeZone(identifier: s) != nil { return s }
+        let want = s.trimmingCharacters(in: .whitespaces).lowercased()
+        return TimeZone.knownTimeZoneIdentifiers.first {
+            ($0.split(separator: "/").last.map { $0.replacingOccurrences(of: "_", with: " ").lowercased() }) == want
+        }
+    }
+
     /// Tijdverschil per zone; de tablet rekent zelf de tijd uit (oude Safari kent geen tijdzones).
     static func zones(_ cfg: WidgetConfig?) -> [[String: Any]] {
         let ids = cfg?.zones ?? ["America/New_York", "Asia/Tokyo"]
-        return ids.prefix(4).compactMap { id -> [String: Any]? in
-            guard let tz = TimeZone(identifier: id) else { return ["label": id, "error": "onbekende zone"] }
+        return ids.prefix(4).compactMap { raw -> [String: Any]? in
+            guard let id = resolveZone(raw), let tz = TimeZone(identifier: id) else { return ["label": raw, "error": L("onbekende zone")] }
             let city = id.split(separator: "/").last.map { $0.replacingOccurrences(of: "_", with: " ") } ?? id
             return ["label": city, "offset": tz.secondsFromGMT(), "abbr": tz.abbreviation() ?? ""]
         }

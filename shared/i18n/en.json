@@ -695,7 +695,6 @@
   "Werk (min)": "Work (min)",
   "Pauze (min)": "Break (min)",
   "Tijdzones": "Time zones",
-  "America/New_York, Asia/Tokyo": "America/New_York, Asia/Tokyo",
   "~/Pictures/Cyberpad": "~/Pictures/Cyberpad",
   "Seconden per foto": "Seconds per photo",
   "Tonen": "Show",
@@ -760,5 +759,19 @@
   "uit": "off",
   "aan": "on",
   "actief": "running",
-  "iPad 10,9″ / Air": "iPad 10.9″ / Air"
+  "iPad 10,9″ / Air": "iPad 10.9″ / Air",
+  "Europa": "Europe",
+  "Amerika": "Americas",
+  "Azië": "Asia",
+  "Afrika": "Africa",
+  "Australië": "Australia",
+  "Stille Oceaan": "Pacific",
+  "Atlantische Oceaan": "Atlantic",
+  "Indische Oceaan": "Indian Ocean",
+  "Antarctica": "Antarctica",
+  "Overig": "Other",
+  "Verwijderen": "Remove",
+  "TIJDZONE": "TIME ZONE",
+  "Nog geen tijdzones gekozen: de klok toont New York en Tokio.": "No time zones chosen yet: the clock shows New York and Tokyo.",
+  "onbekende zone": "unknown zone"
 }

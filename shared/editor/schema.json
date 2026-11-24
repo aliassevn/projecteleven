@@ -92,7 +92,7 @@
       "config": [{ "key": "work", "label": "Werk (min)", "type": "number", "placeholder": "25" },
                  { "key": "rest", "label": "Pauze (min)", "type": "number", "placeholder": "5" }] },
     { "kind": "worldclock", "name": "Wereldklok",
-      "config": [{ "key": "zones", "label": "Tijdzones", "type": "list", "placeholder": "America/New_York, Asia/Tokyo" }] },
+      "config": [{ "key": "zones", "label": "Tijdzones", "type": "zones" }] },
     { "kind": "photos", "name": "Foto's",
       "config": [{ "key": "folder", "label": "Map", "type": "text", "placeholder": "~/Pictures/Cyberpad" },
                  { "key": "seconds", "label": "Seconden per foto", "type": "number", "placeholder": "10" }] },
