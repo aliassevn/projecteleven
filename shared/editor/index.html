@@ -18,15 +18,22 @@
     <button id="b-add" class="btn add">+ TOEVOEGEN</button>
     <button id="b-theme" class="btn">THEMA</button>
     <button id="b-profiles" class="btn">PROFIELEN</button>
-    <button id="b-export" class="btn">EXPORTEREN</button>
-    <button id="b-import" class="btn">IMPORTEREN</button>
+    <span class="more-wrap">
+      <button id="b-more" class="btn">MEER ▾</button>
+      <span id="more-menu" class="more-menu hidden">
+        <span id="b-export" class="more-item">Exporteren (.cyberpad)</span>
+        <span id="b-import" class="more-item">Importeren…</span>
+        <a id="b-back" class="more-item hidden" href="/">← Terug naar de knoppen</a>
+      </span>
+    </span>
     <input id="f-import" type="file" accept=".cyberpad,.json,application/json" class="hidden">
     <input id="f-icon" type="file" accept="image/*" class="hidden">
     <button id="b-save" class="btn primary">OPSLAAN</button>
-    <a id="b-back" class="btn hidden" href="/">TERUG</a>
   </div>
 
   <div id="pages" class="pages"></div>
+
+  <div id="preview" class="preview-bar"></div>
 
   <div id="main" class="main">
     <div id="canvas" class="canvas"><div id="grid" class="grid"></div></div>

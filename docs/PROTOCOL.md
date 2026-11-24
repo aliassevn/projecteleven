@@ -45,6 +45,7 @@ Frames volgens RFC 6455; berichten van de tablet moeten gemaskeerd zijn en zijn 
 | | `{"type":"pointer","id":"<touchpad-tegel>","op":"move\|scroll","dx":n,"dy":n}`: hooguit ~40× per seconde |
 | | `{"type":"pointer","id":"…","op":"click","button":"left\|right"}`, `"op":"down"` / `"up"` (slepen) |
 | | `{"type":"dial","id":"<dial-tegel>","steps":n}`: n tikken van 15°, positief = met de klok mee |
+| | `{"type":"viewport","w":988,"h":644,"vw":1024,"vh":768}`: ruimte voor tegels en venstermaat (voor het voorbeeld in de editor) |
 | computer → tablet | `{"type":"welcome","device":"iPad"}` |
 | | `{"type":"layout","layout":{…}}` (zie hieronder) |
 | | `{"type":"state","state":{…}}`: bij elke wijziging, hooguit ~7× per seconde |
@@ -80,7 +81,7 @@ tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzel
 | `GET /api/editor/layout` | `{layout, revision}`: de volledige layout mét acties |
 | `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (intussen gewijzigd) of `422 {errors: […]}` |
 | `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (zonder op te slaan) |
-| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[], shortcuts[]}`: wat er in keuzelijsten en de toevoegen-lijst staat |
+| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[], shortcuts[], devices[]}`: keuzelijsten, toevoegen-lijst en de gemelde schermmaten van tablets |
 | `GET /api/editor/themes` | alle thema's (volledige definities) |
 | `POST /api/editor/icon` | `{data: "<base64 of data-URL>"}` → `{icon: "img:<naam>"}` (max. 700 KB, wordt 256 px PNG) |
 

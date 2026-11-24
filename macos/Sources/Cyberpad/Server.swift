@@ -405,7 +405,12 @@ final class Server {
             }
         case ("GET", "/api/editor/catalog"):
             guard let plugins else { c.respond(500, json: ["error": "Plugins niet beschikbaar"]); return }
-            c.respond(200, json: editor.catalog(presets: actions.catalog, plugins: plugins))
+            var cat = editor.catalog(presets: actions.catalog, plugins: plugins)
+            cat["devices"] = pairing.devices.compactMap { d -> [String: Any]? in
+                guard let v = d.viewport else { return nil }
+                return ["id": d.id, "name": d.name, "w": v.w, "h": v.h, "vw": v.vw, "vh": v.vh]
+            }
+            c.respond(200, json: cat)
         default:
             c.respond(404, json: ["error": "Onbekend"])
         }
@@ -646,6 +651,12 @@ private final class Connection {
                 sendJSON(ack)
             }
             server.scheduleStateBroadcast()
+        case "viewport":
+            // Schermmaat van de tablet, voor het voorbeeld in de editor.
+            func n(_ k: String) -> Int { (msg[k] as? NSNumber)?.intValue ?? 0 }
+            if let id = deviceID {
+                server.pairing.setViewport(id: id, Viewport(w: n("w"), h: n("h"), vw: n("vw"), vh: n("vh")))
+            }
         case "pointer":
             let id = msg["id"] as? String ?? ""
             let r = server.handlePointer(id: id, msg)

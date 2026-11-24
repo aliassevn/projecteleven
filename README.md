@@ -55,8 +55,12 @@ Menu › **Layout bewerken…** opent de editor in een eigen venster:
 - **Opslaan** (⌘S): de Mac controleert alles (niets buiten het raster, geen overlap, geen dubbele namen), bewaart
   de vorige versie als `layout-backup-editor-….json` (de laatste 20) en werkt alle tablets direct bij.
   Heeft iemand anders intussen opgeslagen, dan krijg je een waarschuwing in plaats van dat je zijn werk overschrijft.
-- **↶ / ↷** (⌘Z / ⇧⌘Z) maakt wijzigingen ongedaan. **Exporteren** maakt een `.cyberpad`-bestand; **Importeren**
-  laadt er een (pas na Opslaan echt actief).
+- **↶ / ↷** (⌘Z / ⇧⌘Z) maakt wijzigingen ongedaan. Onder **MEER** zit *Exporteren* (een `.cyberpad`-bestand) en
+  *Importeren* (pas na Opslaan echt actief); op de tablet ook *Terug naar de knoppen*.
+- **Voorbeeld** (balk onderaan): kies *Zoals je tablet nu is* of een iPad-model, eventueel *gedraaid* (staand)
+  of *schermvullend*. De editor toont het raster dan op de echte maat van de tablet, verkleind tot het venster, met
+  hoeveel ruimte één vak krijgt. Zo zie je op de Mac wat er op de iPad past. Je tablet meldt zijn schermmaat
+  vanzelf zodra hij verbonden is (ook na draaien of schermvullend).
 
 - **Thema:** knop **THEMA** in de editor. Kies uit negen thema's (o.a. Cyberdeck, Nacht met witte ronde knoppen op
   zwart, Grafiet, Contrast, Oceaan en het lichte Minimal), en pas eventueel

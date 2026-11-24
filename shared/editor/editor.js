@@ -248,12 +248,112 @@
 
   var geo = null; // { cw, ch, gap }
 
+  // ---------- voorbeeld op tablet-formaat ----------
+  // Ruimte voor tegels = venster min statusbalk (54) en tabs (70) en marges (2×18), zoals op de tablet.
+  var PRESETS = [
+    { id: 'ipad97', name: 'iPad 9,7″ (oud)', sw: 1024, sh: 768, bar: 64 },
+    { id: 'ipad102', name: 'iPad 10,2″', sw: 1080, sh: 810, bar: 74 },
+    { id: 'ipad109', name: 'iPad 10,9″ / Air', sw: 1180, sh: 820, bar: 74 },
+    { id: 'ipadmini', name: 'iPad mini', sw: 1133, sh: 744, bar: 74 },
+    { id: 'ipadpro11', name: 'iPad Pro 11″', sw: 1194, sh: 834, bar: 74 },
+    { id: 'ipadpro13', name: 'iPad Pro 12,9″', sw: 1366, sh: 1024, bar: 74 }
+  ];
+  function padBox(vw, vh) {
+    var small = vw <= 600;
+    return { w: vw - (small ? 20 : 36), h: vh - (small ? 46 : 54) - (small ? 60 : 70), vw: vw, vh: vh };
+  }
+  function loadPreview() {
+    try { E.preview = JSON.parse(window.localStorage.getItem('cyberpad.editor.preview') || 'null'); } catch (e) { E.preview = null; }
+  }
+  function savePreview() {
+    try { window.localStorage.setItem('cyberpad.editor.preview', JSON.stringify(E.preview)); } catch (e) { /* */ }
+  }
+  // Huidige voorbeeldmaat (of null = vrij, passend in het venster).
+  function previewBox() {
+    var p = E.preview;
+    if (!p || !p.src) { return null; }
+    var box = null, name = '';
+    if (p.src.indexOf('dev:') === 0) {
+      var devs = E.catalog.devices || [];
+      for (var i = 0; i < devs.length; i++) {
+        if (devs[i].id !== p.src.slice(4)) { continue; }
+        var d = devs[i];
+        name = d.name;
+        box = p.rotate ? padBox(d.vh, d.vw) : { w: d.w, h: d.h, vw: d.vw, vh: d.vh };
+      }
+    } else {
+      for (var j = 0; j < PRESETS.length; j++) {
+        var q = PRESETS[j];
+        if (q.id !== p.src) { continue; }
+        name = q.name;
+        var sw = p.rotate ? q.sh : q.sw, sh = p.rotate ? q.sw : q.sh;
+        box = padBox(sw, p.full ? sh : sh - q.bar);
+      }
+    }
+    if (box) { box.name = name; }
+    return box;
+  }
+
+  function drawPreviewBar() {
+    var bar = $('preview'), p = E.preview || {};
+    bar.innerHTML = '';
+    bar.appendChild(el('span', 'pv-label', 'VOORBEELD'));
+    var sel = el('select');
+    sel.appendChild(optionEl('', 'Vrij (past in dit venster)'));
+    var devs = E.catalog.devices || [];
+    if (devs.length) {
+      var og = el('optgroup'); og.label = 'Zoals je tablet nu is';
+      for (var i = 0; i < devs.length; i++) { og.appendChild(optionEl('dev:' + devs[i].id, devs[i].name + ' (' + devs[i].vw + '×' + devs[i].vh + ')')); }
+      sel.appendChild(og);
+    }
+    var og2 = el('optgroup'); og2.label = 'Modellen';
+    for (var j = 0; j < PRESETS.length; j++) { og2.appendChild(optionEl(PRESETS[j].id, PRESETS[j].name)); }
+    sel.appendChild(og2);
+    sel.value = p.src || '';
+    on(sel, 'change', function () { E.preview = { src: sel.value, rotate: false, full: false }; savePreview(); drawPreviewBar(); drawGrid(); });
+    bar.appendChild(sel);
+    if (p.src) {
+      var rot = el('label', 'pv-check');
+      var rc = el('input'); rc.type = 'checkbox'; rc.checked = !!p.rotate;
+      on(rc, 'change', function () { E.preview.rotate = rc.checked; savePreview(); drawPreviewBar(); drawGrid(); });
+      rot.appendChild(rc); rot.appendChild(document.createTextNode(' gedraaid'));
+      bar.appendChild(rot);
+      if (p.src.indexOf('dev:') !== 0) {
+        var fs = el('label', 'pv-check');
+        var fc = el('input'); fc.type = 'checkbox'; fc.checked = !!p.full;
+        on(fc, 'change', function () { E.preview.full = fc.checked; savePreview(); drawPreviewBar(); drawGrid(); });
+        fs.appendChild(fc); fs.appendChild(document.createTextNode(' schermvullend'));
+        bar.appendChild(fs);
+      }
+      bar.appendChild(el('span', 'pv-info', ''));
+    }
+  }
+
   function computeGeo() {
-    var g = $('grid'), L = E.layout;
-    var gap = g.clientWidth < 700 || cols() >= 8 ? 6 : 12;
-    var cw = (g.clientWidth - gap * (cols() - 1)) / cols();
-    var ch = (g.clientHeight - gap * (rowsN() - 1)) / rowsN();
-    geo = { cw: cw, ch: ch, gap: gap };
+    var g = $('grid'), box = previewBox();
+    if (!box) {
+      g.style.width = ''; g.style.height = ''; g.style.marginLeft = ''; g.style.webkitTransform = g.style.transform = '';
+      $('canvas').className = 'canvas';
+      var gap0 = g.clientWidth < 700 || cols() >= 8 ? 6 : 12;
+      geo = { cw: (g.clientWidth - gap0 * (cols() - 1)) / cols(), ch: (g.clientHeight - gap0 * (rowsN() - 1)) / rowsN(), gap: gap0, s: 1 };
+      return;
+    }
+    // Raster op ware grootte (CSS-pixels van de tablet) tekenen en als geheel verkleinen.
+    var cv = $('canvas'), availW = cv.clientWidth - 36, availH = cv.clientHeight - 36;
+    var sc = Math.min(availW / box.w, availH / box.h, 1.5);
+    var gap = box.vw < 600 || cols() >= 8 ? 8 : 14;
+    g.style.width = box.w + 'px';
+    g.style.height = box.h + 'px';
+    g.style.webkitTransformOrigin = g.style.transformOrigin = '0 0';
+    g.style.webkitTransform = g.style.transform = 'scale(' + sc + ')';
+    g.style.marginLeft = Math.max(0, (availW - box.w * sc) / 2) + 'px';
+    cv.className = 'canvas device';
+    geo = { cw: (box.w - gap * (cols() - 1)) / cols(), ch: (box.h - gap * (rowsN() - 1)) / rowsN(), gap: gap, s: sc };
+    var info = document.querySelector('#preview .pv-info');
+    if (info) {
+      info.textContent = box.name + ' · tegelruimte ' + Math.round(box.w) + '×' + Math.round(box.h) +
+        ' · 1 vak = ' + Math.round(geo.cw) + '×' + Math.round(geo.ch) + ' pt';
+    }
   }
   function place(node, x, y, w, h) {
     node.style.left = (x * (geo.cw + geo.gap)) + 'px';
@@ -315,8 +415,8 @@
   function drawGrid() {
     var g = $('grid'), L = E.layout, page = curPage();
     g.innerHTML = '';
-    g.className = 'grid' + (cols() >= 8 ? ' dense' : '');
     computeGeo();
+    g.className = 'grid' + (cols() >= 8 && geo.s === 1 && !previewBox() ? ' dense' : '');
     var occ = occupied(page, null);
     for (var y = 0; y < rowsN(); y++) {
       for (var x = 0; x < cols(); x++) {
@@ -337,6 +437,11 @@
     var n = el('div', 'etile' + (t.id === E.sel ? ' sel' : ''));
     n.setAttribute('data-id', t.id);
     place(n, t.x, t.y, t.w || 1, t.h || 1);
+    // In het voorbeeld: kleine tegels net als op de tablet kleinere letters.
+    if (previewBox()) {
+      var pw = (t.w || 1) * geo.cw + ((t.w || 1) - 1) * geo.gap, ph = (t.h || 1) * geo.ch + ((t.h || 1) - 1) * geo.gap;
+      if (pw < 130 || ph < 110) { n.className += ' tiny'; }
+    }
     n.appendChild(el('span', 'kd', (t.kind && t.kind !== 'button') ? kindDef(t.kind).name : ''));
     var marks = (t.longPress ? '◷' : '') + (t.doubleTap ? '⁑' : '') + (t.toggle ? '⏻' : '');
     if (marks) { n.appendChild(el('span', 'gs', marks)); }
@@ -385,8 +490,8 @@
       return { x: p.clientX, y: p.clientY };
     }
     function cellAt(px, py) {
-      var r = $('grid').getBoundingClientRect();
-      return { x: Math.floor((px - r.left + geo.gap / 2) / (geo.cw + geo.gap)), y: Math.floor((py - r.top + geo.gap / 2) / (geo.ch + geo.gap)) };
+      var r = $('grid').getBoundingClientRect(), sc = geo.s || 1;
+      return { x: Math.floor(((px - r.left) / sc + geo.gap / 2) / (geo.cw + geo.gap)), y: Math.floor(((py - r.top) / sc + geo.gap / 2) / (geo.ch + geo.gap)) };
     }
     function down(e) {
       if (e.button !== undefined && e.button !== 0 && !e.touches) { return; }
@@ -1588,6 +1693,8 @@
       if (failed) { gate(failed); return; }
       $('gate').className = 'gate hidden';
       E.saved = JSON.stringify(clean(E.layout));
+      loadPreview();
+      drawPreviewBar();
       drawPages(); drawGrid(); drawSide(); updateButtons(); validate();
     }
     var x = new XMLHttpRequest();
@@ -1646,7 +1753,7 @@
       var t = local('cyberpad.token');
       if (!t) { gate('Deze tablet is nog niet gekoppeld. Ga terug naar de knoppen en koppel eerst.'); return; }
       E.auth = { mode: 'tablet', header: 'X-Cyberpad-Token', token: t };
-      $('b-back').className = 'btn';
+      $('b-back').className = 'more-item';
     }
 
     tap($('b-undo'), undo);
@@ -1656,8 +1763,14 @@
     tap($('b-theme'), showTheme);
     tap($('b-add'), function () { showPalette(null); });
     on($('f-icon'), 'change', function () { var f = $('f-icon').files[0]; if (f) { uploadIcon(f); } $('f-icon').value = ''; });
-    tap($('b-export'), exportLayout);
-    tap($('b-import'), function () { $('f-import').click(); });
+    function closeMore() { $('more-menu').className = 'more-menu hidden'; }
+    tap($('b-more'), function (e) {
+      if (e && e.stopPropagation) { e.stopPropagation(); }
+      $('more-menu').className = /hidden/.test($('more-menu').className) ? 'more-menu' : 'more-menu hidden';
+    });
+    on(document, 'click', function (e) { if (!$('more-menu').contains(e.target) && e.target !== $('b-more')) { closeMore(); } });
+    tap($('b-export'), function () { closeMore(); exportLayout(); });
+    tap($('b-import'), function () { closeMore(); $('f-import').click(); });
     on($('f-import'), 'change', function () { var f = $('f-import').files[0]; if (f) { importFile(f); } $('f-import').value = ''; });
     tap($('modal-close'), function () { $('modal').className = 'modal hidden'; drawPages(); drawGrid(); drawSide(); });
     tap($('problems'), function () { E.sel = null; drawGrid(); drawSide(); });

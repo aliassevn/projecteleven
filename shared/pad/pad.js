@@ -204,6 +204,17 @@
     bar.className = 'offline-bar';
   }
 
+  // Schermmaat aan de Mac melden (voor het voorbeeld in de editor). Alleen als er iets veranderde.
+  function reportViewport() {
+    var p = $('pad');
+    if (!p || !p.clientWidth || /\bhas-offline-bar\b/.test(document.documentElement.className)) { return; }
+    var v = { type: 'viewport', w: p.clientWidth, h: p.clientHeight, vw: window.innerWidth, vh: window.innerHeight };
+    var key = v.w + 'x' + v.h + '/' + v.vw + 'x' + v.vh;
+    if (key === app.sentViewport || !(app.mode === 'ws' && app.ws && app.ws.readyState === 1)) { return; }
+    app.sentViewport = key;
+    app.ws.send(JSON.stringify(v));
+  }
+
   function retryNow() {
     app.retryDelay = 1000;
     connect();
@@ -262,7 +273,7 @@
 
   function handle(m) {
     switch (m.type) {
-      case 'welcome': onConnected('ws'); break;
+      case 'welcome': onConnected('ws'); app.sentViewport = ''; reportViewport(); break;
       case 'layout': setLayout(m.layout); break;
       case 'state': setValues(m.state); break;
       case 'ack': if (!m.ok && m.error) { toast(m.error); } break;
@@ -415,6 +426,8 @@
     var W = pad.clientWidth, H = pad.clientHeight;
     // Nog geen afmetingen (verborgen, net gedraaid of uit slaap): straks opnieuw.
     if (!W || !H) { clearTimeout(app.renderRetry); app.renderRetry = setTimeout(render, 300); return; }
+    clearTimeout(app.viewportTimer);
+    app.viewportTimer = setTimeout(reportViewport, 1500); // na draaien/schermvullend even laten bezinken
     var cw = (W - gap * (cols - 1)) / cols;
     var ch = (H - gap * (rows - 1)) / rows;
 

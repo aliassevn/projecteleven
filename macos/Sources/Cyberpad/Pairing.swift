@@ -11,6 +11,16 @@ struct Device: Codable, Identifiable, Equatable {
     var lastSeen: Date?
     /// Vast profiel voor deze tablet; nil = automatisch (tijd, Focus, menu).
     var profile: String?
+    /// Laatst gemelde schermmaat (voor het voorbeeld in de editor).
+    var viewport: Viewport?
+}
+
+/// Ruimte voor de tegels op de tablet (w×h) en het hele browservenster (vw×vh), in CSS-pixels.
+struct Viewport: Codable, Equatable {
+    var w: Int
+    var h: Int
+    var vw: Int
+    var vh: Int
 }
 
 /// Koppelcodes, tokens per tablet en bescherming tegen raden.
@@ -99,6 +109,13 @@ final class PairingManager: ObservableObject {
         devices[i].lastSeen = Date()
         if Date().timeIntervalSince(lastSaved) > 60 { save() }
         return devices[i]
+    }
+
+    func setViewport(id: String, _ v: Viewport) {
+        let ok = (100...5000).contains(v.w) && (100...5000).contains(v.h) && (100...5000).contains(v.vw) && (100...5000).contains(v.vh)
+        guard ok, let i = devices.firstIndex(where: { $0.id == id }), devices[i].viewport != v else { return }
+        devices[i].viewport = v
+        save()
     }
 
     func setProfile(id: String, profile: String?) {
