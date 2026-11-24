@@ -17,6 +17,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Cyberpad"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Versie voor een release (bijv. CYBERPAD_VERSION=0.2.0); anders die uit Info.plist.
+if [[ -n "${CYBERPAD_VERSION:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $CYBERPAD_VERSION" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${CYBERPAD_BUILD:-1}" "$APP/Contents/Info.plist"
+fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp -R "$SHARED/pad" "$APP/Contents/Resources/pad"
 cp -R "$SHARED/catalog" "$APP/Contents/Resources/catalog"

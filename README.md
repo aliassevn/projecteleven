@@ -7,11 +7,20 @@ Er zijn twee versies: deze voor **macOS** (`macos/`) en een voor **Windows 10/11
 installer bij [Releases](https://github.com/aliassevn/projecteleven/releases), zie [windows/README.md](windows/README.md)).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
 
+## Installeren
+
+Kant-en-klare installers staan bij [Releases](https://github.com/aliassevn/projecteleven/releases):
+**Cyberpad-<versie>.dmg** voor de Mac ([uitleg](macos/RELEASE_NOTES.md)) en **CyberpadSetup-<versie>.exe** voor
+Windows ([uitleg](windows/RELEASE_NOTES.md)). GitHub Actions bouwt ze; een tag `macos-v<versie>` of `windows-v<versie>`
+maakt er een Release van.
+
 ## Bouwen en starten
 
 ```bash
 macos/scripts/build.sh
 ```
+
+Een installer (`macos/build/Cyberpad-<versie>.dmg`) maak je met `macos/scripts/make-dmg.sh [versie] [universal]`.
 
 ```bash
 open macos/build/Cyberpad.app
@@ -335,6 +344,7 @@ macos/                    Mac-versie (Swift)
   Package.swift
   Resources/Info.plist
   scripts/build.sh        bouwt macos/build/Cyberpad.app
+  scripts/make-dmg.sh     maakt de installer Cyberpad-<versie>.dmg
   scripts/make-pad-icons.swift  tekent shared/pad/icons
   scripts/i18n-keys.py    controleert of alle teksten vertaald zijn
   Sources/Cyberpad/
