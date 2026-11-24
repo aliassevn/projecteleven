@@ -1,54 +1,74 @@
-# Cyberpad voor Windows 11 (gepland)
+# Cyberpad voor Windows 10/11
 
-Hier komt de Windows-versie. Nog niets gebouwd; dit is het plan.
+Dezelfde tablet-pagina, editor, thema's en talen als op de Mac, met een eigen programma voor Windows in C# / .NET 8.
+Cyberpad draait als icoon in het systeemvak (rechtsonder, naast de klok).
 
-## Wat gedeeld wordt met macOS
+**Downloaden:** zie [Releases](https://github.com/aliassevn/projecteleven/releases) (`CyberpadSetup-<versie>.exe`).
+Installeren en eerste stappen: [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-| Onderdeel | Waar | Windows hoeft het niet opnieuw te maken |
-|---|---|---|
-| Tablet-pagina | `shared/pad/` | ✓ wordt door de Windows-server geserveerd |
-| Protocol | `docs/PROTOCOL.md` | ✓ zelfde routes, berichten en status |
-| Layout-formaat | `layout.json` | ✓ platformneutrale acties werken direct |
-| Shortcut-bibliotheek | `shared/catalog/shortcuts.json` | aanvullen met `keysWindows` per sneltoets |
-| Plugins | `shared/plugins/`, `docs/PLUGINS.md` | ✓ zelfde `plugin.json` en berichten; `run.windows` |
-| Layout-editor | `shared/editor/` | ✓ in een WebView2-venster; alleen de editor-API (`docs/PROTOCOL.md`) en een export-brug |
-| Thema's | `shared/themes/`, `docs/THEMES.md` | ✓ sjabloon invullen (een paar regels code); app-iconen via de Windows Shell |
-| Talen | `shared/i18n/`, `docs/TALEN.md` | ✓ zelfde woordenboeken; `/i18n.js` en `/api/lang` nabouwen |
+## Wat er al werkt (versie 0.1)
 
-## Voorgestelde techniek
-
-**C# / .NET 8**, één programma in het systeemvak (naast de klok), met een klein instellingenvenster.
-
-| Mac (Swift) | Windows |
+| Onderdeel | Windows |
 |---|---|
-| MenuBarExtra | systeemvak-icoon (WinForms `NotifyIcon` of WPF) |
-| Network.framework-server | Kestrel (ASP.NET Core, ingebouwd): HTTP + WebSocket zonder beheerdersrechten |
-| Bonjour / `cyberpad.local` | `DnsServiceRegister` (Windows 10+ DNS-SD-API) |
-| CGEvent (toetsen, tekst) | `SendInput` (ook Unicode-tekst) |
-| Mediatoetsen | `SendInput` met `VK_MEDIA_PLAY_PAUSE` enz. |
-| CoreAudio (volume, mic) | Core Audio-COM: `IAudioEndpointVolume` |
-| Wie gebruikt de microfoon | register `CapabilityAccessManager\ConsentStore\microphone` |
-| Nu speelt | `GlobalSystemMediaTransportControlsSessionManager` (Spotify, browsers, Media Player…) |
-| EventKit (agenda) | Outlook / Microsoft Graph (later, optioneel) |
-| Opdrachten-app | PowerShell-script of Power Automate Desktop-flow |
-| Sleutelhanger | Windows Referentiebeheer (Credential Manager) / DPAPI |
-| Toegankelijkheid | niet nodig; wel een eenmalige vraag van de Windows Firewall |
-| Actieve app (contextpagina) | `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` → procesnaam |
-| Focus-modus → profiel | geen API; `cyberpad://profile/<id>` via protocol-handler of Taakplanner |
-| Ad-hoc ondertekening | onondertekend → SmartScreen-waarschuwing; later code-signing |
+| Server | Kestrel (HTTP + WebSocket) op poort 7420, alleen lokaal netwerk; geen beheerdersrechten nodig |
+| Koppelen | koppelvenster met adres, QR-code en code van 6 cijfers (zelfde regels als de Mac) |
+| Tablet-pagina, editor, thema's, talen | uit `shared\` (zelfde bestanden als de Mac); editor in een WebView2-venster |
+| Media, volume, mic | `SendInput` (mediatoetsen) en Core Audio (`IAudioEndpointVolume`) |
+| Toetsen en tekst | `SendInput`; `cmd` wordt Ctrl, `win` = Windows-toets; tekst als Unicode |
+| Apps | naam uit het Startmenu, pad naar `.exe`/`.lnk`, of een naam die Windows kent (`notepad`) |
+| Links | standaardbrowser of een gekozen browser (`StartMenuInternet` in het register) |
+| Systeem | vergrendelen, scherm uit, schermafbeelding (Win+PrtSc / Win+Shift+S), wakker houden, donkere modus |
+| Widgets | klok, wereldklok, weer, timer, pomodoro, systeem, nu speelt (Windows-mediabediening), foto's, terminal (`cmd`) |
+| Aanraakpad en draaiknoppen | `SendInput` met muis en scrollwiel |
+| Iconen | `app:<naam>` via de Windows Shell (`IShellItemImageFactory`); eigen afbeeldingen zoals op de Mac |
+| Profielen | tijdregels en een vast profiel per tablet |
+
+## Nog te doen
+
+| Onderdeel | Plan |
+|---|---|
+| Home Assistant, MQTT, webhooks | dezelfde code als de Mac, in C# (WebSocket- en MQTT-client) |
+| Plugins | zelfde `plugin.json`; `run.windows` (bijv. `py -3`) |
+| Vergaderknop | Teams/Zoom herkennen; sneltoetsen als `keysWindows` in `shared/catalog/shortcuts.json` |
+| Agenda | Outlook / Microsoft Graph |
+| Contextpagina's | `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)` → procesnaam |
+| `cyberpad.local` | DNS-SD (`DnsServiceRegister`); nu werkt het IP-adres uit het koppelvenster |
+| Ondertekening | code-signing-certificaat, zodat SmartScreen niet meer waarschuwt |
+
+## Bestanden
+
+| Waar | Wat |
+|---|---|
+| `%APPDATA%\Cyberpad\layout.json` | je layout (zelfde formaat als op de Mac) |
+| `%APPDATA%\Cyberpad\devices.json` | gekoppelde tablets (alleen hashes van tokens) |
+| `%APPDATA%\Cyberpad\settings.json` | taal |
+| `%APPDATA%\Cyberpad\Icons\` | eigen tegel-afbeeldingen |
+| `C:\Program Files\Cyberpad\` | het programma en `shared\` |
+
+## Bouwen
+
+Lukt ook vanaf macOS of Linux (alleen draaien kan niet):
+
+```
+dotnet publish windows/Cyberpad -c Release -o windows/build/app
+```
+
+Op Windows maakt [Inno Setup 6](https://jrsoftware.org/isinfo.php) daarna de installer:
+
+```
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.1.0 windows\installer\Cyberpad.iss
+```
+
+GitHub Actions ([.github/workflows/windows.yml](../.github/workflows/windows.yml)) doet beide bij elke push naar `main` die
+`windows/` of `shared/` raakt. Een tag `windows-v<versie>` (bijv. `windows-v0.1.1`) maakt er een Release van.
+
+Testen zonder installer: `dotnet run --project windows/Cyberpad` op Windows. Zet `CYBERPAD_SHARED_DIR` om een andere
+`shared\`-map te gebruiken.
 
 ## Aandachtspunten
 
-- **Firewall:** bij de eerste start vraagt Windows om toegang tot het *privénetwerk*. Alleen dat aanvinken.
-- **Toetsen naar apps met beheerdersrechten** werken niet vanuit een normaal programma (UIPI). Dat is bewust zo.
-- **Vergaderknop:** Teams en Zoom hebben op Windows andere sneltoetsen. Die komen in de catalogus als `keysWindows`.
-- **Plugins:** `run.windows` gebruikt meestal `py -3` (Python Launcher) of een `.exe`.
-
-## Volgorde (na fase 8 op de Mac)
-
-1. Server, koppelen, tablet-pagina serveren, mediatoetsen en volume (vergelijkbaar met fase 1–3).
-2. Toetsen, tekst, macro's, apps en URL's; shortcut-bibliotheek met `keysWindows`.
-3. Vergaderknop, widgets, Home Assistant/MQTT/webhooks, plugins.
-4. Installatieprogramma (MSIX of Inno Setup) en ondertekening.
-
-Schatting: 3–4 weken, omdat tablet-pagina, protocol en plugins al klaar zijn.
+- **Firewall:** de installer zet een regel voor Cyberpad, alleen voor privé- en domeinnetwerken. Op een netwerk dat in
+  Windows op *Openbaar* staat, kan de tablet niet verbinden.
+- **Programma's met beheerdersrechten** ontvangen geen toetsen van Cyberpad (UIPI). Dat is een beveiliging van Windows.
+- **Mac-layout gebruiken:** kopieer `layout.json` naar `%APPDATA%\Cyberpad\`. Mac-apps (`com.apple.Safari`) en
+  Opdrachten werken op Windows niet; vervang ze in de editor.

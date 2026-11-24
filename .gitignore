@@ -4,3 +4,8 @@ build/
 dustyPad.app/
 *.xcodeproj/xcuserdata/
 macos/Resources/AppIcon.iconset/
+
+# Windows (.NET)
+windows/build/
+windows/**/bin/
+windows/**/obj/

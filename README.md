@@ -3,7 +3,8 @@
 Maak van een oude iPad of tablet een macropad voor je Mac. De tablet heeft alleen een browser nodig.
 Dit is het prototype met fase 0–12 van [STAPPENPLAN.md](STAPPENPLAN.md).
 
-Er komen twee versies: deze voor **macOS** (`macos/`) en later een voor **Windows 11** (`windows/`).
+Er zijn twee versies: deze voor **macOS** (`macos/`) en een voor **Windows 10/11** (`windows/`, eerste testversie;
+installer bij [Releases](https://github.com/aliassevn/projecteleven/releases), zie [windows/README.md](windows/README.md)).
 Tablet-pagina, protocol, layout-formaat en plugins zijn gedeeld (`shared/`, `docs/`).
 
 ## Bouwen en starten
@@ -371,7 +372,7 @@ docs/
   PLUGINS.md              plugins schrijven
   THEMES.md               thema's en iconen
   TALEN.md                talen en vertalingen
-windows/                  Windows 11-versie (gepland)
+windows/                  Windows 10/11-versie (C#/.NET 8, zie windows/README.md)
 ```
 
 Ontwikkelen zonder opnieuw te bouwen:

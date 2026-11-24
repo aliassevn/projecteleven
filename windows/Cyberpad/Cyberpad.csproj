@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Cyberpad voor Windows 10/11: systeemvak-app met HTTP/WebSocket-server voor de tablet.
+       Bouwen (ook vanaf macOS/Linux): dotnet publish windows/Cyberpad -c Release -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <AssemblyName>Cyberpad</AssemblyName>
+    <RootNamespace>Cyberpad</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.1.0</Version>
+    <Product>Cyberpad</Product>
+    <Company>Project Eleven</Company>
+    <Copyright>Project Eleven</Copyright>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en;nl;es</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico" LogicalName="app.ico" />
+  </ItemGroup>
+
+  <!-- De gedeelde tablet-pagina, editor, thema's, talen en catalogus gaan mee naast Cyberpad.exe (map shared\). -->
+  <ItemGroup>
+    <Content Include="..\..\shared\pad\**\*" Exclude="..\..\shared\**\.DS_Store" LinkBase="shared\pad" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\editor\**\*" Exclude="..\..\shared\**\.DS_Store" LinkBase="shared\editor" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\themes\**\*" Exclude="..\..\shared\**\.DS_Store" LinkBase="shared\themes" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\i18n\**\*" Exclude="..\..\shared\**\.DS_Store" LinkBase="shared\i18n" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\catalog\**\*" Exclude="..\..\shared\**\.DS_Store" LinkBase="shared\catalog" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

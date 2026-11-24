@@ -1,0 +1,65 @@
+name: Windows
+
+# Bouwt Cyberpad voor Windows en de installer (CyberpadSetup-<versie>.exe).
+# - Bij elke push naar main die windows/ of shared/ raakt: alleen bouwen (installer als artifact bij de run).
+# - Bij een tag windows-v<versie> (bijv. windows-v0.1.0): bouwen én een Release met de installer op GitHub zetten.
+
+on:
+  push:
+    branches: [main]
+    paths: ['windows/**', 'shared/**', '.github/workflows/windows.yml']
+    tags: ['windows-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Versie bepalen
+        id: v
+        shell: pwsh
+        run: |
+          $v = "0.1.0"
+          if ("${{ github.ref }}" -like "refs/tags/windows-v*") { $v = "${{ github.ref_name }}".Substring(9) }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Cyberpad bouwen
+        run: dotnet publish windows/Cyberpad -c Release -o windows/build/app -p:Version=${{ steps.v.outputs.version }}
+
+      - name: Controleren dat de gedeelde bestanden meegaan
+        shell: pwsh
+        run: |
+          foreach ($f in @("Cyberpad.exe", "shared/pad/index.html", "shared/editor/index.html", "shared/themes/cyberdeck.json", "shared/i18n/en.json", "shared/catalog/shortcuts.json")) {
+            if (-not (Test-Path "windows/build/app/$f")) { throw "Ontbreekt: $f" }
+          }
+
+      - name: Installer maken (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc "/DAppVersion=${{ steps.v.outputs.version }}" windows/installer/Cyberpad.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup mislukt" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CyberpadSetup-${{ steps.v.outputs.version }}
+          path: windows/build/CyberpadSetup-*.exe
+
+      - name: Release op GitHub
+        if: startsWith(github.ref, 'refs/tags/windows-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem windows/build/CyberpadSetup-*.exe).FullName
+          gh release create "${{ github.ref_name }}" "$setup" --title "Cyberpad voor Windows ${{ steps.v.outputs.version }}" --notes-file windows/RELEASE_NOTES.md --prerelease

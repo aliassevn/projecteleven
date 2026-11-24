@@ -36,6 +36,9 @@ for p in ['shared/pad/index.html', 'shared/editor/index.html']:
     keys += html_marks(rd(p))
 for p in glob.glob(os.path.join(ROOT, 'macos/Sources/Cyberpad/**/*.swift'), recursive=True):
     keys += swift_calls(open(p, encoding='utf-8').read())
+# Windows (C#): zelfde L("…")-aanroepen.
+for p in glob.glob(os.path.join(ROOT, 'windows/Cyberpad/**/*.cs'), recursive=True):
+    keys += swift_calls(open(p, encoding='utf-8').read())
 # Dynamische teksten: schema, sneltoetsen, thema's, groepen in de editor, knoppen van de terminal.
 schema = json.loads(rd('shared/editor/schema.json'))
 def walk(o):
