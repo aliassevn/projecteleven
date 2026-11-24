@@ -1738,7 +1738,7 @@
       var t = local('cyberpad.token');
       if (!t) { gate('Deze tablet is nog niet gekoppeld. Ga terug naar de knoppen en koppel eerst.'); return; }
       E.auth = { mode: 'tablet', header: 'X-Cyberpad-Token', token: t };
-      $('b-back').className = 'more-item';
+      $('b-close').className = 'btn close';
     }
 
     tap($('b-undo'), undo);
@@ -1760,9 +1760,13 @@
     tap($('modal-close'), function () { $('modal').className = 'modal hidden'; drawPages(); drawGrid(); drawSide(); });
     tap($('problems'), function () { E.sel = null; drawGrid(); drawSide(); });
     tap($('msg'), function () { $('msg').className = 'msg hidden'; });
-    on($('b-back'), 'click', function (e) { if (isDirty() && !window.confirm('Niet-opgeslagen wijzigingen weggooien?')) { e.preventDefault(); } });
+    tap($('b-close'), function () {
+      if (E.layout && isDirty() && !window.confirm('Niet-opgeslagen wijzigingen weggooien?')) { return; }
+      E.leaving = true;
+      location.href = '/';
+    });
     on(window, 'resize', function () { if (E.layout) { drawGrid(); } });
-    on(window, 'beforeunload', function (e) { if (E.layout && isDirty()) { e.returnValue = 'Niet opgeslagen'; return e.returnValue; } });
+    on(window, 'beforeunload', function (e) { if (E.layout && !E.leaving && isDirty()) { e.returnValue = 'Niet opgeslagen'; return e.returnValue; } });
     on(document, 'keydown', function (e) {
       var meta = e.metaKey || e.ctrlKey, tag = (e.target.tagName || '').toLowerCase();
       if (meta && e.key === 's') { e.preventDefault(); save(); }

@@ -11,6 +11,7 @@ html, body { margin: 0; height: 100%; background: #05060a; color: #c8fff6;
   display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center;
   border-bottom: 1px solid rgba(0,255,224,0.25); background: #070910; overflow: hidden; white-space: nowrap;
 }
+.btn.close { margin-left: 0; margin-right: 12px; border-color: rgba(255,255,255,0.35); color: #e8f6ff; }
 .brand { color: #00ffe0; font-weight: bold; letter-spacing: 3px; margin-right: 16px; }
 .spacer { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; }
 .pages { position: absolute; left: 0; right: 0; top: 52px; height: 44px; padding: 7px 14px 0; overflow-x: auto; overflow-y: hidden;

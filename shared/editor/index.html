@@ -10,6 +10,7 @@
 </head>
 <body>
   <div id="top" class="top">
+    <button id="b-close" class="btn close hidden" title="Terug naar de knoppen">✕ SLUITEN</button>
     <span class="brand">CYBERPAD <span class="dim">// EDITOR</span></span>
     <span class="spacer"></span>
     <span id="problems" class="problems"></span>
@@ -23,7 +24,6 @@
       <span id="more-menu" class="more-menu hidden">
         <span id="b-export" class="more-item">Exporteren (.cyberpad)</span>
         <span id="b-import" class="more-item">Importeren…</span>
-        <a id="b-back" class="more-item hidden" href="/">← Terug naar de knoppen</a>
       </span>
     </span>
     <input id="f-import" type="file" accept=".cyberpad,.json,application/json" class="hidden">
@@ -53,7 +53,7 @@
     <div class="gate-box">
       <div class="modal-title">// LAYOUT BEWERKEN</div>
       <p id="gate-text"></p>
-      <button id="gate-btn" class="btn primary hidden">TOESTEMMING VRAGEN</button>
+      <button id="gate-btn" class="btn primary hidden"></button>
       <p><a href="/" class="link">← terug naar de knoppen</a></p>
     </div>
   </div>
