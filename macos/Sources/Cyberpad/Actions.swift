@@ -126,7 +126,12 @@ final class ActionRunner {
             guard let s = a.url, let url = URL(string: s), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
                 throw ActionError.missing("geldige http(s)-url")
             }
-            NSWorkspace.shared.open(url)
+            if let browser = a.app, !browser.isEmpty {
+                // Met een gekozen browser (bijv. Chrome) in plaats van de standaardbrowser.
+                NSWorkspace.shared.open([url], withApplicationAt: try appURL(browser), configuration: NSWorkspace.OpenConfiguration())
+            } else {
+                NSWorkspace.shared.open(url)
+            }
 
         // Toetsen en tekst
         case "keys.press":
@@ -346,8 +351,12 @@ final class ActionRunner {
     // MARK: Overig
 
     private func openApp(_ app: String) throws {
-        let ws = NSWorkspace.shared
-        var url = ws.urlForApplication(withBundleIdentifier: app)
+        NSWorkspace.shared.openApplication(at: try appURL(app), configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    /// Waar een app staat: bundle-id (com.google.Chrome) of naam (Notes).
+    private func appURL(_ app: String) throws -> URL {
+        var url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app)
         if url == nil {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             let dirs = ["/Applications", "/System/Applications", "/System/Applications/Utilities", "\(home)/Applications"]
@@ -355,7 +364,7 @@ final class ActionRunner {
                 .first { FileManager.default.fileExists(atPath: $0.path) }
         }
         guard let url else { throw ActionError.failed(L("App niet gevonden: {0}", app)) }
-        ws.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        return url
     }
 
     private func toggleDarkMode() throws {

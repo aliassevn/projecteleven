@@ -775,5 +775,8 @@
   "Nog geen tijdzones gekozen: de klok toont New York en Tokio.": "No time zones chosen yet: the clock shows New York and Tokyo.",
   "onbekende zone": "unknown zone",
   "Herinneringen": "Reminders",
-  "Notities": "Notes"
+  "Notities": "Notes",
+  "Openen met": "Open with",
+  "Standaardbrowser ({0})": "Default browser ({0})",
+  "Standaardbrowser": "Default browser"
 }

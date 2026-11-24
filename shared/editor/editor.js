@@ -632,6 +632,20 @@
         input.value = v || '';
         on(input, 'change', function () { snapshot(); changed(input.value || undefined); });
         break;
+      case 'browser':
+        // Leeg = standaardbrowser; anders een app die webadressen kan openen (Chrome, Firefox…).
+        input = el('select');
+        var brs = E.catalog.browsers || [], defName = '', bfound = !v;
+        for (var b0 = 0; b0 < brs.length; b0++) { if (brs[b0]['default']) { defName = brs[b0].name; } }
+        input.appendChild(optionEl('', defName ? T('Standaardbrowser ({0})', defName) : T('Standaardbrowser')));
+        for (var b1 = 0; b1 < brs.length; b1++) {
+          input.appendChild(optionEl(brs[b1].id, brs[b1].name));
+          if (brs[b1].id === v || brs[b1].name === v) { bfound = true; }
+        }
+        if (!bfound) { input.appendChild(optionEl(v, v)); }
+        input.value = v || '';
+        on(input, 'change', function () { snapshot(); changed(input.value || undefined); });
+        break;
       case 'preset':
         input = el('select');
         input.appendChild(optionEl('', T('— kies een sneltoets —')));

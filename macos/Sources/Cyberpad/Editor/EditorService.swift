@@ -43,7 +43,26 @@ final class EditorService: ObservableObject {
             "apps": installedApps(),
             "shortcuts": shortcutsList(),
             "timeZones": Self.timeZones(),
+            "browsers": Self.browsers(),
         ]
+    }
+
+    /// Apps die een webadres kunnen openen (voor "Link openen" met een gekozen browser). De standaardbrowser eerst.
+    static func browsers() -> [[String: Any]] {
+        let ws = NSWorkspace.shared, probe = URL(string: "https://example.com")!
+        let def = ws.urlForApplication(toOpen: probe).flatMap { Bundle(url: $0)?.bundleIdentifier }
+        var seen = Set<String>(), out: [[String: Any]] = []
+        for u in ws.urlsForApplications(toOpen: probe) {
+            guard let id = Bundle(url: u)?.bundleIdentifier, seen.insert(id).inserted else { continue }
+            var name = FileManager.default.displayName(atPath: u.path).replacingOccurrences(of: "\u{00AD}", with: "")
+            if name.hasSuffix(".app") { name = String(name.dropLast(4)) }
+            out.append(["id": id, "name": name, "default": id == def])
+        }
+        out.sort { a, b in
+            if (a["default"] as? Bool) != (b["default"] as? Bool) { return a["default"] as? Bool == true }
+            return (a["name"] as? String ?? "").localizedCaseInsensitiveCompare(b["name"] as? String ?? "") == .orderedAscending
+        }
+        return out
     }
 
     /// Alle tijdzones voor het keuzemenu van de wereldklok: regio, plaats en huidige afwijking van UTC (seconden).

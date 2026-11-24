@@ -97,7 +97,7 @@ Beschikbare acties (`action.type`):
 | `audio.volumeUp`, `audio.volumeDown`, `audio.mute`, `audio.micMute` | geluid |
 | `audio.volume` | voor een tegel met `"kind": "slider"` |
 | `app.open` + `"app"` | app openen (bundle-id zoals `com.apple.Safari` of naam zoals `Notes`) |
-| `url.open` + `"url"` | http(s)-link openen |
+| `url.open` + `"url"` | http(s)-link openen in je standaardbrowser; met `"app"` (bijv. `com.google.Chrome`) in die browser |
 | `system.darkMode`, `system.keepAwake` | aan/uit-knoppen |
 | `system.lock`, `system.displayOff`, `system.screenshot`, `system.screenshotArea` | systeem |
 | `keys.press` + `"keys"` | willekeurige toetscombinatie, bijv. `"cmd+shift+a"`, `"ctrl+up"`, `"f5"` |

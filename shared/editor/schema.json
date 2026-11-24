@@ -16,7 +16,8 @@
     { "type": "app.open", "group": "Apps en links", "name": "App openen",
       "fields": [{ "key": "app", "label": "App", "type": "app", "required": true }] },
     { "type": "url.open", "group": "Apps en links", "name": "Link openen",
-      "fields": [{ "key": "url", "label": "Adres", "type": "text", "placeholder": "https://…", "required": true }] },
+      "fields": [{ "key": "url", "label": "Adres", "type": "text", "placeholder": "https://…", "required": true },
+                 { "key": "app", "label": "Openen met", "type": "browser" }] },
 
     { "type": "keys.press", "group": "Toetsen", "name": "Toetscombinatie",
       "fields": [{ "key": "keys", "label": "Toetsen", "type": "text", "placeholder": "cmd+shift+a, f5, ctrl+up", "required": true }] },

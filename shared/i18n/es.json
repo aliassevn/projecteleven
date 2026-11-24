@@ -775,5 +775,8 @@
   "Nog geen tijdzones gekozen: de klok toont New York en Tokio.": "Aún no has elegido zonas horarias: el reloj muestra Nueva York y Tokio.",
   "onbekende zone": "zona desconocida",
   "Herinneringen": "Recordatorios",
-  "Notities": "Notas"
+  "Notities": "Notas",
+  "Openen met": "Abrir con",
+  "Standaardbrowser ({0})": "Navegador predeterminado ({0})",
+  "Standaardbrowser": "Navegador predeterminado"
 }
