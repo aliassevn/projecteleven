@@ -5,7 +5,8 @@ Het uiterlijk van de tablet komt uit twee delen:
 1. **Sjabloon** `shared/pad/pad.css`: de stijl van de tablet, maar met kleurnamen in plaats van kleuren.
 2. **Thema** `shared/themes/<id>.json`: welke kleuren, welk lettertype, hoeveel afronding en welke effecten.
 
-De computer vult het sjabloon in en serveert het als `GET /pad.css`. Zo zijn er geen CSS-variabelen nodig en
+De computer vult het sjabloon in en serveert het als `GET /pad.css`. De editor werkt hetzelfde: `shared/editor/editor.css`
+is ook een sjabloon (`GET /editor/editor.css`), zodat de editor er net zo uitziet als het gekozen thema. Zo zijn er geen CSS-variabelen nodig en
 werkt het ook in Safari uit iOS 9. macOS en Windows doen precies hetzelfde.
 
 ## Thema-bestand

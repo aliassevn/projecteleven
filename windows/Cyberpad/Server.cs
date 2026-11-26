@@ -118,6 +118,16 @@ sealed class Server
             }
             if (path.StartsWith("/api/editor/")) { await HandleEditor(ctx, path, method, loopback); return; }
             if (method == "GET" && path == "/api/icon") { await HandleIcon(ctx, loopback); return; }
+            // De editor-stijl: ook een sjabloon, zodat de editor het gekozen thema volgt.
+            if (method == "GET" && path == "/editor/editor.css" && core.Themes.Resolve(core.Layouts.Current) is { } theme)
+            {
+                var src = Path.Combine(Paths.Editor, "editor.css");
+                if (File.Exists(src))
+                {
+                    await Body(ctx, 200, Encoding.UTF8.GetBytes(ThemeStore.Render(await File.ReadAllTextAsync(src), theme)), "text/css; charset=utf-8");
+                    return;
+                }
+            }
             if (method == "GET" && path == "/pad.css")
             {
                 var css = core.Themes.Css(core.Layouts.Current);

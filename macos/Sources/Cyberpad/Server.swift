@@ -252,6 +252,13 @@ final class Server {
 
         if req.path.hasPrefix("/api/editor/") { handleEditor(req, on: c); return }
         if req.method == "GET", req.path == "/api/icon" { handleIcon(req, on: c); return }
+        // De editor-stijl: ook een sjabloon, zodat de editor het gekozen thema volgt.
+        if req.method == "GET", req.path == "/editor/editor.css", let themes, let dir = editorDir,
+           let t = themes.resolve(layouts.layout),
+           let src = try? String(contentsOf: dir.appendingPathComponent("editor.css"), encoding: .utf8) {
+            c.respond(200, body: Data(ThemeStore.render(src, t).utf8), contentType: "text/css; charset=utf-8")
+            return
+        }
         // De tablet-stijl: sjabloon met de kleuren van het gekozen thema ingevuld.
         if req.method == "GET", req.path == "/pad.css", let themes, let css = themes.css(for: layouts.layout) {
             c.respond(200, body: css, contentType: "text/css; charset=utf-8")

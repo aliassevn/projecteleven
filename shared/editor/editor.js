@@ -1785,6 +1785,9 @@
         E.problems = [];
         updateButtons();
         message(T('Opgeslagen. Alle tablets zijn bijgewerkt.'), false);
+        // Het thema kan veranderd zijn: de editor volgt het (editor.css is een themasjabloon).
+        var css = $('editor-css');
+        if (css) { css.href = 'editor.css?v=' + new Date().getTime(); }
       } else if (st === 409) {
         message(T('De layout is intussen elders gewijzigd (bijv. in een ander venster of in layout.json).\nExporteer je werk eventueel eerst, en laad dan opnieuw.'), true, true);
       } else if (st === 403) {
