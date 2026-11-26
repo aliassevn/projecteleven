@@ -1894,6 +1894,8 @@
 
     bindTap($('settings-open'), showSettings);
     // Knop ⛶ alleen tonen als het apparaat het kan en we niet al schermvullend vanaf het beginscherm draaien.
+    // Vanaf het beginscherm legt iOS zijn statusbalk over de pagina: dezelfde ruimte maken als bij schermvullend.
+    if (isStandalone()) { setCls(document.documentElement, 'is-fs', true); }
     if (fsSupported() && !isStandalone()) {
       $('fs-toggle').className = 'fs-toggle';
       bindTap($('fs-toggle'), toggleFullscreen);
@@ -1903,6 +1905,7 @@
         if (!onNow && app.fsWasOn) { app.fsAutoDone = true; }
         app.fsWasOn = onNow;
         setCls($('fs-toggle'), 'on', onNow);
+        setCls(document.documentElement, 'is-fs', onNow); // ruimte voor de statusbalk en ✕ van iPadOS
         setTimeout(render, 200);
       };
       document.addEventListener('fullscreenchange', fsChange, false);

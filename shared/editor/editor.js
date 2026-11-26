@@ -1878,7 +1878,19 @@
       : T('Deze tablet is niet (meer) gekoppeld. Ga terug naar de knoppen en koppel opnieuw.');
   }
 
+  // Schermvullend op een tablet (Fullscreen-API of beginscherm): het venster is dan even groot als het scherm.
+  // iPadOS legt er dan zijn statusbalk en een ✕ overheen; editor.css maakt daar ruimte voor.
+  function checkFullscreen() {
+    var sw = screen.width, sh = screen.height, w = window.innerWidth, h = window.innerHeight;
+    var touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    var full = touch && ((Math.abs(w - sw) < 2 && Math.abs(h - sh) < 2) || (Math.abs(w - sh) < 2 && Math.abs(h - sw) < 2));
+    var c = document.documentElement.className.replace(/\s*\bis-fs\b/g, '');
+    document.documentElement.className = full ? c + ' is-fs' : c;
+  }
+
   function init() {
+    checkFullscreen();
+    on(window, 'resize', checkFullscreen);
     translateDom();
     var m = /[#&]mac=([0-9a-f]{64})/.exec(location.hash);
     if (m) {

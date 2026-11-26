@@ -606,3 +606,15 @@ html:not(.fx-upper) .tile .label, html:not(.fx-upper) .tab { text-transform: non
 .svg-ic.inline { width: 0.9em; height: 0.9em; margin-top: -0.15em; }
 .tile .icon .svg-ic { width: 1em; height: 1em; }
 .kind-nowplaying .np-btn .svg-ic { width: 20px; height: 20px; }
+
+/* ---------- schermvullend (Fullscreen-API op de iPad) ----------
+   iPadOS toont dan bovenaan zijn eigen statusbalk (tijd, batterij) en linksboven een ronde ✕ om af te sluiten.
+   Daarom schuift onze statusbalk omlaag en naar rechts, en beginnen tegels en vensters daaronder. */
+html.is-fs .status { height: 76px; padding-top: 32px; padding-left: 100px; padding-right: 24px; }
+html.is-fs .pad { top: 94px; }
+html.is-fs.has-offline-bar .pad { top: 116px; }
+html.is-fs .offline-bar { top: 76px; }
+html.is-fs .meeting { top: 76px; }
+html.is-fs .settings-box { margin-top: 104px; }
+html.is-fs .pair-box { margin-top: 60px; }
+html.is-fs .amb-box { margin-top: 40px; }
