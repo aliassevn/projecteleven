@@ -1,21 +1,21 @@
-# Thema's
+# Themes
 
-Het uiterlijk van de tablet komt uit twee delen:
+The look of the tablet comes from two parts:
 
-1. **Sjabloon** `shared/pad/pad.css`: de stijl van de tablet, maar met kleurnamen in plaats van kleuren.
-2. **Thema** `shared/themes/<id>.json`: welke kleuren, welk lettertype, hoeveel afronding en welke effecten.
+1. **Template** `shared/pad/pad.css`: the tablet's style, but with colour names instead of colours.
+2. **Theme** `shared/themes/<id>.json`: which colours, which font, how much corner radius and which effects.
 
-De computer vult het sjabloon in en serveert het als `GET /pad.css`. De editor werkt hetzelfde: `shared/editor/editor.css`
-is ook een sjabloon (`GET /editor/editor.css`), zodat de editor er net zo uitziet als het gekozen thema. Zo zijn er geen CSS-variabelen nodig en
-werkt het ook in Safari uit iOS 9. macOS en Windows doen precies hetzelfde.
+The computer fills in the template and serves it as `GET /pad.css`. The editor works the same way:
+`shared/editor/editor.css` is a template too (`GET /editor/editor.css`), so the editor looks like the chosen theme.
+No CSS variables are needed, so it also works in Safari on iOS 9. macOS and Windows do exactly the same.
 
-## Thema-bestand
+## Theme file
 
 ```json
 {
   "id": "cyberdeck",
   "name": "Cyberdeck",
-  "description": "Neon cyaan en magenta …",
+  "description": "Neon cyan and magenta …",
   "colors": { "bg": "#05060a", "bg2": "#12040e", "text": "#c8fff6", "accent": "#00ffe0", "accent2": "#ff2bd6",
               "accent2Text": "#ff9cf0", "danger": "#ff3b5c", "dangerText": "#ff8199", "ok": "#00ffa3", "okText": "#7dffb0" },
   "font": "Menlo, \"SF Mono\", Consolas, monospace",
@@ -24,87 +24,90 @@ werkt het ook in Safari uit iOS 9. macOS en Windows doen precies hetzelfde.
 }
 ```
 
-| Kleur | Gebruikt voor |
+| Colour | Used for |
 |---|---|
-| `bg`, `bg2` | achtergrond, achtergrond van meldingen |
-| `text` | tekst (vaak met doorzichtigheid) |
-| `accent` | randen, waarden, gewone knoppen |
-| `accent2`, `accent2Text` | knoppen die **aan** staan, vergaderpaneel |
-| `danger`, `dangerText` | fouten, verbinding weg, "gevaarlijk" |
-| `ok`, `okText` | online-stip, terminaluitvoer |
-| `panel`, `panelBorder` | *optioneel:* achtergrond en rand van widgets, schuiven en draaiknoppen |
-| `button`, `buttonText`, `buttonBorder` | *optioneel:* gewone knoppen (bijv. wit met donkere tekst) |
-| `buttonActive`, `buttonActiveText` | *optioneel:* knoppen die aan staan |
+| `bg`, `bg2` | background, background of notices |
+| `text` | text (often with transparency) |
+| `accent` | borders, values, ordinary buttons |
+| `accent2`, `accent2Text` | buttons that are **on**, meeting panel |
+| `danger`, `dangerText` | errors, connection lost, "dangerous" |
+| `ok`, `okText` | online dot, terminal output |
+| `panel`, `panelBorder` | *optional:* background and border of widgets, sliders and dials |
+| `button`, `buttonText`, `buttonBorder` | *optional:* ordinary buttons (e.g. white with dark text) |
+| `buttonActive`, `buttonActiveText` | *optional:* buttons that are on |
 
-Laat een thema de optionele kleuren weg, dan volgen ze uit de andere: paneel en knop zijn dan `accent` met 4%
-dekking en een rand van 45%, knoptekst is `text` met 75%, "aan" is `accent2` met 12%. Zo zien oudere thema's er
-precies hetzelfde uit.
+If a theme leaves out the optional colours, they are derived from the others: panel and button are `accent` at 4%
+opacity with a 45% border, button text is `text` at 75%, "on" is `accent2` at 12%. That way older themes look exactly
+the same.
 
-| Effect | Aan = |
+| Effect | On = |
 |---|---|
-| `scanlines` | lichte scanlijnen over het scherm |
-| `glow` | gloed rond randen en tekst |
-| `grid` | raster op de achtergrond |
-| `corner` | schuine hoek rechtsboven op tegels |
-| `glitch` | af en toe een glitch op de naam en bij indrukken |
-| `upper` | labels in HOOFDLETTERS |
-| `bold` | vette labels (handig bij dunne letters zoals Courier) |
+| `scanlines` | light scanlines over the screen |
+| `glow` | glow around borders and text |
+| `grid` | grid on the background |
+| `corner` | cut corner at the top right of tiles |
+| `glitch` | an occasional glitch on the name and when pressing |
+| `upper` | labels in UPPERCASE |
+| `bold` | bold labels (handy with thin fonts such as Courier) |
 
-## Sjabloon invullen (voor wie een eigen server bouwt)
+## Filling in the template (if you build your own server)
 
-- `{{naam}}` → de waarde: een kleur (`#rrggbb`), `font` of `radius`.
-- `{{naam 0.45}}` → `rgba(r,g,b,0.45)` van die kleur.
-- Onbekende kleur → `transparent`.
-- Optionele kleuren die het thema weglaat worden eerst afgeleid (zie hierboven); zo'n afgeleide kleur is al
-  `rgba(…)` en wordt zonder extra doorzichtigheid gebruikt.
+- `{{name}}` → the value: a colour (`#rrggbb`), `font` or `radius`.
+- `{{name 0.45}}` → `rgba(r,g,b,0.45)` of that colour.
+- Unknown colour → `transparent`.
+- Optional colours that the theme leaves out are derived first (see above); such a derived colour is already
+  `rgba(…)` and is used without extra transparency.
 
-De tablet krijgt in de layout `themeClasses` (bijv. `"fx-noscan fx-nogrid fx-bold"`) voor de effecten, en
-`themeKey`: verandert die, dan laadt de tablet `pad.css?v=<themeKey>` opnieuw zonder te flikkeren.
+The tablet receives `themeClasses` in the layout (e.g. `"fx-noscan fx-nogrid fx-bold"`) for the effects, and
+`themeKey`: when it changes, the tablet reloads `pad.css?v=<themeKey>` without flickering.
 
-## Eigen aanpassingen
+## Your own adjustments
 
-In de editor (**THEMA**) kies je een thema en pas je kleuren, lettertype, afronding en effecten aan. Dat komt
-als `themeOverrides` in de layout (en gaat dus mee in een `.cyberpad`-export):
+In the editor (**THEME**) you choose a theme and adjust colours, font, corner radius and effects. That is stored as
+`themeOverrides` in the layout (and so travels along in a `.cyberpad` export):
 
 ```json
 "theme": "minimal",
 "themeOverrides": { "colors": { "accent": "#0f9d58" }, "radius": 4, "effects": { "glow": true } }
 ```
 
-De computer controleert alles: kleuren alleen als `#rrggbb`, een lettertype alleen met letters, cijfers, spaties,
-komma's en aanhalingstekens, en een afronding van 0–30. Zo kan een layout geen eigen CSS binnensmokkelen.
+The computer checks everything: colours only as `#rrggbb`, a font only with letters, digits, spaces, commas and quotes,
+and a corner radius of 0–30. That way a layout cannot smuggle in CSS of its own.
 
-Een nieuw thema voor iedereen: zet een `.json`-bestand in `shared/themes/` en bouw de app opnieuw.
+A new theme for everyone: put a `.json` file in `shared/themes/` and rebuild the app.
 
-## Meegeleverde thema's
+## Bundled themes
 
-| Thema | Kenmerk |
+| Theme | Character |
 |---|---|
-| Cyberdeck | neon cyaan/magenta, scanlijnen, glitch, mono |
-| Terminal | groene fosfor op zwart, vet |
-| Cockpit | amber op donkergrijs, smalle letters |
-| Vapor | paars/roze/mint, rond, gloed |
-| Minimal | licht, blauwe accenten |
-| Nacht | zwart met witte ronde knoppen, oranje voor "aan" |
-| Grafiet | donkergrijs zoals iPadOS, blauw en groen |
-| Contrast | zwart met gele knoppen en vette letters, voor maximale leesbaarheid |
-| Oceaan | diep blauw, turquoise, glazige ronde knoppen |
+| Cyberdeck | neon cyan/magenta, scanlines, glitch, mono |
+| Terminal | green phosphor on black, bold |
+| Cockpit | amber on dark grey, narrow letters |
+| Vapor | purple/pink/mint, rounded, glow |
+| Minimal | light, blue accents |
+| Night | black with white round buttons, orange for "on" |
+| Graphite | dark grey like iPadOS, blue and green |
+| Contrast | black with yellow buttons and bold letters, for maximum legibility |
+| Ocean | deep blue, turquoise, glassy round buttons |
 
-## Lettertypen
+(Theme names and descriptions are translated in the app; the files keep their Dutch names as keys.)
 
-De thema's gebruiken lettertypen die al op iPad, Mac en Windows staan (Menlo, Courier New, Avenir Next Condensed,
-Futura, Helvetica, Segoe UI…). Er hoeft dus niets gedownload te worden en het werkt offline. Ontbreekt het eerste
-lettertype, dan gebruikt het apparaat het volgende uit de lijst.
+## Fonts
 
-## Iconen
+The themes use fonts that already ship with iPad, Mac and Windows (Menlo, Courier New, Avenir Next Condensed, Futura,
+Helvetica, Segoe UI…). Nothing needs downloading and it works offline. If the first font is missing, the device uses
+the next one in the list.
 
-Een tegel kan als `icon` hebben:
+## Icons
 
-| Waarde | Toont |
+A tile can have as `icon`:
+
+| Value | Shows |
 |---|---|
-| `"💡"` of tekst | emoji of tekst |
-| `"app:com.apple.Safari"` | het icoon van die app op de computer |
-| `"img:<16 hex>.png"` | een eigen afbeelding, geüpload in de editor (max. 700 KB, verkleind tot 256 px) |
+| `"💡"` or text | emoji or text |
+| `"app:com.apple.Safari"` | the icon of that app on the computer (on Windows: the name from the Start menu) |
+| `"img:<16 hex>.png"` | your own image, uploaded in the editor (max. 700 KB, scaled down to 256 px) |
 
-Afbeelding-iconen haalt de tablet op via `GET /api/icon?src=…` (met token). Eigen afbeeldingen staan in
-`~/Library/Application Support/Cyberpad/Icons/`. Een tegel kan ook een eigen `color` (`#rrggbb`) hebben.
+The tablet fetches image icons via `GET /api/icon?src=…` (with its token). Custom images are stored in
+`~/Library/Application Support/Cyberpad/Icons/` (Windows: `%APPDATA%\Cyberpad\Icons\`). A tile can also have its own
+`color` (`#rrggbb`).

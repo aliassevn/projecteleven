@@ -1,40 +1,41 @@
-# Talen
+# Languages
 
-Cyberpad werkt in het **Engels** (standaard), **Nederlands** en **Spaans**. De taal geldt voor alles tegelijk:
-het menubalk-venster op de Mac, alle tablets en de editor.
+Cyberpad works in **English** (default), **Dutch** and **Spanish**. The language applies to everything at once: the
+menu bar window on the Mac (or the tray menu on Windows), all tablets and the editor.
 
-## Wisselen
+## Switching
 
-- **Mac:** menubalk-venster › onderaan **Language / Taal / Idioma**.
+- **Mac:** menu bar window › at the bottom **Language / Taal / Idioma**. **Windows:** tray icon › **Language**.
 - **Tablet:** ⚙ › **Language**.
 - **Editor:** **MORE ▾** › 🌐 English / Nederlands / Español.
 
-Na een wissel laden de tablets zichzelf opnieuw. De editor op de Mac herlaadt ook; heb je daar nog niet-opgeslagen
-wijzigingen, dan blijft hij staan en vraagt hij je eerst op te slaan.
+After a switch the tablets reload themselves. The editor reloads too; if it still has unsaved changes, it stays as it
+is and asks you to save first.
 
-## Jouw eigen namen
+## Your own names
 
-Namen van pagina's, tegels en profielen zijn van jou en worden niet vertaald. Uitzondering: staat er nog een naam
-uit de standaard-layout (bijv. "Knoppen", "Geluid uit", "Werkdag"), dan toont de tablet die in de gekozen taal.
-In de editor zie je altijd de naam zoals hij in `layout.json` staat.
+Names of pages, tiles and profiles are yours and are not translated. Exception: if a name from the default layout is
+still there (e.g. "Knoppen", "Geluid uit", "Werkdag"), the tablet shows it in the chosen language.
+The editor always shows the name as it is stored in `layout.json`.
 
-## Hoe het werkt
+## How it works
 
-- In de code is de **Nederlandse tekst de sleutel**: `L("Geen internet")` in Swift, `T('Geen internet')` in
-  `pad.js` en `editor.js`, en `data-t` / `data-t-title` / `data-t-ph` in de HTML.
-- `shared/i18n/en.json` en `shared/i18n/es.json` geven per sleutel de vertaling. Ontbreekt er een, dan blijft de
-  Nederlandse tekst staan. `{0}`, `{1}`… zijn plaatshouders.
-- Namen en labels uit `shared/editor/schema.json`, sneltoetsen uit `shared/catalog/shortcuts.json` en de namen en
-  omschrijvingen van de thema's worden via hetzelfde woordenboek vertaald.
-- De computer serveert het woordenboek als `GET /i18n.js` (zie [PROTOCOL.md](PROTOCOL.md)); de Windows-versie
-  gebruikt dezelfde bestanden.
+- In the code, the **Dutch text is the key** (the project started in Dutch): `L("Geen internet")` in Swift and C#,
+  `T('Geen internet')` in `pad.js` and `editor.js`, and `data-t` / `data-t-title` / `data-t-ph` in the HTML.
+- `shared/i18n/en.json` and `shared/i18n/es.json` give the translation per key. If one is missing, the Dutch text
+  stays. `{0}`, `{1}`… are placeholders.
+- Names and labels from `shared/editor/schema.json`, keyboard shortcuts from `shared/catalog/shortcuts.json` and the
+  names and descriptions of the themes are translated through the same dictionary.
+- The computer serves the dictionary as `GET /i18n.js` (see [PROTOCOL.md](PROTOCOL.md)); the Windows version uses the
+  same files.
 
-## Controleren of een taal toevoegen
+## Checking or adding a language
 
 ```bash
 python3 macos/scripts/i18n-keys.py
 ```
 
-Dit zoekt alle teksten in de code en meldt per taal wat ontbreekt, wat overbodig is en waar een plaatshouder niet
-klopt. Een nieuwe taal: maak `shared/i18n/<code>.json`, zet de code in `Localizer.languages` (Swift) en in `LANGS`
-(editor) en de taalkeuze op de tablet (`SETTING_ROWS` in `pad.js`), en voeg de code toe in `i18n-keys.py`.
+This finds every text in the code (Mac, Windows, tablet page and editor) and reports per language what is missing,
+what is superfluous and where a placeholder does not match. To add a language: create `shared/i18n/<code>.json`, add the
+code to `Localizer.languages` (Swift), `I18n.Languages` (C#), `LANGS` (editor) and the language choice on the tablet
+(`SETTING_ROWS` in `pad.js`), and add it in `i18n-keys.py`.

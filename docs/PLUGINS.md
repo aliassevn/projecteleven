@@ -1,41 +1,40 @@
-# Plugins schrijven
+# Writing plugins
 
-Met een plugin voeg je acties en widgets aan Cyberpad toe zonder de app zelf te veranderen. Een plugin is
-een map met een `plugin.json` en een programma in een taal naar keuze. Hetzelfde formaat werkt op macOS en
-straks op Windows.
+A plugin adds actions and widgets to Cyberpad without changing the app itself. A plugin is a folder with a
+`plugin.json` and a program in a language of your choice. The same format works on macOS and (later) on Windows.
 
-## Waar
+## Where
 
-| | macOS | Windows (gepland) |
+| | macOS | Windows (planned) |
 |---|---|---|
-| Jouw plugins | `~/Library/Application Support/Cyberpad/Plugins/<map>/` | `%APPDATA%\Cyberpad\Plugins\<map>\` |
-| Meegeleverd | in de app (`shared/plugins/` in de repo) | idem |
-| Gegevens van de plugin | `…/Cyberpad/PluginData/<id>/` → `CYBERPAD_DATA_DIR` | `%APPDATA%\Cyberpad\PluginData\<id>\` |
+| Your plugins | `~/Library/Application Support/Cyberpad/Plugins/<folder>/` | `%APPDATA%\Cyberpad\Plugins\<folder>\` |
+| Bundled | inside the app (`shared/plugins/` in the repo) | same |
+| Plugin data | `…/Cyberpad/PluginData/<id>/` → `CYBERPAD_DATA_DIR` | `%APPDATA%\Cyberpad\PluginData\<id>\` |
 
-Cyberpad ziet nieuwe of gewijzigde plugins binnen een paar seconden.
+Cyberpad notices new or changed plugins within a few seconds.
 
-## Veiligheid
+## Security
 
-- Een plugin draait als **apart programma met jouw rechten**. Daarom staat elke plugin eerst **uit**.
-  Je zet hem aan in de menubalk › Plugins › *Aanzetten…*.
-- Bij het aanzetten bewaart Cyberpad een **vingerafdruk** (SHA-256) van alle bestanden in de pluginmap.
-  Verandert er daarna iets, dan start de plugin niet meer tot je hem opnieuw toestaat.
-- De plugin krijgt een kleine omgeving: `PATH`, `HOME`, `USER`, `LANG`, `TMPDIR` en de `CYBERPAD_*`-variabelen
-  hieronder, geen tokens of andere geheimen van Cyberpad.
-- De tablet kan alleen acties en widgets gebruiken die in `plugin.json` staan **en** in je layout. Hij kan
-  nooit zelf een programma of parameter verzinnen.
-- Wat een plugin naar de tablet stuurt, wordt gefilterd tot vaste velden met maximale lengtes (zie *Widgets*).
-  De tablet voert nooit code van een plugin uit.
+- A plugin runs as a **separate program with your permissions**. That is why every plugin starts **off**.
+  Turn it on in the menu bar › Plugins › *Turn on…*.
+- When you turn it on, Cyberpad stores a **fingerprint** (SHA-256) of all files in the plugin folder.
+  If anything changes afterwards, the plugin no longer starts until you allow it again.
+- The plugin gets a minimal environment: `PATH`, `HOME`, `USER`, `LANG`, `TMPDIR` and the `CYBERPAD_*` variables
+  below; no tokens or other Cyberpad secrets.
+- The tablet can only use actions and widgets that are in `plugin.json` **and** in your layout. It can never make up a
+  program or parameter of its own.
+- Whatever a plugin sends to the tablet is filtered down to fixed fields with maximum lengths (see *Widgets*).
+  The tablet never runs plugin code.
 
 ## `plugin.json`
 
 ```json
 {
   "id": "hallo",
-  "name": "Hallo wereld",
+  "name": "Hello world",
   "version": "1.0.0",
-  "description": "Voorbeeld",
-  "author": "Jij",
+  "description": "Example",
+  "author": "You",
   "icon": "👋",
   "run": {
     "macos":   ["/usr/bin/python3", "plugin.py"],
@@ -43,86 +42,86 @@ Cyberpad ziet nieuwe of gewijzigde plugins binnen een paar seconden.
     "default": ["python3", "plugin.py"]
   },
   "actions": [
-    { "id": "groet", "name": "Groet",
-      "params": [{ "id": "naam", "name": "Naam", "type": "string", "default": "wereld" }] }
+    { "id": "groet", "name": "Greet",
+      "params": [{ "id": "naam", "name": "Name", "type": "string", "default": "world" }] }
   ],
   "widgets": [
-    { "id": "teller", "name": "Teller", "interval": 30,
+    { "id": "teller", "name": "Counter", "interval": 30,
       "params": [{ "id": "stap", "type": "number", "default": 1 }] }
   ]
 }
 ```
 
-- `id` (en de id's van acties en widgets): kleine letters, cijfers en `-`, max. 40 tekens.
-- `run`: de opdracht per platform; `default` als er geen specifieke is. Een naam zonder `/` (zoals `python3`)
-  wordt in `PATH` gezocht; een relatief pad (`./mijnprogramma`) vanuit de pluginmap. De werkmap is de pluginmap.
-- `params`: beschrijving voor de (latere) editor; `default` wordt meegestuurd als de layout niets invult.
-- `interval`: hoe vaak Cyberpad om widgetgegevens vraagt (1–3600 s, standaard 10). Alleen als er een tablet
-  verbonden is.
+- `id` (and the ids of actions and widgets): lowercase letters, digits and `-`, max. 40 characters.
+- `run`: the command per platform; `default` when there is no specific one. A name without `/` (such as `python3`) is
+  looked up in `PATH`; a relative path (`./myprogram`) is relative to the plugin folder. The working directory is the
+  plugin folder.
+- `params`: description for the editor; `default` is sent when the layout does not fill in a value.
+- `interval`: how often Cyberpad asks for widget data (1–3600 s, default 10). Only while a tablet is connected.
 
-## In de layout
+## In the layout
 
 ```json
-{ "id": "hoi", "label": "Zeg hallo", "x": 0, "y": 0,
-  "action": { "type": "plugin", "plugin": "hallo", "action": "groet", "params": { "naam": "Sven" } } }
+{ "id": "hi", "label": "Say hello", "x": 0, "y": 0,
+  "action": { "type": "plugin", "plugin": "hallo", "action": "groet", "params": { "naam": "Cyberpad" } } }
 
-{ "id": "tel", "label": "Teller", "kind": "plugin", "x": 1, "y": 0, "w": 2,
+{ "id": "count", "label": "Counter", "kind": "plugin", "x": 1, "y": 0, "w": 2,
   "config": { "plugin": "hallo", "widget": "teller", "params": { "stap": 5 } } }
 ```
 
-Een plugin-actie kan ook als `longPress`, `doubleTap`, in een `macro` of in een aan/uit-knop staan.
+A plugin action can also be a `longPress` or `doubleTap`, a step in a `macro`, or part of an on/off button.
 
-## Berichten
+## Messages
 
-Eén JSON-object per regel (UTF-8, afgesloten met `\n`) via **stdin** (van Cyberpad) en **stdout** (naar
-Cyberpad). Schrijf logregels naar **stderr** of als `log`-bericht, nooit los naar stdout. Vergeet niet te flushen
-(`PYTHONUNBUFFERED=1` staat al aan).
+One JSON object per line (UTF-8, terminated by `\n`) over **stdin** (from Cyberpad) and **stdout** (to Cyberpad).
+Write log lines to **stderr** or as a `log` message, never loose on stdout. Remember to flush
+(`PYTHONUNBUFFERED=1` is already set).
 
 ### Cyberpad → plugin
 
-| Bericht | Wanneer |
+| Message | When |
 |---|---|
-| `{"type":"hello","version":1,"host":"Cyberpad","platform":"macos","dataDir":"…"}` | direct na het starten |
-| `{"type":"invoke","id":7,"action":"groet","params":{…},"tile":"hoi","gesture":"tap"}` | knop ingedrukt |
-| `{"type":"widget","id":8,"widget":"teller","tile":"tel","params":{…}}` | widget heeft nieuwe gegevens nodig |
-| `{"type":"widgetAction","id":9,"widget":"teller","tile":"tel","action":"plus","value":1?,"params":{…}}` | knop op de widget |
+| `{"type":"hello","version":1,"host":"Cyberpad","platform":"macos","dataDir":"…"}` | right after starting |
+| `{"type":"invoke","id":7,"action":"groet","params":{…},"tile":"hi","gesture":"tap"}` | button pressed |
+| `{"type":"widget","id":8,"widget":"teller","tile":"count","params":{…}}` | widget needs new data |
+| `{"type":"widgetAction","id":9,"widget":"teller","tile":"count","action":"plus","value":1?,"params":{…}}` | button on the widget |
 
 ### Plugin → Cyberpad
 
-| Bericht | Betekenis |
+| Message | Meaning |
 |---|---|
-| `{"type":"result","id":7,"ok":true}` | antwoord op `invoke`, binnen 10 s |
-| `{"type":"result","id":8,"ok":true,"data":{…}}` | antwoord op `widget` / `widgetAction` met widgetgegevens |
-| `{"type":"result","id":9,"ok":false,"error":"…"}` | mislukt; de tekst verschijnt als melding |
-| `{"type":"update","tile":"tel","data":{…}}` | uit zichzelf nieuwe widgetgegevens sturen |
-| `{"type":"toast","text":"…"}` | melding op de tablet |
-| `{"type":"log","text":"…"}` | regel in het Cyberpad-log |
+| `{"type":"result","id":7,"ok":true}` | reply to `invoke`, within 10 s |
+| `{"type":"result","id":8,"ok":true,"data":{…}}` | reply to `widget` / `widgetAction` with widget data |
+| `{"type":"result","id":9,"ok":false,"error":"…"}` | failed; the text is shown as a message |
+| `{"type":"update","tile":"count","data":{…}}` | send new widget data unprompted |
+| `{"type":"toast","text":"…"}` | message on the tablet |
+| `{"type":"log","text":"…"}` | line in the Cyberpad log |
 
-Geen antwoord binnen 10 s telt als fout. Stopt de plugin onverwacht, dan probeert Cyberpad het later opnieuw
-(na 2, 4, 8 … tot 60 s).
+No reply within 10 s counts as an error. If the plugin stops unexpectedly, Cyberpad retries later
+(after 2, 4, 8 … up to 60 s).
 
 ### Widgets
 
-De tablet tekent een vaste tegel met deze velden (alles optioneel):
+The tablet draws a fixed tile with these fields (all optional):
 
-| Veld | Type | Toont |
+| Field | Type | Shows |
 |---|---|---|
-| `title` | tekst (200) | kop (anders het label van de tegel) |
-| `icon` | tekst | emoji vóór de kop |
-| `value` + `unit` | tekst/getal | grote waarde |
-| `sub` | tekst | regel onder de waarde |
-| `progress` | 0…1 | balk |
-| `active` | bool | waarde in accentkleur |
-| `lines` | max. 8 × `{label, value}` | kleine tabel |
-| `buttons` | max. 4 × `{id, label}` | knoppen; een tik stuurt `widgetAction` met dat `id` |
-| `error` | tekst | foutmelding (tegel wordt grijs) |
+| `title` | text (200) | heading (otherwise the tile's label) |
+| `icon` | text | emoji before the heading |
+| `value` + `unit` | text/number | large value |
+| `sub` | text | line below the value |
+| `progress` | 0…1 | bar |
+| `active` | bool | value in the accent colour |
+| `lines` | max. 8 × `{label, value}` | small table |
+| `buttons` | max. 4 × `{id, label}` | buttons; a tap sends `widgetAction` with that `id` |
+| `error` | text | error message (tile turns grey) |
 
-## Voorbeelden
+## Examples
 
-- `shared/plugins/hallo/`: actie met melding en een teller-widget met knoppen (Python, alleen standaardbibliotheek).
-- `shared/plugins/bereikbaar/`: meet of een server bereikbaar is en hoe snel.
+- `shared/plugins/hallo/`: an action with a message and a counter widget with buttons (Python, standard library only).
+- `shared/plugins/bereikbaar/`: checks whether a server is reachable and how fast.
 
-Testen zonder Cyberpad:
+Testing without Cyberpad:
 
 ```bash
 printf '%s\n' '{"type":"widget","id":1,"widget":"teller","tile":"t","params":{}}' | python3 shared/plugins/hallo/plugin.py

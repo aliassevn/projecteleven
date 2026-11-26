@@ -1,134 +1,133 @@
-# Cyberpad-protocol (tablet ↔ computer)
+# Cyberpad protocol (tablet ↔ computer)
 
-Dit document beschrijft wat de tablet-pagina (`shared/pad/`) van de computer verwacht. De macOS-versie
-(`macos/`) en de toekomstige Windows-versie (`windows/`) volgen allebei dit protocol, zodat één tablet-pagina,
-één layout-formaat en één set plugins voor beide werkt.
+This document describes what the tablet page (`shared/pad/`) expects from the computer. The macOS version (`macos/`)
+and the Windows version (`windows/`) both follow this protocol, so one tablet page, one layout format and one set of
+plugins works for both.
 
-Versie: 1 (fase 0–12).
+Version: 1 (phases 0–12).
 
-## Verbinding
+## Connection
 
-- HTTP/1.1 en WebSocket op **poort 7420**, op alle netwerkkaarten.
-- Alleen verbindingen uit het lokale netwerk (privé-adressen en link-local) worden aangenomen.
-- Vindbaar als `cyberpad.local` (mDNS A-record) en als Bonjour/DNS-SD-dienst `_http._tcp`.
-- De tablet-pagina wordt door dezelfde server geserveerd (`GET /` → `index.html`, `/pad.js`, `/pad.css`,
-  `/manifest.json`, `/icons/…`).
-- `GET /i18n.js` (zonder token): zet `window.CP_LANG` (`en`, `nl` of `es`) en `window.CP_I18N` (woordenboek
-  Nederlands → gekozen taal) voor de tablet en de editor. Zie [TALEN.md](TALEN.md).
-- `POST /api/lang` met `{"lang": "es"}` (apparaat-token of editor-token): wisselt de taal voor alles. Daarna krijgen
-  alle tablets een nieuwe `layout` met `"lang"`; wijkt die af van `CP_LANG`, dan laadt de tablet opnieuw.
-  Paden met `..` of die met een punt beginnen worden geweigerd.
+- HTTP/1.1 and WebSocket on **port 7420**, on all network interfaces.
+- Only connections from the local network (private addresses and link-local) are accepted.
+- Discoverable as `cyberpad.local` (mDNS A record) and as a Bonjour/DNS-SD service `_http._tcp` (Mac).
+- The tablet page is served by the same server (`GET /` → `index.html`, `/pad.js`, `/pad.css`, `/manifest.json`,
+  `/icons/…`). Paths containing `..` or starting with a dot are refused.
+- `GET /i18n.js` (no token): sets `window.CP_LANG` (`en`, `nl` or `es`) and `window.CP_I18N` (dictionary Dutch →
+  chosen language) for the tablet and the editor. See [LANGUAGES.md](LANGUAGES.md).
+- `POST /api/lang` with `{"lang": "es"}` (device token or editor token): switches the language for everything. All
+  tablets then receive a new `layout` with `"lang"`; if it differs from `CP_LANG`, the tablet reloads.
 
-## Koppelen
+## Pairing
 
-1. De computer toont een **koppelcode** van 6 cijfers. Die verloopt na 120 s en werkt één keer.
-2. `POST /api/pair` met `{"code": "123456", "name": "iPad"}`.
+1. The computer shows a 6-digit **pairing code**. It expires after 120 s and works once.
+2. `POST /api/pair` with `{"code": "123456", "name": "iPad"}`.
    - `200 {"token": "<64 hex>", "deviceId": "…"}`
    - `401 {"error": "wrong", "attemptsLeft": n}`
-   - `429 {"error": "blocked", "seconds": n}`: na 5 fouten per IP-adres 60 s geblokkeerd; na 20 fouten een nieuwe code.
-3. De computer bewaart alleen de **SHA-256-hash** van het token. Vergelijken gebeurt in constante tijd.
-4. Intrekken verbreekt direct alle verbindingen van dat apparaat.
+   - `429 {"error": "blocked", "seconds": n}`: blocked for 60 s after 5 errors per IP address; a new code after 20 errors.
+3. The computer only stores the **SHA-256 hash** of the token. Comparisons are constant-time.
+4. Revoking immediately closes all connections of that device.
 
-## Authenticatie
+## Authentication
 
-- HTTP: header `X-Cyberpad-Token: <token>` → anders `401 {"error": "unauthorized"}`.
-- WebSocket: binnen 10 s na het openen `{"type": "hello", "token": "…"}`; anders `{"type": "unauthorized"}` en sluiten.
+- HTTP: header `X-Cyberpad-Token: <token>` → otherwise `401 {"error": "unauthorized"}`.
+- WebSocket: within 10 s of opening, `{"type": "hello", "token": "…"}`; otherwise `{"type": "unauthorized"}` and close.
 
 ## WebSocket `/ws`
 
-Frames volgens RFC 6455; berichten van de tablet moeten gemaskeerd zijn en zijn maximaal 64 KB.
+Frames per RFC 6455; messages from the tablet must be masked and are at most 64 KB.
 
-| Richting | Bericht |
+| Direction | Message |
 |---|---|
 | tablet → computer | `{"type":"hello","token":"…"}` |
-| | `{"type":"ping"}` (elke 25 s) → `{"type":"pong"}` |
-| | `{"type":"press","id":"<tegel>","gesture":"long"\|"double"}`: zonder `gesture` = tik |
-| | `{"type":"slider","id":"<tegel>","value":0.0…1.0}` |
-| | `{"type":"widget","id":"<tegel>","action":"…","value":n?}` |
+| | `{"type":"ping"}` (every 25 s) → `{"type":"pong"}` |
+| | `{"type":"press","id":"<tile>","gesture":"long"\|"double"}`: without `gesture` = tap |
+| | `{"type":"slider","id":"<tile>","value":0.0…1.0}` |
+| | `{"type":"widget","id":"<tile>","action":"…","value":n?}` |
 | | `{"type":"meeting","action":"mute\|video\|hand\|share\|leave"}` |
-| | `{"type":"pointer","id":"<touchpad-tegel>","op":"move\|scroll","dx":n,"dy":n}`: hooguit ~40× per seconde |
-| | `{"type":"pointer","id":"…","op":"click","button":"left\|right"}`, `"op":"down"` / `"up"` (slepen) |
-| | `{"type":"dial","id":"<dial-tegel>","steps":n}`: n tikken van 15°, positief = met de klok mee |
-| | `{"type":"viewport","w":988,"h":644,"vw":1024,"vh":768}`: ruimte voor tegels en venstermaat (voor het voorbeeld in de editor) |
+| | `{"type":"pointer","id":"<touchpad tile>","op":"move\|scroll","dx":n,"dy":n}`: at most ~40× per second |
+| | `{"type":"pointer","id":"…","op":"click","button":"left\|right"}`, `"op":"down"` / `"up"` (dragging) |
+| | `{"type":"dial","id":"<dial tile>","steps":n}`: n ticks of 15°, positive = clockwise |
+| | `{"type":"viewport","w":988,"h":644,"vw":1024,"vh":768}`: space for tiles and window size (for the editor preview) |
 | computer → tablet | `{"type":"welcome","device":"iPad"}` |
-| | `{"type":"layout","layout":{…}}` (zie hieronder) |
-| | `{"type":"state","state":{…}}`: bij elke wijziging, hooguit ~7× per seconde |
+| | `{"type":"layout","layout":{…}}` (see below) |
+| | `{"type":"state","state":{…}}`: on every change, at most ~7× per second |
 | | `{"type":"ack","id":"…","ok":bool,"error":"…"?}` |
-| | `{"type":"toast","text":"…"}`: melding op de tablet |
+| | `{"type":"toast","text":"…"}`: message on the tablet |
 | | `{"type":"unauthorized"}` |
 
-## HTTP-terugval (voor oudere tablets zonder werkende WebSocket)
+## HTTP fallback (for older tablets without a working WebSocket)
 
-Alle met token, allemaal JSON:
+All with token, all JSON:
 
-| Route | Antwoord |
+| Route | Response |
 |---|---|
-| `GET /api/ping` | `{"ok":true,"app":"Cyberpad"}` (zonder token) |
+| `GET /api/ping` | `{"ok":true,"app":"Cyberpad"}` (no token) |
 | `GET /api/layout` | `{"layout":{…},"state":{…}}` |
-| `GET /api/state` | `{"state":{…}}` (de tablet vraagt dit elke 2 s op) |
-| `POST /api/press` | body als het WS-bericht → `{"ok":bool,"error"?}` |
-| `POST /api/slider`, `/api/widget`, `/api/meeting`, `/api/dial` | idem (`pointer` alleen via WebSocket) |
-| `GET /api/photo?tile=<id>&i=<n>` | JPEG (max. 1280 px) voor een `photos`-tegel |
+| `GET /api/state` | `{"state":{…}}` (the tablet polls this every 2 s) |
+| `POST /api/press` | body like the WS message → `{"ok":bool,"error"?}` |
+| `POST /api/slider`, `/api/widget`, `/api/meeting`, `/api/dial` | same (`pointer` only over WebSocket) |
+| `GET /api/photo?tile=<id>&i=<n>` | JPEG (max. 1280 px) for a `photos` tile |
 
 ## Editor (`/editor/`)
 
-De editor (`shared/editor/`) is een gewone webpagina op dezelfde server. `schema.json` beschrijft alle actietypes,
-tegelsoorten en hun velden; macOS en Windows gebruiken dezelfde editor en hetzelfde schema.
+The editor (`shared/editor/`) is an ordinary web page on the same server. `schema.json` describes all action types,
+tile types and their fields; macOS and Windows use the same editor and the same schema. `GET /editor/editor.css` is a
+theme template filled in with the current theme (see [THEMES.md](THEMES.md)).
 
-| Toegang | Hoe |
+| Access | How |
 |---|---|
-| Op de computer zelf | header `X-Cyberpad-Editor: <token>`; het token staat alleen in het editorvenster (via `#mac=` in de URL) en werkt alleen vanaf 127.0.0.1 / ::1 |
-| Vanaf een tablet | gewoon het apparaat-token (`X-Cyberpad-Token`): elke gekoppelde tablet mag bewerken. `POST /api/editor/request` en `GET /api/editor/status` bestaan nog voor oudere editor-pagina's en antwoorden altijd `granted` |
+| On the computer itself | header `X-Cyberpad-Editor: <token>`; the token only lives in the editor window (via `#mac=` in the URL) and only works from 127.0.0.1 / ::1 |
+| From a tablet | just the device token (`X-Cyberpad-Token`): every paired tablet may edit. `POST /api/editor/request` and `GET /api/editor/status` still exist for older editor pages and always answer `granted` |
 
-| Route (met editor-toegang) | Doet |
+| Route (with editor access) | Does |
 |---|---|
-| `GET /api/editor/layout` | `{layout, revision}`: de volledige layout mét acties |
-| `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (intussen gewijzigd) of `422 {errors: […]}` |
-| `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (zonder op te slaan) |
-| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[], shortcuts[], devices[]}`: keuzelijsten, toevoegen-lijst en de gemelde schermmaten van tablets |
-| `GET /api/editor/themes` | alle thema's (volledige definities) |
-| `POST /api/editor/icon` | `{data: "<base64 of data-URL>"}` → `{icon: "img:<naam>"}` (max. 700 KB, wordt 256 px PNG) |
+| `GET /api/editor/layout` | `{layout, revision}`: the full layout including actions |
+| `PUT /api/editor/layout` | `{layout, baseRevision}` → `200 {ok, revision}`, `409` (changed in the meantime) or `422 {errors: […]}` |
+| `POST /api/editor/validate` | `{layout}` → `{errors: […]}` (without saving) |
+| `GET /api/editor/catalog` | `{platform, presets[], plugins[], apps[], shortcuts[], timeZones[], browsers[], devices[]}`: choice lists, the add list and the screen sizes reported by tablets |
+| `GET /api/editor/themes` | all themes (full definitions) |
+| `POST /api/editor/icon` | `{data: "<base64 or data URL>"}` → `{icon: "img:<name>"}` (max. 700 KB, becomes a 256 px PNG) |
 
-Na opslaan stuurt de computer elke tablet een nieuw `layout`-bericht. Export/import gebruikt het formaat
-`{"format": "cyberpad-layout", "version": 1, "exported": "…", "layout": {…}}` (extensie `.cyberpad`).
+After saving, the computer sends every tablet a new `layout` message. Export/import uses the format
+`{"format": "cyberpad-layout", "version": 1, "exported": "…", "layout": {…}}` (extension `.cyberpad`).
 
-## Layout zoals de tablet hem krijgt
+## The layout as the tablet receives it
 
-De computer stuurt een **uitgeklede** versie: alleen wat nodig is om te tekenen. Wat een knop doet (toetsen,
-teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen een tegel-id.
+The computer sends a **stripped** version: only what is needed to draw. What a button does (keys, texts, URLs,
+commands) never leaves the computer; the tablet only sends a tile id.
 
 ```json
 {
   "version": 1, "columns": 5, "rows": 3, "theme": "cyberdeck", "lang": "en",
-  "profile": { "id": "werk", "name": "Werkdag", "fixed": false },
+  "profile": { "id": "work", "name": "Workday", "fixed": false },
   "themeClasses": "fx-glitch fx-upper", "themeKey": "55f9c631698d",
   "pages": [{ "id": "main", "name": "Main", "context": false, "tiles": [
-    { "id": "mute", "label": "Geluid uit", "icon": "🔇", "kind": "button", "x": 3, "y": 0,
+    { "id": "mute", "label": "Mute", "icon": "🔇", "kind": "button", "x": 3, "y": 0,
       "w": 1, "h": 1, "hasLong": true, "hasDouble": false, "toggle": true, "stateKey": "muted" }
   ]}]
 }
 ```
 
-- `themeClasses` gaan op `<html>`; verandert `themeKey`, dan laadt de tablet `pad.css?v=<themeKey>` opnieuw
-  (zie [THEMES.md](THEMES.md)). `pad.css` is het sjabloon met de themakleuren ingevuld.
-- Een tegel kan `color` (`#rrggbb`) en een `icon` als `app:<id>` of `img:<naam>` hebben; die afbeelding komt van
-  `GET /api/icon?src=…&size=…` (apparaat-token of editor-toegang; `size` 16–256, standaard 256).
-- Elke tablet krijgt zijn **eigen** layout: alleen de pagina's uit zijn profiel, in die volgorde.
-  Bij een profielwissel stuurt de computer een nieuw `layout`-bericht; de tablet onthoudt de pagina op `id`.
-- `context: true`: pagina hoort bij een of meer apps (zie `state.context`).
-- `columns` / `rows` op een pagina: eigen raster voor die pagina (bijv. 10×6 compact); anders dat van de layout.
-- Een `agenda`-tegel heeft `count` (1–5): zoveel afspraken uit `state.agenda.items` tonen.
-- `kind`: `button`, `slider`, `clock`, `agenda`, `weather`, `nowplaying`, `timer`, `pomodoro`, `worldclock`,
-  `photos`, `stats`, `terminal`, `ha`, `mqtt`, `plugin`, `touchpad`, `dial`.
-- `stateKey`: welke statuswaarde de knop laat oplichten (of de schuif vult):
-  ingebouwd (`muted`, `micMuted`, `keepAwake`, `darkMode`, `volume`, `micVolume`),
-  `ha:<entiteit>` of `mqtt:<topic>`.
-- `toggle: true` zonder `stateKey`: de computer onthoudt aan/uit in `state.toggles[<tegel>]`.
-- Fouten bij `pointer` (bijv. geen Toegankelijkheid) meldt de computer hooguit eens per 3 s.
-  Valt de verbinding weg tijdens slepen, dan laat de computer de muisknop los.
-- `dangerous: true` (alleen `terminal`): de tablet vraagt een tweede tik en stuurt dan `value: 1`.
+- `themeClasses` go on `<html>`; when `themeKey` changes, the tablet reloads `pad.css?v=<themeKey>` (see
+  [THEMES.md](THEMES.md)). `pad.css` is the template with the theme colours filled in.
+- A tile can have a `color` (`#rrggbb`) and an `icon` as `app:<id>` or `img:<name>`; that image comes from
+  `GET /api/icon?src=…&size=…` (device token or editor access; `size` 16–256, default 256).
+- Every tablet gets its **own** layout: only the pages of its profile, in that order.
+  When the profile changes, the computer sends a new `layout` message; the tablet remembers its page by `id`.
+- `context: true`: the page belongs to one or more apps (see `state.context`).
+- `columns` / `rows` on a page: a grid of its own for that page (e.g. 10×6 compact); otherwise the layout's grid.
+- An `agenda` tile has `count` (1–5): how many events from `state.agenda.items` to show.
+- `kind`: `button`, `slider`, `clock`, `agenda`, `weather`, `nowplaying`, `timer`, `pomodoro`, `worldclock`, `photos`,
+  `stats`, `terminal`, `ha`, `mqtt`, `plugin`, `touchpad`, `dial`.
+- `stateKey`: which state value lights up the button (or fills the slider):
+  built-in (`muted`, `micMuted`, `keepAwake`, `darkMode`, `volume`, `micVolume`), `ha:<entity>` or `mqtt:<topic>`.
+- `toggle: true` without `stateKey`: the computer remembers on/off in `state.toggles[<tile>]`.
+- Errors from `pointer` (e.g. no Accessibility permission) are reported at most once every 3 s.
+  If the connection drops while dragging, the computer releases the mouse button.
+- `dangerous: true` (only `terminal`): the tablet asks for a second tap and then sends `value: 1`.
 
-## Status (`state`)
+## State (`state`)
 
 ```json
 {
@@ -139,23 +138,23 @@ teksten, URL's, commando's) verlaat de computer nooit; de tablet stuurt alleen e
   "agenda": { "status": "ok" | "none" | "noAccess" | "denied", "title": "…", "start": ms, "end": ms,
               "hasLink": true, "app": "zoom",
               "items": [{ "title": "…", "start": ms, "end": ms, "hasLink": false }] },
-  "widgets": { "<tegel>": { … } },
-  "ha": { "<entiteit>": { "status": "ok", "state": "on", "on": true, "name": "…", "level": 0.6, … } },
-  "mqtt": { "<topic>": "<laatste bericht>" },
+  "widgets": { "<tile>": { … } },
+  "ha": { "<entity>": { "status": "ok", "state": "on", "on": true, "name": "…", "level": 0.6, … } },
+  "mqtt": { "<topic>": "<latest message>" },
   "integrations": { "ha": "off|connecting|connected|error", "mqtt": "…" },
   "context": { "page": "work" | null }
 }
 ```
 
-`context.page` is de pagina die bij de app vooraan hoort. De tablet springt erheen als die pagina in zijn layout
-staat, en terug naar de laatst zelf gekozen pagina als `page` weer `null` wordt. Welke app er vooraan staat,
-gaat niet naar de tablet.
+`context.page` is the page that belongs to the frontmost app. The tablet jumps there if that page is in its layout,
+and back to the page it last chose itself when `page` becomes `null` again. Which app is in front is not sent to the
+tablet.
 
-Tijden zijn milliseconden sinds 1970 (UTC). De tablet rekent tijden zelf uit, omdat oude Safari geen tijdzones kent.
+Times are milliseconds since 1970 (UTC). The tablet calculates times itself, because old Safari knows no time zones.
 
-### Widgetgegevens per soort
+### Widget data per kind
 
-| `kind` | Velden |
+| `kind` | Fields |
 |---|---|
 | `weather` | `status`, `temp`, `icon`, `desc`, `code`, `min`, `max`, `rain`, `place`, `updated`, `error` |
 | `nowplaying` | `status`, `app`, `state`, `title`, `artist`, `album`, `position`, `duration`, `at` |
@@ -164,25 +163,27 @@ Tijden zijn milliseconden sinds 1970 (UTC). De tablet rekent tijden zelf uit, om
 | `photos` | `count`, `interval`, `error` |
 | `stats` | `cpu`, `ram` (`used`, `total`), `net` (`up`, `down`), `battery` (`percent`, `charging`, `plugged`), `accessories[]` (`name`, `percent`) |
 | `terminal` | `status`, `output`, `exit`, `started`, `ended`, `dangerous` |
-| `ha` | als `state.ha[…]` |
+| `ha` | as `state.ha[…]` |
 | `mqtt` | `status`, `value`, `unit`, `topic` |
 | `plugin` | `status`, `title`, `value`, `unit`, `sub`, `icon`, `progress`, `active`, `lines[]`, `buttons[]`, `error` |
 
-## Layout-bestand op de computer (`layout.json`)
+## Layout file on the computer (`layout.json`)
 
-Zelfde opbouw als hierboven, maar mét acties. Zie de README voor alle actietypes. Platformverschillen:
+The same structure as above, but with actions. See the README for all action types. Platform differences:
 
-| Actie | macOS | Windows (gepland) |
+| Action | macOS | Windows |
 |---|---|---|
-| `keys.press` | `cmd` = ⌘ | `cmd` wordt Ctrl; `win` = Windows-toets |
-| `app.open` | bundle-id of app-naam | AppUserModelID, pad naar .exe of naam uit het Startmenu |
-| `shortcut.run` | Opdrachten-app | PowerShell-script of Power Automate-flow |
-| `system.darkMode` | systeemvormgeving | app- en systeemthema (register) |
-| `preset` | `shared/catalog/shortcuts.json` → `keys` | idem → `keysWindows` (nog in te vullen) |
-| `page.apps` | bundle-id of app-naam | naam van het .exe-bestand (bijv. `Photoshop.exe`) of AppUserModelID |
-| profiel wisselen | `cyberpad://profile/<id>` (Opdrachten/Focus) | `cyberpad://profile/<id>` (protocol-handler) |
-| aanraakpad | CGEvent (muis, scrollwiel) | `SendInput` met `MOUSEINPUT` / `MOUSEEVENTF_WHEEL` |
-| `icon: "app:…"` | bundle-id → icoon via NSWorkspace | AppUserModelID of .exe → `SHGetFileInfo` / `IShellItemImageFactory` |
+| `keys.press` | `cmd` = ⌘ | `cmd` becomes Ctrl; `win` = Windows key |
+| `app.open` | bundle id or app name | name from the Start menu, path to an .exe/.lnk, or a name Windows knows (`notepad`) |
+| `url.open` + `app` | bundle id of a browser | browser from `StartMenuInternet` (name or id) |
+| `shortcut.run` | Shortcuts app | not available |
+| `system.darkMode` | system appearance | app and system theme (registry) |
+| `preset` | `shared/catalog/shortcuts.json` → `keys` | same → `keysWindows`, otherwise `keys` with `cmd` → Ctrl |
+| `page.apps` | bundle id or app name | planned: .exe name (e.g. `Photoshop.exe`) |
+| switching profile | `cyberpad://profile/<id>` (Shortcuts/Focus) | planned |
+| touchpad | CGEvent (mouse, scroll wheel) | `SendInput` with `MOUSEINPUT` / `MOUSEEVENTF_WHEEL` |
+| `icon: "app:…"` | bundle id → icon via NSWorkspace | Start menu name → icon via the Windows Shell |
 
-Een layout die alleen platformneutrale acties gebruikt (media, audio, `url.open`, `ha.*`, `mqtt.*`,
-`webhook.call`, `plugin`, widgets) werkt op beide zonder aanpassing.
+A layout that only uses platform-neutral actions (media, audio, `url.open`, `ha.*`, `mqtt.*`, `webhook.call`, `plugin`,
+widgets) works on both without changes. Windows 0.1 does not yet support `ha.*`, `mqtt.*`, `webhook.call`, `plugin`,
+the meeting panel and the calendar; see [windows/README.md](../windows/README.md).

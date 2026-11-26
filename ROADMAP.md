@@ -1,217 +1,198 @@
 # Project Eleven — Cyberpad
 
-Een eigen macropad, widgetbord en smart-home-paneel voor de Mac, bediend vanaf een oude iPad/tablet via de browser.
-Functioneel minstens gelijk aan dustyPad Pro, maar lichter, veiliger en met extra's.
+A home-made macro pad, widget board and smart home panel for the Mac (and Windows), controlled from an old
+iPad/tablet through its web browser. At least on par with dustyPad Pro in features, but lighter, safer and with extras.
 
-> Uitgangspunt: we kijken naar dustyPad alleen voor de *opbouw* (welke onderdelen, welke technieken).
-> We kopiëren geen code, thema's, teksten of afbeeldingen uit `dustyPad.app` en bouwen niets om de
-> licentie/trial heen. Open-source onderdelen (Lucide/Tabler-iconen, open fonts) mogen wel, met hun licentie.
+> Ground rule: we only look at dustyPad for its *structure* (which parts, which techniques).
+> We do not copy code, themes, texts or images from `dustyPad.app`, and we build nothing around its licence/trial.
+> Open-source parts (Lucide/Tabler icons, open fonts) are fine, with their licences.
 
 ---
 
-## 1. Wat de analyse van dustyPad.app (v1.7.0) liet zien
+## 1. What the analysis of dustyPad.app (v1.7.0) showed
 
-| Onderdeel | Wat dustyPad gebruikt |
+| Part | What dustyPad uses |
 |---|---|
-| Mac-app | **Electron** (Node.js + Chromium), menubalk-app, macOS 13+, ~500 MB |
-| Server naar tablet | Node HTTP-server + **WebSocket**, poort 7341, gewone HTTP |
-| Vindbaar op netwerk | **Bonjour/mDNS** → `dustypad.local` |
-| Koppelen | 6-cijferige code + QR-code |
-| Tablet-pagina | `index.html` + `pad.js` + `pad.css` in **ES5**, WebSocket met XHR-terugval → werkt op iOS 9 |
-| Thema's | Eén CSS-bestand per thema bovenop een basis-CSS |
-| Native hulpjes | 4 losse Swift/ObjC-programma's: toetsen (Carbon), audio (CoreAudio), afbeeldingen (ImageIO), emoji/app-iconen (AppKit) |
-| Iconen | Lucide + Tabler (open source) |
+| Mac app | **Electron** (Node.js + Chromium), menu bar app, macOS 13+, ~500 MB |
+| Server to tablet | Node HTTP server + **WebSocket**, port 7341, plain HTTP |
+| Discoverable on the network | **Bonjour/mDNS** → `dustypad.local` |
+| Pairing | 6-digit code + QR code |
+| Tablet page | `index.html` + `pad.js` + `pad.css` in **ES5**, WebSocket with XHR fallback → works on iOS 9 |
+| Themes | One CSS file per theme on top of a base CSS |
+| Native helpers | 4 separate Swift/ObjC programs: keys (Carbon), audio (CoreAudio), images (ImageIO), emoji/app icons (AppKit) |
+| Icons | Lucide + Tabler (open source) |
 | Updates | GitHub Releases |
 
-**Wat we anders doen:**
-- **Native Swift i.p.v. Electron** → één app van ~10 MB, geen losse hulpprogramma's, weinig stroom/geheugen.
-- **Sterkere beveiliging** (per-tablet tokens, intrekken, rate-limit, gevaarlijke acties alleen vanuit de editor).
-- **Plugin-systeem** vanaf dag één.
-- **Offline-bestendige tablet-pagina.**
-- Extra functies: vergaderknop, Home Assistant/HomeKit, terminal-widget, contextuele layouts, macro's en meer.
+**What we do differently:**
+- **Native Swift instead of Electron** → one app of ~10 MB, no separate helpers, little power/memory.
+- **Stronger security** (per-tablet tokens, revoking, rate limiting, dangerous actions only from the editor).
+- **Plugin system** from day one.
+- **Offline-resilient tablet page.**
+- Extra features: meeting button, Home Assistant/HomeKit, terminal widget, contextual layouts, macros and more.
 
 ---
 
-## 2. Architectuur Cyberpad
+## 2. Cyberpad architecture
 
 ```
 ┌──────────── iPad (Safari) ────────────┐        ┌─────────── Mac: Cyberpad.app (Swift) ───────────┐
-│  pad/ (ES5, geen build-stap)          │  Wi-Fi │  SwiftUI menubalk-app (MenuBarExtra)            │
-│  - grid, pagina's, widgets            │◄──────►│  Network.framework:                             │
-│  - thema-CSS + animaties              │   WS   │   - HTTP + WebSocket-server  :7420              │
-│  - layout gecachet (offline)          │        │   - Bonjour  cyberpad.local                     │
-│  - tik / lang / dubbel / swipe        │        │  Pairing & tokens (Keychain)                    │
-│  - webeditor-modus                    │        │  Actie-router ──► acties + plugins              │
-└───────────────────────────────────────┘        │  Widget-feeds (audio, stats, agenda, HA, ...)   │
-                                                 │  Context-engine (actieve app, Focus, tijd)      │
-                                                 │  SwiftUI editor-venster                         │
+│  pad/ (ES5, no build step)            │  Wi-Fi │  SwiftUI menu bar app (MenuBarExtra)            │
+│  - grid, pages, widgets               │◄──────►│  Network.framework:                             │
+│  - theme CSS + animations             │   WS   │   - HTTP + WebSocket server  :7420              │
+│  - cached layout (offline)            │        │   - Bonjour  cyberpad.local                     │
+│  - tap / long / double / swipe        │        │  Pairing & tokens                               │
+│  - web editor mode                    │        │  Action router ──► actions + plugins            │
+└───────────────────────────────────────┘        │  Widget feeds (audio, stats, calendar, HA, ...) │
+                                                 │  Context engine (frontmost app, Focus, time)    │
+                                                 │  Editor window                                  │
                                                  └─────────────────────────────────────────────────┘
                                                         │                │
                                                Home Assistant /    Webhooks / MQTT /
                                                HomeKit             scripts / Shortcuts
 ```
 
-**Macos-frameworks die we gebruiken:** CGEvent (toetsen/tekst), CoreAudio (volume, mic, uitvoer),
-AppKit/NSWorkspace (apps, iconen, actieve app), EventKit (agenda), HomeKit (optioneel), IOKit (batterij),
-Network.framework (server, Bonjour), Security (Keychain).
+**macOS frameworks we use:** CGEvent (keys/text), CoreAudio (volume, mic, output), AppKit/NSWorkspace (apps, icons,
+frontmost app), EventKit (calendar), IOKit (battery), Network.framework (server, Bonjour), Security (Keychain).
 
-**Protocol (JSON over WebSocket):**
-- tablet → Mac: `{type:"press", id, gesture:"tap|long|double"}`, `{type:"slider", id, value}`, `{type:"touchpad", dx, dy}`
-- Mac → tablet: `{type:"layout", ...}`, `{type:"state", id, ...}`, `{type:"context", profile}`
+**Protocol (JSON over WebSocket):** see [docs/PROTOCOL.md](docs/PROTOCOL.md).
 
 ---
 
-## 3. Stappenplan
+## 3. Roadmap
 
-### Fase 0 — Voorbereiding (½ dag)
-1. Installeer Xcode (volledig, niet alleen Command Line Tools) en Git.
-2. `git init` in deze map; zet `dustyPad.app/` in `.gitignore`.
-3. Projectstructuur:
-   ```
-   Cyberpad/            # Xcode-project (SwiftUI, macOS 13+)
-     App/               # menubalk, venster, app-lifecycle
-     Server/            # HTTP, WebSocket, Bonjour, pairing
-     Actions/           # ingebouwde acties
-     Widgets/           # widget-feeds
-     Plugins/           # plugin-loader
-     Context/           # actieve app, Focus, tijdsprofielen
-     Editor/            # SwiftUI-editor
-   pad/                 # tablet-pagina (ES5, plain JS/CSS)
-   catalog/             # JSON: shortcut-bibliotheek, thema's
-   ```
+### Phase 0 — Preparation (½ day)
+1. Install Xcode (full, not just the Command Line Tools) and Git.
+2. `git init` in this folder; put `dustyPad.app/` in `.gitignore`.
+3. Project structure: `macos/` (Swift package), `shared/` (tablet page, editor, catalogue, themes), `docs/`.
 
-### Fase 1 — Minimale verbinding (2 dagen)
-4. SwiftUI-menubalk-app (`MenuBarExtra`), optie "start bij inloggen" (`SMAppService`).
-5. HTTP-server met `NWListener` die `pad/` serveert; WebSocket via `NWProtocolWebSocket`.
-6. Tablet-pagina in ES5: grid tekenen, tik → bericht. Testen op je oude iPad.
-7. XHR-polling als terugval voor oude Safari; automatisch opnieuw verbinden.
+### Phase 1 — Minimal connection (2 days)
+4. SwiftUI menu bar app (`MenuBarExtra`), option "start at login" (`SMAppService`).
+5. HTTP server with `NWListener` serving `pad/`; WebSocket.
+6. Tablet page in ES5: draw the grid, tap → message. Test on the old iPad.
+7. XHR polling as a fallback for old Safari; reconnect automatically.
 
-### Fase 2 — Vindbaar & veilig koppelen (2 dagen)
-8. Bonjour-advertentie → `cyberpad.local:7420`.
-9. Pairing: Mac toont 6-cijferige code + QR; tablet krijgt een **eigen token per apparaat**.
-10. Tokens opslaan in de **Keychain**; in de app een lijst "Gekoppelde tablets" met naam, laatst gezien en **Intrekken**.
-11. **Rate-limit**: na 5 foute codes 1 minuut blokkeren; code verloopt na 2 minuten.
-12. Alleen verbindingen uit het lokale subnet accepteren.
-13. **Gevaarlijke acties** (tekst typen, script/terminal, webhooks) worden alleen uitgevoerd als ze in de
-    editor op de Mac zijn ingesteld. De tablet stuurt alleen een knop-id, nooit zelf een commando of tekst.
-14. Optioneel: HTTPS met een zelfgemaakt certificaat voor moderne tablets (oude iOS blijft op HTTP).
+### Phase 2 — Discoverable and safe pairing (2 days)
+8. Bonjour advertisement → `cyberpad.local:7420`.
+9. Pairing: the Mac shows a 6-digit code + QR; the tablet gets **its own token per device**.
+10. A "Paired tablets" list in the app with name, last seen and **Revoke**.
+11. **Rate limiting**: block for 1 minute after 5 wrong codes; a code expires after 2 minutes.
+12. Only accept connections from the local subnet.
+13. **Dangerous actions** (typing text, scripts/terminal, webhooks) only run when they were set up in the editor on the
+    Mac. The tablet only sends a button id, never a command or text of its own.
+14. Optional: HTTPS with a self-made certificate for modern tablets (old iOS stays on HTTP).
 
-### Fase 3 — Basisacties (2–3 dagen)
-15. Actie-router: `actie-id → handler`, elke actie beschreven in een catalogus (naam, icoon, parameters).
-16. Media: play/pause, volgende/vorige (media-toetsen via CGEvent of AppleScript naar Music/Spotify).
-17. Volume op/neer/mute, mic mute, uitvoerapparaat wisselen (CoreAudio).
-18. App of URL openen, dark mode, scherm vergrendelen, screenshots, wakker houden, beeldscherm uit.
-19. macOS-rechten netjes aanvragen + uitleg (Toegankelijkheid, Automation, Lokaal netwerk, Agenda).
+### Phase 3 — Basic actions (2–3 days)
+15. Action router: `action id → handler`, every action described in a catalogue (name, icon, parameters).
+16. Media: play/pause, next/previous (media keys via CGEvent).
+17. Volume up/down/mute, mic mute (CoreAudio).
+18. Open an app or URL, dark mode, lock screen, screenshots, keep awake, display off.
+19. Ask for macOS permissions properly, with explanations (Accessibility, Automation, Local Network, Calendar).
 
-### Fase 4 — Pro-acties (3 dagen)
-20. **Shortcut-bibliotheek** (`catalog/shortcuts.json`) voor Zoom, Meet, Teams, Slack, Loom, Photoshop, VS Code…
-21. Willekeurige toetscombinatie en tekst typen (CGEvent).
-22. Opdrachten-app: `shortcuts run "Naam"`; Focus-modus via een Shortcut.
-23. **Aan/uit-knoppen** die hun status tonen.
-24. **Macro's met meerdere stappen**: app openen → wachten → toetscombinatie → tekst typen → …
-25. **Tweede en derde actie per knop**: tik, lang indrukken, dubbeltikken.
+### Phase 4 — Pro actions (3 days)
+20. **Shortcut library** (`catalog/shortcuts.json`) for Zoom, Meet, Teams, Slack, Loom, VS Code…
+21. Any key combination and typing text (CGEvent).
+22. Shortcuts app: `shortcuts run "Name"`; Focus mode via a shortcut.
+23. **On/off buttons** that show their state.
+24. **Multi-step macros**: open app → wait → key combination → type text → …
+25. **Second and third action per button**: tap, long press, double tap.
 
-### Fase 5 — ⭐ Vergaderknop (2 dagen)
-26. Detecteer actieve vergader-app (Zoom, Teams, Meet in browser, Webex) via `NSWorkspace` + venstertitels.
-27. Toon dan automatisch een vergaderpaneel: **mute, camera, hand opsteken, scherm delen, ophangen**.
-28. Toon de **mute-status** (rood/groen) — zo betrouwbaar als de app toelaat (Zoom/Teams via menu-items
-    met Toegankelijkheid; anders eigen toggle-status bijhouden).
-29. Agenda-widget (EventKit): volgende afspraak, aftellen, knop **"Deelnemen"** (opent de vergaderlink).
+### Phase 5 — ⭐ Meeting button (2 days)
+26. Detect an active meeting app (Zoom, Teams, Meet in the browser, Webex) via `NSWorkspace` + window titles.
+27. Then show a meeting panel automatically: **mute, camera, raise hand, share screen, hang up**.
+28. Show the **mute state** (red/green) as reliably as the app allows (Zoom via menu items with Accessibility;
+    otherwise keep our own toggle state).
+29. Calendar widget (EventKit): next event, countdown, **"Join"** button (opens the meeting link).
 
-### Fase 6 — Widgets (3–4 dagen)
-30. Basis: klok, weer (Open-Meteo, geen API-key), nu-speelt, volume-/mic-slider, trackpositie.
-31. Pro: timer, Pomodoro, wereldklok, fotoslideshow, muziekspeler, niveaumeter,
-    systeemstats (CPU, RAM, netwerk, batterij van accessoires via IOKit).
-32. ⭐ **Terminal-widget**: een in de editor vastgelegd commando starten en de uitvoer live tonen
-    (build, ping, `tail -f` van een log). Bevestiging op de tablet bij commando's die als "gevaarlijk" zijn gemarkeerd;
-    stopknop; maximale looptijd.
+### Phase 6 — Widgets (3–4 days)
+30. Basics: clock, weather (Open-Meteo, no API key), now playing, volume/mic slider, track position.
+31. Pro: timer, Pomodoro, world clock, photo slideshow, music player, system stats (CPU, RAM, network, battery of
+    accessories via IOKit).
+32. ⭐ **Terminal widget**: start a command defined in the editor and show its output live (build, ping, `tail -f` of a
+    log). Confirmation on the tablet for commands marked "dangerous"; stop button; maximum run time.
 
-### Fase 7 — ⭐ Smart home & koppelingen (3 dagen)
-33. **Home Assistant**: URL + long-lived token in de Keychain; lampen, scènes, schakelaars, temperatuur;
-    live status via de HA-WebSocket-API.
-34. **HomeKit** (optioneel; vereist entitlement en is beperkter op macOS) — anders via Home Assistant.
-    *Besloten:* via de HomeKit-integratie van Home Assistant; een eigen HomeKit-koppeling vraagt een betaald
-    ontwikkelaarsaccount en een Catalyst-app.
-35. **Webhook-knop** (GET/POST met eigen body) voor IFTTT, Zapier, n8n of eigen scripts.
-36. **MQTT-knop** en MQTT-widget (waarde van een topic tonen).
+### Phase 7 — ⭐ Smart home and integrations (3 days)
+33. **Home Assistant**: URL + long-lived token in the Keychain; lights, scenes, switches, temperature; live state via
+    the HA WebSocket API.
+34. **HomeKit**: *decided:* via Home Assistant's HomeKit integration; a HomeKit integration of our own needs a paid
+    developer account and a Catalyst app.
+35. **Webhook button** (GET/POST with a custom body) for IFTTT, Zapier, n8n or your own scripts.
+36. **MQTT button** and MQTT widget (show the value of a topic).
 
-### Fase 8 — Plugin-systeem (2–3 dagen)
-37. Map `~/Library/Application Support/Cyberpad/Plugins/`; elke plugin = `plugin.json` + script.
-38. `plugin.json` beschrijft acties/widgets, parameters en icoon; de editor toont ze automatisch.
-39. Plugins draaien als apart proces met JSON via stdin/stdout (crasht een plugin, dan blijft Cyberpad draaien).
-40. Ingebouwde functies zoveel mogelijk via dezelfde catalogus, zodat plugins gelijkwaardig zijn.
+### Phase 8 — Plugin system (2–3 days)
+37. Folder `~/Library/Application Support/Cyberpad/Plugins/`; each plugin = `plugin.json` + a script.
+38. `plugin.json` describes actions/widgets, parameters and icon; the editor shows them automatically.
+39. Plugins run as a separate process with JSON over stdin/stdout (if a plugin crashes, Cyberpad keeps running).
+40. Built-in features use the same catalogue where possible, so plugins are first-class.
 
-### Fase 9 — Context & profielen (2 dagen)
-41. **Contextuele layouts**: pagina wisselt automatisch op basis van de actieve app (Photoshop → Photoshop-knoppen).
-42. **Profielen per tijdstip of Focus-modus** (werk overdag, media 's avonds).
-43. **Meerdere tablets met elk een eigen layout** (gekoppeld aan het token per apparaat).
+### Phase 9 — Context and profiles (2 days)
+41. **Contextual layouts**: the page switches automatically based on the frontmost app (Photoshop → Photoshop buttons).
+42. **Profiles by time of day or Focus mode** (work during the day, media in the evening).
+43. **Several tablets, each with its own layout** (tied to the per-device token).
 
-### Fase 10 — Tablet-ervaring (3 dagen)
-44. **Offline-bestendig**: layout en thema in `localStorage`; bij verbindingsverlies blijft alles zichtbaar
-    met de melding "verbinding weg" en een teller tot het opnieuw verbinden.
-45. **Aanraakpad-modus**: tablet als extra trackpad, plus draaiknop-gebaar voor volume/scrollen.
-    *Uitgewerkt als tegels* (`touchpad`, `dial`), zodat je ze naast gewone knoppen op een pagina zet.
-46. **Ambient-modus**: na X minuten zonder aanraken klok, stats of foto's tonen, gedimd; tik = terug.
-47. **Animaties en geluid** bij indrukken (uit te zetten; licht houden voor oude iPads).
-48. "Toevoegen aan beginscherm" (web-app-manifest, schermvullend, geen adresbalk).
-    Plus een knop ⛶ en de instelling *Altijd schermvullend* (Fullscreen-API, iPadOS 12+), zonder opnieuw te koppelen.
-    *Beperking:* zonder https is er geen service worker; is de Mac uit, dan kan een (her)geopende pagina niet laden.
-    Een pagina die al open staat blijft wel werken met de laatst bekende stand.
+### Phase 10 — Tablet experience (3 days)
+44. **Offline-resilient**: layout and theme in `localStorage`; when the connection drops everything stays visible,
+    with a "connection lost" notice and a countdown to the next attempt.
+45. **Touchpad mode**: the tablet as an extra trackpad, plus a dial gesture for volume/scrolling.
+    *Built as tiles* (`touchpad`, `dial`), so you can put them next to ordinary buttons on a page.
+46. **Ambient mode**: after X minutes without touching, show a dimmed clock, stats or photos; tap = back.
+47. **Animations and sound** on press (can be turned off; kept light for old iPads).
+48. "Add to Home Screen" (web app manifest, full screen, no address bar).
+    Plus a ⛶ button and the setting *Always full screen* (Fullscreen API, iPadOS 12+), without pairing again.
+    *Limitation:* without https there is no service worker; if the Mac is off, a (re)opened page cannot load.
+    A page that is already open keeps working with the last known state.
 
-### Fase 11 — Editors (4–5 dagen)
-49. **SwiftUI-editor op de Mac**: grid-grootte, knoppen slepen, actie kiezen, icoon/kleur/label, pagina's, profielen.
-    *Besloten:* één web-editor (`shared/editor/`) voor Mac-venster, tablet én straks Windows (WebView2),
-    in plaats van een aparte SwiftUI-editor. Zo hoeft de editor niet per platform opnieuw gebouwd te worden.
-50. Iconenkiezer: Lucide + Tabler (licenties meeleveren), emoji, app-iconen, eigen afbeeldingen/logo's.
-    *Nu:* emoji, app-iconen en eigen afbeeldingen (fase 12). Lucide/Tabler meeleveren kan later (licentie
-    meeleveren, ±1–3 MB aan SVG's).
-51. **Webeditor op de tablet**: bewerkmodus met slepen en neerzetten (na bevestiging op de Mac of met PIN).
-52. Wijzigingen live naar alle tablets pushen.
-53. **Layouts exporteren/importeren** als `.cyberpad`-bestand of QR-code.
-    *Nu:* `.cyberpad`-bestand. Een hele layout past niet in een QR-code; delen via QR kan later via een
-    eenmalige downloadlink.
+### Phase 11 — Editors (4–5 days)
+49. **Editor on the Mac**: grid size, dragging buttons, choosing an action, icon/colour/label, pages, profiles.
+    *Decided:* one web editor (`shared/editor/`) for the Mac window, the tablet and Windows (WebView2), instead of a
+    separate SwiftUI editor. That way the editor does not have to be rebuilt per platform.
+50. Icon picker: emoji, app icons, custom images/logos. Bundling Lucide/Tabler can come later (with their licences,
+    ±1–3 MB of SVGs).
+51. **Web editor on the tablet**: edit mode with drag and drop.
+52. Push changes live to all tablets.
+53. **Export/import layouts** as a `.cyberpad` file. A whole layout does not fit in a QR code; sharing via QR could
+    later work through a one-time download link.
 
-### Fase 12 — Thema's, waaronder een eigen Cyberdeck (2–3 dagen)
-54. Basis-CSS met variabelen; per thema een gegenereerd CSS-bestand voor oude Safari.
-    *Uitgewerkt:* één sjabloon (`shared/pad/pad.css`) dat de computer per thema invult; geen CSS-variabelen nodig.
-55. Eigen ontwerpen: **Cyberdeck** (neon, scanlines, glitch, mono-font), Terminal, Cockpit, Vapor, Minimal.
-56. Open fonts (JetBrains Mono, VT323, Barlow Condensed, Orbitron).
-    *Nu:* lettertypen die al op iPad/Mac/Windows staan (werkt offline, niets te downloaden). Open fonts meeleveren
-    kan later; dat vraagt de lettertypebestanden plus hun licentie (OFL) in de repo.
-57. **Thema-bouwer**: kleuren, glow, randen, font, animaties → eigen thema opslaan en delen.
+### Phase 12 — Themes, including our own Cyberdeck (2–3 days)
+54. *Built as:* one template (`shared/pad/pad.css`, and `shared/editor/editor.css` for the editor) that the computer
+    fills in per theme; no CSS variables needed, so it works on old Safari.
+55. Own designs: **Cyberdeck** (neon, scanlines, glitch, mono font), Terminal, Cockpit, Vapor, Minimal, Night,
+    Graphite, Contrast, Ocean.
+56. Fonts: for now fonts that already ship with iPad/Mac/Windows (works offline, nothing to download). Bundling open
+    fonts (JetBrains Mono, VT323, Barlow Condensed, Orbitron) can come later, with their licence (OFL).
+57. **Theme builder**: colours, glow, borders, font, effects → saved with the layout and shared via export.
 
-### Fase 13 — Diagnose (1 dag)
-58. Diagnosepagina in de Mac-app én op de tablet: verbindingsstatus, vertraging (ping), ontbrekende
-    macOS-rechten met knop "Open Systeeminstellingen", IP-adres/poort, logboek van de laatste acties.
+### Phase 13 — Diagnostics (1 day)
+58. Diagnostics page in the Mac app and on the tablet: connection state, latency (ping), missing macOS permissions
+    with an "Open System Settings" button, IP address/port, log of the latest actions.
 
-### Fase 14 — Verpakken & distribueren (1–2 dagen)
-59. Universal build (arm64 + x86_64), `.dmg`.
-60. Code-signing + notarisatie (Apple Developer-account, $99/jaar).
-61. Auto-updates met **Sparkle**.
-62. Optioneel: licentiesleutels via Gumroad of Lemon Squeezy, met een eerlijke gratis versie.
+### Phase 14 — Packaging and distribution (1–2 days)
+59. Universal build (arm64 + x86_64), `.dmg`. *Done:* `macos/scripts/make-dmg.sh` and a GitHub Actions workflow.
+60. Code signing + notarisation (Apple Developer account, $99/year).
+61. Automatic updates with **Sparkle**.
+62. Optional: licence keys via Gumroad or Lemon Squeezy, with a fair free version.
 
-### Fase 15 — Testen
-63. Apparaten: oude iPad (iOS 9–12), nieuwe iPad, Android-tablet, telefoon; Intel- én Apple-silicon-Mac.
-64. Scenario's: wifi weg/terug, Mac slaapt, twee tablets tegelijk, rechten geweigerd, token ingetrokken,
-    plugin crasht, Home Assistant onbereikbaar, terminal-commando hangt.
+### Phase 15 — Testing
+63. Devices: old iPad (iOS 9–12), new iPad, Android tablet, phone; Intel and Apple silicon Macs; Windows 10/11.
+64. Scenarios: Wi-Fi gone/back, Mac asleep, two tablets at once, permissions denied, token revoked, plugin crashes,
+    Home Assistant unreachable, terminal command hangs.
 
 ---
 
-### Fase 16 — Windows 11-versie (3–4 weken)
-Zelfde tablet-pagina, protocol, layout-formaat en plugins (`shared/`, `docs/PROTOCOL.md`, `docs/PLUGINS.md`);
-een eigen programma voor Windows in C#/.NET 8 met Kestrel, `SendInput`, Core Audio en DNS-SD.
-Uitgewerkt in [windows/README.md](windows/README.md).
+### Phase 16 — Windows 10/11 version (3–4 weeks)
+Same tablet page, protocol, layout format and plugins (`shared/`, `docs/PROTOCOL.md`, `docs/PLUGINS.md`); a program of
+its own for Windows in C#/.NET 8 with Kestrel, `SendInput`, Core Audio and DNS-SD.
+*Version 0.1 done* (core features and installer); see [windows/README.md](windows/README.md) for what follows.
 
-## 4. Prioriteiten
+## 4. Priorities
 
-| Prioriteit | Fases | Resultaat |
+| Priority | Phases | Result |
 |---|---|---|
-| **1 — Prototype** | 0–3 | iPad bedient je Mac veilig (één weekend tot een week) |
-| **2 — Pro-gelijk** | 4, 6, 11, 12 | Vergelijkbaar met dustyPad Pro |
-| **3 — Onderscheidend** ⭐ | 5, 7, 6 (terminal) | Vergaderknop, smart home, terminal-widget |
-| **4 — Afwerking** | 8–10, 13–15 | Plugins, context, offline, diagnose, distributie |
-| **5 — Windows** | 16 | Zelfde tablet en plugins op Windows 11 |
+| **1 — Prototype** | 0–3 | The iPad controls your Mac safely (a weekend to a week) |
+| **2 — Pro parity** | 4, 6, 11, 12 | Comparable to dustyPad Pro |
+| **3 — Distinctive** ⭐ | 5, 7, 6 (terminal) | Meeting button, smart home, terminal widget |
+| **4 — Finishing** | 8–10, 13–15 | Plugins, context, offline, diagnostics, distribution |
+| **5 — Windows** | 16 | The same tablet page and plugins on Windows |
 
-## 5. Inschatting
-Ongeveer **8–10 weken** parttime voor de volledige versie met alle extra's.
-Het prototype (fase 0–3) kan in een weekend tot een week, afhankelijk van je Swift-ervaring.
+## 5. Estimate
+Roughly **8–10 weeks** part-time for the full version with all extras.
+The prototype (phases 0–3) takes a weekend to a week, depending on your Swift experience.
