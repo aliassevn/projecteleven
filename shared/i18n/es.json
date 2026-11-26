@@ -802,5 +802,8 @@
   "Instellingen": "Configuración",
   "Cyberpad draait al. Je vindt het icoon rechtsonder in het systeemvak.": "Cyberpad ya está en marcha. Encontrarás su icono abajo a la derecha, en el área de notificación.",
   "Geen microfoon gevonden": "No se encontró ningún micrófono",
-  "Geen geluidsuitgang gevonden": "No se encontró ninguna salida de audio"
+  "Geen geluidsuitgang gevonden": "No se encontró ninguna salida de audio",
+  "OP ALLE PAGINA'S TOEPASSEN": "APLICAR A TODAS LAS PÁGINAS",
+  "Raster {0} op alle {1} pagina's toepassen? De tegels schalen mee.": "¿Aplicar la cuadrícula {0} a las {1} páginas? Los mosaicos se escalan también.",
+  "Raster {0} staat nu op alle pagina's. Controleer ze en klik Opslaan.": "Todas las páginas usan ahora la cuadrícula {0}. Revísalas y haz clic en Guardar."
 }

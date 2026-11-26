@@ -802,5 +802,8 @@
   "Instellingen": "Settings",
   "Cyberpad draait al. Je vindt het icoon rechtsonder in het systeemvak.": "Cyberpad is already running. You will find its icon at the bottom right, in the notification area.",
   "Geen microfoon gevonden": "No microphone found",
-  "Geen geluidsuitgang gevonden": "No audio output found"
+  "Geen geluidsuitgang gevonden": "No audio output found",
+  "OP ALLE PAGINA'S TOEPASSEN": "APPLY TO ALL PAGES",
+  "Raster {0} op alle {1} pagina's toepassen? De tegels schalen mee.": "Apply the {0} grid to all {1} pages? The tiles are scaled along.",
+  "Raster {0} staat nu op alle pagina's. Controleer ze en klik Opslaan.": "All pages now use the {0} grid. Check them and click Save."
 }

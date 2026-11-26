@@ -1609,7 +1609,7 @@
     msel.value = mode;
     on(msel, 'change', function () {
       snapshot();
-      if (msel.value === 'std') { delete pg.columns; delete pg.rows; }
+      if (msel.value === 'std') { toStandard(pg); }
       else if (msel.value === 'compact') { scalePage(pg, Math.min(12, L.columns * 2), Math.min(8, L.rows * 2)); }
       else { pg.columns = pg.columns || L.columns; pg.rows = pg.rows || L.rows; }
       afterChange(true);
@@ -1625,6 +1625,24 @@
       pgr.appendChild(own);
     }
     pgr.appendChild(el('div', 'hint', T('Compact: kies dit om meer, kleinere tegels op één pagina te zetten. Bestaande tegels worden mee vergroot, zodat ze even groot blijven.')));
+    // Hetzelfde raster in één keer op alle pagina's (tegels schalen mee).
+    if (L.pages.length > 1) {
+      var all = el('button', 'btn small', T('OP ALLE PAGINA\'S TOEPASSEN'));
+      tap(all, function () {
+        var size = pg.columns ? pg.columns + '×' + pg.rows : std;
+        if (!window.confirm(T('Raster {0} op alle {1} pagina\'s toepassen? De tegels schalen mee.', size, L.pages.length))) { return; }
+        snapshot();
+        for (var pi = 0; pi < L.pages.length; pi++) {
+          var other = L.pages[pi];
+          if (other === pg) { continue; }
+          if (!pg.columns) { toStandard(other); }
+          else if (other.columns !== pg.columns || other.rows !== pg.rows) { scalePage(other, pg.columns, pg.rows); }
+        }
+        afterChange(true);
+        message(T('Raster {0} staat nu op alle pagina\'s. Controleer ze en klik Opslaan.', size), false);
+      });
+      pgr.appendChild(all);
+    }
     side.appendChild(pgr);
 
     var g = el('div', 'sec');
@@ -1647,6 +1665,12 @@
   }
 
   // Pagina naar een ander raster: posities en maten mee schalen, zodat alles even groot blijft.
+  // Terug naar het standaardraster van de layout; tegels schalen mee terug.
+  function toStandard(pg) {
+    if (pg.columns) { scalePage(pg, E.layout.columns, E.layout.rows); }
+    delete pg.columns; delete pg.rows;
+  }
+
   function scalePage(pg, c, r) {
     var oc = pg.columns || E.layout.columns, or = pg.rows || E.layout.rows;
     var fx = c / oc, fy = r / or;
